@@ -1,5 +1,4 @@
-from x86.misc import FukuOperandSize, FukuCondition
-from x86.fuku_register_math_tables import FULL_INCLUDE_FLAGS_TABLE, CAPSTONE_JCC, CAPSTONE_SETCC, CAPSTONE_MOVCC
+from x86.fuku_register_math_tables import FULL_INCLUDE_FLAGS_TABLE
 
 
 def bit_scan_forward(index, mask):

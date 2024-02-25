@@ -23,10 +23,14 @@ class FukuObfuscator(BaseModel):
         self.handle_jumps()
 
     def handle_jumps(self):
-        fuku_asm = FukuAsm(
+        fuku_asm = FukuAsm()
+
+        fuku_asm.set_holder(
             code_holder = self.code,
             hold_type = FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_FIRST_OVERWRITE
         )
+
+        from IPython import embed; embed()  # DEBUG
 
         for line in self.code.instructions:
             match line.id:

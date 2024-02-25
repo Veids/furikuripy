@@ -31,3 +31,6 @@ def X86_REL_ADDR(inst):
         return inst.operands[0].imm
     else:
         return inst.address + inst.size + inst.disp
+
+def UNUSUAL_DATASET():
+    raise Exception("UNUSUAL_DATASET triggered")

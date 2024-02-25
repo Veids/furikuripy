@@ -1,6 +1,7 @@
 from capstone import x86_const
 from x86.fuku_register_math_metadata import *
 
+
 CAPSTONE_JCC = [
     x86_const.X86_INS_JO, x86_const.X86_INS_JNO,
     x86_const.X86_INS_JB, x86_const.X86_INS_JAE,
