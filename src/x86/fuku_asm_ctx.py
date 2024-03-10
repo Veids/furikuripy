@@ -15,18 +15,18 @@ FukuAsmCtx = ForwardRef("FukuAsmCtx")
 
 class RawOperand(BaseModel):
     ctx: FukuAsmCtx
-    data: List[int] = [0] * 8
+    data: bytes = bytearray(8)
     operand_size: int = 0
 
-    def set_modrm(self, mod, reg, rm: FukuRegisterIndex):
-        assert mod > 3
-        self.data[0] = mod << 6 | reg << 3 | rm.value
+    def set_modrm(self, mod, reg: FukuRegisterIndex, rm: FukuRegisterIndex):
+        assert mod < 3
+        self.data[0] = mod << 6 | reg.value << 3 | rm.value
         if self.operand_size < 1:
             self.operand_size = 1
 
     def set_sib(self, scale: FukuOperandScale, reg_idx_index: FukuRegisterIndex, reg_idx_base: FukuRegisterIndex):
-        assert self.operand_size > 1
-        assert scale.value > 3
+        assert self.operand_size < 1
+        assert scale.value < 3
         self.data[1] = (scale.value << 6) | (reg_idx_index.value << 3) | reg_idx_base.value
         if self.operand_size < 2:
             self.operand_size = 2
@@ -37,14 +37,14 @@ class RawOperand(BaseModel):
         self.operand_size += 1
 
     def set_dispr(self, disp):
-        self.data += list(struct.pack("<I"))
+        self.data += struct.pack("<I", disp)
         self.ctx.displacment_offset = len(self.ctx.bytecode) + self.operand_size
         self.operand_size += 4
 
 
 class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
     arch: FUKU_ASSEMBLER_ARCH
-    bytecode: bytes = bytes()
+    bytecode: bytes = bytearray()
 
     displacment_offset: int = 0
     immediate_offset: int = 0
@@ -57,42 +57,42 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
 
     @property
     def is_used_short_eax(self) -> bool:
-        return self.short_cfg & FukuAsmShortCfg.FUKU_ASM_SHORT_CFG_USE_EAX_SHORT
+        return self.short_cfg & FukuAsmShortCfg.FUKU_ASM_SHORT_CFG_USE_EAX_SHORT.value
 
     @property
     def is_used_short_imm(self) -> bool:
-        return self.short_cfg & FukuAsmShortCfg.FUKU_ASM_SHORT_CFG_USE_IMM_SHORT
+        return self.short_cfg & FukuAsmShortCfg.FUKU_ASM_SHORT_CFG_USE_IMM_SHORT.value
 
     @property
     def is_used_short_disp(self) -> bool:
-        return self.short_cfg & FukuAsmShortCfg.FUKU_ASM_SHORT_CFG_USE_DISP_SHORT
+        return self.short_cfg & FukuAsmShortCfg.FUKU_ASM_SHORT_CFG_USE_DISP_SHORT.value
 
     def gen_func_return(self, id, cap_eflags):
         inst = FukuInst()
-        inst.opcode = self.bytecode
+        inst.opcode = self.bytecode.copy()
         inst.id = id
         inst.cpu_flags = cap_eflags
 
-        self.inst = inst
+        self.inst.update(inst)
 
     def clear(self):
-        self.bytecode = bytes()
+        self.bytecode = bytearray()
         self.displacment_offset = 0
         self.immediate_offset = 0
         self.disp_reloc = False
         self.imm_reloc = False
 
     def emit_b(self, x):
-        self.bytecode += bytes([x])
+        self.bytecode.append(x)
 
     def emit_w(self, x):
-        self.bytecode += list(struct.pack("<H"))
+        self.bytecode += struct.pack("<H", x)
 
     def emit_dw(self, x):
-        self.bytecode += list(struct.pack("<I"))
+        self.bytecode += struct.pack("<I", x)
 
     def emit_qw(self, x):
-        self.bytecode += list(struct.pack("<Q"))
+        self.bytecode += struct.pack("<Q", x)
 
     def emit_immediate_b(self, src: FukuImmediate):
         self.immediate_offset = len(self.bytecode)
@@ -144,27 +144,27 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
 
         if isinstance(rm_reg, FukuRegister) and isinstance(reg, FukuRegister):
             rex_bits = (1 if reg.is_ext64 else 0) << 2 | (1 if rm_reg.is_ext64 else 0)
-            if rex_bits != 0 or rm_reg.is_arch64 or reg.is_arch64:
+            if rex_bits != 0 or rm_reg.arch64 or reg.arch64:
                 self.emit_b(0x40 | rex_bits)
         elif isinstance(rm_reg, FukuOperand) and isinstance(reg, FukuRegister):
             rex_bits = (1 if reg.is_ext64 else 0) << 2 | rm_reg.low_rex
-            if rex_bits != 0 or reg.is_arch64:
+            if rex_bits != 0 or reg.arch64:
                 self.emit_b(0x40 | rex_bits)
         elif isinstance(rm_reg, FukuRegister) and reg is None:
             if rm_reg.is_ext64:
                 self.emit_b(0x41)
-            elif rm_reg.is_arch64:
+            elif rm_reg.arch64:
                 self.emit_b(0x40)
         elif isinstance(rm_reg, FukuOperand):
-            if rm_reg.low_reg != 0:
+            if rm_reg.low_rex != 0:
                 self.emit_b(0x40 | rm_reg.low_rex)
 
     def emit_modrm(self, rm_reg: FukuRegister, reg: FukuRegister | int):
-        val = reg.index if isinstance(reg, FukuRegister) else reg
-        self.emit_b(0xC0 | val << 3 | rm_reg.index)
+        val = reg.index.value if isinstance(reg, FukuRegister) else reg
+        self.emit_b(0xC0 | val << 3 | rm_reg.index.value)
 
     def emit_operand_x86(self, rm_reg: FukuOperand, reg: FukuRegisterIndex):
-        assert len(self.bytecode) == 0
+        assert len(self.bytecode) != 0
 
         raw_operand = RawOperand(
             ctx = self
@@ -263,7 +263,7 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
                 if disp.immediate32 == 0 and base_idx == FukuRegisterIndex.FUKU_REG_INDEX_BP:
                     # [base]
                     raw_operand.set_modrm(0, reg, base_idx)
-                elif self.is_used_short_disp() and disp.is_8:
+                elif self.is_used_short_disp and disp.is_8:
                     # [base + disp8]
                     raw_operand.set_modrm(1, reg, base_idx)
                     raw_operand.set_disp8(disp.immediate8)
@@ -311,3 +311,5 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
             self.emit_operand_x86(rm_reg, index)
         else:
             self.emit_operand_x64(rm_reg, index)
+
+RawOperand.model_rebuild()

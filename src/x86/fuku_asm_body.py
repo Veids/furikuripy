@@ -70,11 +70,11 @@ ADI_FL_JCC = [
 class FukuAsmBody:
     def __init__(self):
         # Data Transfer Instructions
-        self._gen_func_body_byte_no_arg("cwd", (FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA, 0x99), x86_const.X86_INS_CWD, 0)
+        self._gen_func_body_byte_no_arg("cwd", (FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value, 0x99), x86_const.X86_INS_CWD, 0)
         self._gen_func_body_byte_no_arg("cdq", (0x99,), x86_const.X86_INS_CDQ, 0)
         self._gen_func_body_byte_no_arg("cqo", (0x48, 0x99), x86_const.X86_INS_CQO, 0)
 
-        self._gen_func_body_byte_no_arg("cbw", (FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA, 0x98), x86_const.X86_INS_CBW, 0)
+        self._gen_func_body_byte_no_arg("cbw", (FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value, 0x98), x86_const.X86_INS_CBW, 0)
         self._gen_func_body_byte_no_arg("cwde", (0x98, ), x86_const.X86_INS_CWDE, 0)
         self._gen_func_body_byte_no_arg("cdqe", (0x48, 0x98), x86_const.X86_INS_CDQE, 0)
 
@@ -148,14 +148,14 @@ class FukuAsmBody:
         self._gen_func_body_byte_no_arg("std", (0xFD,), x86_const.X86_INS_STD, x86_const.X86_EFLAGS_SET_DF)
         self._gen_func_body_byte_no_arg("lahf", (0x9F,), x86_const.X86_INS_LAHF, 0)
         self._gen_func_body_byte_no_arg("sahf", (0x9E,), x86_const.X86_INS_SAHF, x86_const.X86_EFLAGS_MODIFY_SF | x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_AF | x86_const.X86_EFLAGS_MODIFY_PF | x86_const.X86_EFLAGS_MODIFY_CF)
-        self._gen_func_body_byte_no_arg("pusha", (FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA, 0x60), x86_const.X86_INS_PUSHAW, 0)
+        self._gen_func_body_byte_no_arg("pusha", (FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value, 0x60), x86_const.X86_INS_PUSHAW, 0)
         self._gen_func_body_byte_no_arg("pushad", (0x60,), x86_const.X86_INS_PUSHAL, 0)
-        self._gen_func_body_byte_no_arg("popa", (FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA, 0x61), x86_const.X86_INS_POPAW, 0)
+        self._gen_func_body_byte_no_arg("popa", (FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value, 0x61), x86_const.X86_INS_POPAW, 0)
         self._gen_func_body_byte_no_arg("popad", 0x61, x86_const.X86_INS_POPAL, 0)
-        self._gen_func_body_byte_no_arg("pushf", (FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA, 0x9C), x86_const.X86_INS_PUSHF, 0)
+        self._gen_func_body_byte_no_arg("pushf", (FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value, 0x9C), x86_const.X86_INS_PUSHF, 0)
         self._gen_func_body_byte_no_arg("pushfd", 0x9C, x86_const.X86_INS_PUSHFD, 0)
         self._gen_func_body_byte_no_arg("pushfq", 0x9C, x86_const.X86_INS_PUSHFQ, 0)
-        self._gen_func_body_byte_no_arg("popf", (FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA, 0x9D), x86_const.X86_INS_POPF, x86_const.X86_EFLAGS_MODIFY_AF | x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_SF | x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_PF | x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_TF | x86_const.X86_EFLAGS_MODIFY_IF | x86_const.X86_EFLAGS_MODIFY_DF | x86_const.X86_EFLAGS_MODIFY_NT | x86_const.X86_EFLAGS_MODIFY_RF)
+        self._gen_func_body_byte_no_arg("popf", (FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value, 0x9D), x86_const.X86_INS_POPF, x86_const.X86_EFLAGS_MODIFY_AF | x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_SF | x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_PF | x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_TF | x86_const.X86_EFLAGS_MODIFY_IF | x86_const.X86_EFLAGS_MODIFY_DF | x86_const.X86_EFLAGS_MODIFY_NT | x86_const.X86_EFLAGS_MODIFY_RF)
         self._gen_func_body_byte_no_arg("popfd", (0x9D,), x86_const.X86_INS_POPFD, x86_const.X86_EFLAGS_MODIFY_AF | x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_SF | x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_PF | x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_TF | x86_const.X86_EFLAGS_MODIFY_IF | x86_const.X86_EFLAGS_MODIFY_DF | x86_const.X86_EFLAGS_MODIFY_NT | x86_const.X86_EFLAGS_MODIFY_RF)
         self._gen_func_body_byte_no_arg("popfq", (0x9D,), x86_const.X86_INS_POPFQ, x86_const.X86_EFLAGS_MODIFY_AF | x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_SF | x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_PF | x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_TF | x86_const.X86_EFLAGS_MODIFY_IF | x86_const.X86_EFLAGS_MODIFY_DF | x86_const.X86_EFLAGS_MODIFY_NT | x86_const.X86_EFLAGS_MODIFY_RF)
 
@@ -229,7 +229,7 @@ class FukuAsmBody:
         if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
             ctx.gen_pattern32_1em_rm_r_word(0x89, dst, src)
         elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
             ctx.emit_optional_rex_32(dst)
             ctx.emit_b(0xB8 | dst.index.value)
             ctx.emit_immediate_w(src)
@@ -239,7 +239,7 @@ class FukuAsmBody:
                 dst.reg == FukuRegisterEnum.FUKU_REG_AX and
                 src.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
             ):
-                ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+                ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
                 ctx.emit_optional_rex_32(src, dst)
                 ctx.emit_b(0xA1)
                 ctx.emit_dw(src.disp.immediate32)
@@ -254,7 +254,7 @@ class FukuAsmBody:
                 src.reg == FukuRegisterEnum.FUKU_REG_AX and
                 dst.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
             ):
-                ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+                ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
                 ctx.emit_optional_rex_32(dst, src)
                 ctx.emit_b(0xA3)
                 ctx.emit_dw(dst.disp.immediate32)
@@ -568,7 +568,7 @@ class FukuAsmBody:
         ctx.clear()
 
         if isinstance(src, FukuImmediate):
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
             if ctx.is_used_short_imm and src.is_8:
                 ctx.emit_b(0x6A)
                 ctx.emit_immediate_b(src)
@@ -576,7 +576,7 @@ class FukuAsmBody:
                 ctx.emit_b(0x68)
                 ctx.emit_immediate_w(src)
         elif isinstance(src, FukuRegister):
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
             ctx.emit_optional_rex_32(src)
             ctx.emit_b(0x50 | src.index.value)
         elif isinstance(src, FukuOperand):
@@ -607,7 +607,7 @@ class FukuAsmBody:
         ctx.clear()
 
         if isinstance(dst, FukuRegister):
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
             ctx.emit_optional_rex_32(dst)
             ctx.emit_b(0x58 | dst.index.value)
         elif isinstance(dst, FukuOperand):
@@ -664,14 +664,14 @@ class FukuAsmBody:
         ctx.clear()
 
         if isinstance(src, FukuRegister):
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
             ctx.emit_optional_rex_32(dst, src)
             ctx.emit_b(0x0F)
             ctx.emit_b(0x38)
             ctx.emit_b(0xF6)
             ctx.emit_modrm(src, dst)
         else:
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
             ctx.emit_optional_rex_32(src, dst)
             ctx.emit_b(0x0F)
             ctx.emit_b(0x38)
@@ -684,14 +684,14 @@ class FukuAsmBody:
         ctx.clear()
 
         if isinstance(src, FukuRegister):
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
             ctx.emit_rex_64(dst, src)
             ctx.emit_b(0x0F)
             ctx.emit_b(0x38)
             ctx.emit_b(0xF6)
             ctx.emit_modrm(src, dst)
         else:
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
             ctx.emit_rex_64(src, dst)
             ctx.emit_b(0x0F)
             ctx.emit_b(0x38)
@@ -870,14 +870,14 @@ class FukuAsmBody:
         ctx.clear()
 
         if isinstance(src, FukuRegister):
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
             ctx.emit_b(0xF3)
             ctx.emit_optional_rex_32(dst, src)
             ctx.emit_b(0x0F)
             ctx.emit_b(0xB8)
             ctx.emit_modrm(src, dst)
         else:
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
             ctx.emit_b(0xF3)
             ctx.emit_optional_rex_32(src, dst)
             ctx.emit_b(0x0F)
@@ -1009,7 +1009,7 @@ class FukuAsmBody:
     # Random Number Generator Instructions
     def rdrand_w(self, ctx: FukuAsmCtx, dst: FukuRegister):
         ctx.clear()
-        ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+        ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
         ctx.emit_optional_rex_32(dst)
         ctx.emit_b(0x0F)
         ctx.emit_b(0xC7)
@@ -1049,7 +1049,7 @@ class FukuAsmBody:
 
     def rdseed_w(self, ctx: FukuAsmCtx, dst: FukuRegister):
         ctx.clear()
-        ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+        ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
         ctx.emit_optional_rex_32(dst)
         ctx.emit_b(0x0F)
         ctx.emit_b(0xC7)
@@ -1584,7 +1584,7 @@ class FukuAsmBody:
 
         def wrapper_w(self, ctx: FukuAsmCtx):
             ctx.clear()
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA)
+            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
             ctx.emit_b(type*2 + 1)
             ctx.gen_func_return(getattr(x86_const, idMASK + "W"), cap_eflags)
 

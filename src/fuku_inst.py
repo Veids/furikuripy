@@ -1,5 +1,5 @@
 from typing import Optional, ForwardRef
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictBytes
 
 FukuInst = ForwardRef("FukuInst")
 
@@ -29,16 +29,23 @@ class FukuRipRelocation(BaseModel):
     label: Optional[FukuCodeLabel] = None
 
 
+class Flags(BaseModel):
+    inst_used_disp: int = 0
+    inst_has_address: int = 0
+    inst_flags: int = 0
+
+
 class FukuInst(BaseModel):
     id: int = -1
 
-    oplength: int = 0
-    opcode: Optional[bytes] = None
+    opcode: Optional[StrictBytes] = None
 
     source_address: Optional[int] = None
     current_address: int = 0
 
     _label: Optional[FukuCodeLabel] = None
+
+    imm_reloc: Optional[FukuRelocation] = None
 
     disp_reloc: Optional[FukuRelocation] = None
     rip_reloc: Optional[FukuRipRelocation] = None
@@ -46,7 +53,7 @@ class FukuInst(BaseModel):
     cpu_flags: int = 0
     cpu_registers: int = 0
 
-    inst_flags: int = 0
+    flags: Flags = Flags()
 
     @property
     def inst_has_address(self):
@@ -88,3 +95,20 @@ class FukuInst(BaseModel):
                 return i
 
         return i
+
+    def update(self, src: FukuInst):
+        self.opcode = src.opcode
+        self.id = src.id
+
+        self.id = src.id;
+
+        self.source_address = src.source_address
+        self.current_address = src.current_address
+        self.label = src.label
+        self.imm_reloc = src.imm_reloc
+        self.disp_reloc = src.disp_reloc
+        self.cpu_flags = src.cpu_flags
+        self.cpu_registers = src.cpu_registers
+        self.flags.inst_flags = src.flags.inst_flags
+        self.flags.inst_used_disp = src.flags.inst_used_disp
+        self.flags.inst_has_address = src.flags.inst_has_address

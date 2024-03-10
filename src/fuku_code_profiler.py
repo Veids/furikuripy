@@ -1,13 +1,15 @@
+import capstone
+
 from copy import copy
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
 from capstone import x86_const
-from capstone import *
 
+from common import log
 from fuku_misc import FUKU_ASSEMBLER_ARCH
 from fuku_code_holder import FukuCodeHolder
 from x86.fuku_register_math_tables import CAPSTONE_REGISTER_FLAGS
-from x86.fuku_register_math_metadata import *
+from x86.fuku_register_math_metadata import FlagRegister, EflagsGroup, TESTED_FLAGS_TABLE, EXCLUDED_FLAGS_TABLE, RegisterAccess
 from x86.fuku_register_math import get_flag_complex_register, get_flag_complex_register_by_size
 
 
@@ -23,7 +25,7 @@ def get_operand_access(instruction, op_num, op_access, table, default_access):
             op_access.append(
                 FukuRegAccess(
                     reg = table[op.mem.base],
-                    access = REGISTER_ACCESS_READ
+                    access = RegisterAccess.READ.value
                 )
             )
 
@@ -31,7 +33,7 @@ def get_operand_access(instruction, op_num, op_access, table, default_access):
             op_access.append(
                 FukuRegAccess(
                     reg = table[op.mem.index],
-                    access = REGISTER_ACCESS_READ
+                    access = RegisterAccess.READ.value
                 )
             )
     elif op.type == x86_const.X86_OP_REG:
@@ -54,10 +56,10 @@ class FukuCodeProfiler(BaseModel):
     arch: FUKU_ASSEMBLER_ARCH
     registers_table: Optional[List[int]] = None
     dirty_registers_table: bool = False
-    cs: Cs
+    cs: capstone.Cs
 
     def __init__(self, **kwargs):
-        kwargs["cs"] = Cs(CS_ARCH_X86, CS_MODE_32 if kwargs["arch"] == FUKU_ASSEMBLER_ARCH.X86 else CS_MODE_64)
+        kwargs["cs"] = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32 if kwargs["arch"] == FUKU_ASSEMBLER_ARCH.X86 else capstone.CS_MODE_64)
         kwargs["cs"].detail = True
 
         super().__init__(**kwargs)
@@ -89,16 +91,16 @@ class FukuCodeProfiler(BaseModel):
 
             handled = self.get_instruction_operand_access(instruction, op_access)
             if not handled:
-                print("not profiled %s %s" % (instruction.mnemonic, instruction.op_str))
+                log.warn("not profiled %s %s" % (instruction.mnemonic, instruction.op_str))
                 return included_registers
 
             current_included_registers = 0
             current_excluded_registers = 0
 
             for x in op_access:
-                if x.access & REGISTER_ACCESS_READ:
+                if x.access & RegisterAccess.READ.value:
                     current_excluded_registers |= get_flag_complex_register(x.reg)
-                if x.access & REGISTER_ACCESS_WRITE:
+                if x.access & RegisterAccess.WRITE.value:
                     current_included_registers |= get_flag_complex_register_by_size(x.reg)
 
             excluded_registers |= current_excluded_registers
@@ -114,12 +116,12 @@ class FukuCodeProfiler(BaseModel):
             current_id = current_inst.id
             current_eflags = current_inst.cpu_flags
 
-            if current_eflags & EFLAGS_GROUP_TEST:
+            if current_eflags & EflagsGroup.TEST.value:
                 for eflag, ex_eflag in zip(TESTED_FLAGS_TABLE, EXCLUDED_FLAGS_TABLE):
                     if current_eflags & eflag:
                         excluded_flags |= ex_eflag
 
-            if excluded_flags == (EFLAGS_GROUP_MODIFY | EFLAGS_GROUP_SET | EFLAGS_GROUP_RESET | EFLAGS_GROUP_UNDEFINED):
+            if excluded_flags == (EflagsGroup.MODIFY.value | EflagsGroup.SET.value | EflagsGroup.RESET.value | EflagsGroup.UNDEFINED.value):
                 return included_flags
 
             if current_id == (x86_const.X86_INS_JMP | x86_const.X86_INS_RET | x86_const.X86_INS_CALL):
@@ -127,18 +129,18 @@ class FukuCodeProfiler(BaseModel):
 
             included_flags |= get_bits_included(
                 current_eflags,
-                EFLAGS_GROUP_MODIFY | EFLAGS_GROUP_SET | EFLAGS_GROUP_RESET | EFLAGS_GROUP_UNDEFINED,
+                EflagsGroup.MODIFY.value | EflagsGroup.SET.value | EflagsGroup.RESET.value | EflagsGroup.UNDEFINED.value,
                 excluded_flags
             )
 
-            if included_flags == (EFLAGS_GROUP_MODIFY | EFLAGS_GROUP_SET | EFLAGS_GROUP_RESET | EFLAGS_GROUP_UNDEFINED):
+            if included_flags == (EflagsGroup.MODIFY.value | EflagsGroup.SET.value | EflagsGroup.RESET.value | EflagsGroup.UNDEFINED.value):
                 return included_flags
 
         return included_flags
 
     def get_instruction_operand_access(self, instruction, op_access):
-        default_stack_pointer = FLAG_REGISTER_ESP if self.arch == FUKU_ASSEMBLER_ARCH.X86 else FLAG_REGISTER_RSP
-        default_frame_pointer = FLAG_REGISTER_EBP if self.arch == FUKU_ASSEMBLER_ARCH.X86 else FLAG_REGISTER_RBP
+        default_stack_pointer = FlagRegister.ESP.value if self.arch == FUKU_ASSEMBLER_ARCH.X86 else FlagRegister.RSP.value
+        default_frame_pointer = FlagRegister.EBP.value if self.arch == FUKU_ASSEMBLER_ARCH.X86 else FlagRegister.RBP.value
 
         handled = False
 
@@ -190,10 +192,10 @@ class FukuCodeProfiler(BaseModel):
                     instruction.operands[1].type == x86_const.X86_OP_REG and
                     instruction.operands[0].reg == instruction.operands[1].reg
                 ):
-                    get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_WRITE)
+                    get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.WRITE.value)
                 else:
-                    get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_READ | REGISTER_ACCESS_WRITE)
-                    get_operand_access(instruction, 1, op_access, self.registers_table, REGISTER_ACCESS_READ)
+                    get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.READ.value | RegisterAccess.WRITE.value)
+                    get_operand_access(instruction, 1, op_access, self.registers_table, RegisterAccess.READ.value)
 
                 handled = True
 
@@ -221,8 +223,8 @@ class FukuCodeProfiler(BaseModel):
                 x86_const.X86_INS_SHR |
                 x86_const.X86_INS_SHRX
             ):
-                get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_READ | REGISTER_ACCESS_WRITE)
-                get_operand_access(instruction, 1, op_access, self.registers_table, REGISTER_ACCESS_READ)
+                get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.READ.value | RegisterAccess.WRITE.value)
+                get_operand_access(instruction, 1, op_access, self.registers_table, RegisterAccess.READ.value)
                 handled = True
 
             case (
@@ -253,8 +255,8 @@ class FukuCodeProfiler(BaseModel):
                 x86_const.X86_INS_BLSR |
                 x86_const.X86_INS_BLSI
             ):
-                get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_WRITE)
-                get_operand_access(instruction, 1, op_access, self.registers_table, REGISTER_ACCESS_READ)
+                get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.WRITE.value)
+                get_operand_access(instruction, 1, op_access, self.registers_table, RegisterAccess.READ.value)
                 handled = True
 
             case x86_const.X86_INS_XCHG:
@@ -267,8 +269,8 @@ class FukuCodeProfiler(BaseModel):
                     )
                     self.dirty_registers_table = True
                 else:
-                    get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_READ | REGISTER_ACCESS_WRITE)
-                    get_operand_access(instruction, 1, op_access, self.registers_table, REGISTER_ACCESS_READ | REGISTER_ACCESS_WRITE)
+                    get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.READ.value | RegisterAccess.WRITE.value)
+                    get_operand_access(instruction, 1, op_access, self.registers_table, RegisterAccess.READ.value | RegisterAccess.WRITE.value)
 
                 handled = True
 
@@ -277,8 +279,8 @@ class FukuCodeProfiler(BaseModel):
                 x86_const.X86_INS_TEST |
                 x86_const.X86_INS_CMP
             ):
-                get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_READ)
-                get_operand_access(instruction, 1, op_access, self.registers_table, REGISTER_ACCESS_READ)
+                get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.READ.value)
+                get_operand_access(instruction, 1, op_access, self.registers_table, RegisterAccess.READ.value)
                 handled = True
 
             case (
@@ -288,143 +290,143 @@ class FukuCodeProfiler(BaseModel):
                 x86_const.X86_INS_NOT |
                 x86_const.X86_INS_NEG
             ):
-                get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_READ | REGISTER_ACCESS_WRITE)
+                get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.READ.value | RegisterAccess.WRITE.value)
                 handled = True
 
             case x86_const.X86_INS_PUSHAW:
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_AX, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_CX, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_DX, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_BX, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_SP, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_BP, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_SI, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_DI, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                op_access.append(FukuRegAccess(reg = FlagRegister.AX.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.CX.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.DX.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.BX.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.SP.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.BP.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.SI.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.DI.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                 handled = True
 
             case x86_const.X86_INS_PUSHAL:
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EAX, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_ECX, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EDX, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EBX, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_ESP, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EBP, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_ESI, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EDI, access = REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EAX.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.ECX.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EDX.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EBX.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.ESP.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EBP.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.ESI.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EDI.value, access = RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                 handled = True
 
             case x86_const.X86_INS_POPAW:
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_AX, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_CX, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_DX, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_BX, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_SP, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_BP, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_SI, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_DI, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                op_access.append(FukuRegAccess(reg = FlagRegister.AX.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.CX.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.DX.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.BX.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.SP.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.BP.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.SI.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.DI.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                 handled = True
 
             case x86_const.X86_INS_POPAL:
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EAX, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_ECX, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EDX, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EBX, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_ESP, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EBP, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_ESI, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EDI, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EAX.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.ECX.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EDX.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EBX.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.ESP.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EBP.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.ESI.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EDI.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                 handled = True
 
             case x86_const.X86_INS_PUSH:
-                get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_READ)
-                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.READ.value)
+                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                 handled = True
 
             case x86_const.X86_INS_POP:
-                get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_WRITE)
-                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.WRITE.value)
+                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                 handled = True
 
             case x86_const.X86_INS_RET:
-                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                 handled = True
 
             case x86_const.X86_INS_LEAVE:
-                op_access.append(FukuRegAccess(reg = default_frame_pointer, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                op_access.append(FukuRegAccess(reg = default_frame_pointer, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                 handled = True
 
             case x86_const.X86_INS_LEAVE:
-                op_access.append(FukuRegAccess(reg = default_frame_pointer, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                op_access.append(FukuRegAccess(reg = default_frame_pointer, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                 handled = True
 
             case (
                 x86_const.X86_INS_IDIV |
                 x86_const.X86_INS_DIV
             ):
-                get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_READ)
+                get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.READ.value)
 
                 match instruction.operands[0].size:
                     case 1:
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_AX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.AX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                     case 2:
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_AX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_DX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.AX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.DX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                     case 4:
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EAX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EDX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.EAX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.EDX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                     case 8:
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_RAX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_RDX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.RAX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.RDX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
 
                 handled = True
 
             case x86_const.X86_INS_MUL:
-                get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_READ)
+                get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.READ.value)
 
                 match instruction.operands[0].size:
                     case 1:
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_AX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.AX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                     case 2:
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_AX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_DX, access = REGISTER_ACCESS_WRITE))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.AX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.DX.value, access = RegisterAccess.WRITE.value))
                     case 4:
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EAX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EDX, access = REGISTER_ACCESS_WRITE))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.EAX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.EDX.value, access = RegisterAccess.WRITE.value))
                     case 8:
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_RAX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                        op_access.append(FukuRegAccess(reg = FLAG_REGISTER_RDX, access = REGISTER_ACCESS_WRITE))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.RAX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                        op_access.append(FukuRegAccess(reg = FlagRegister.RDX.value, access = RegisterAccess.WRITE.value))
 
                 handled = True
 
             case x86_const.X86_INS_IMUL:
                 match len(instruction.operands):
                     case 1:
-                        get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_READ)
+                        get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.READ.value)
 
                         match instruction.operands[0].size:
                             case 1:
-                                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_AX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                                op_access.append(FukuRegAccess(reg = FlagRegister.AX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                             case 2:
-                                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_AX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_DX, access = REGISTER_ACCESS_WRITE))
+                                op_access.append(FukuRegAccess(reg = FlagRegister.AX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                                op_access.append(FukuRegAccess(reg = FlagRegister.DX.value, access = RegisterAccess.WRITE.value))
                             case 4:
-                                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EAX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EDX, access = REGISTER_ACCESS_WRITE))
+                                op_access.append(FukuRegAccess(reg = FlagRegister.EAX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                                op_access.append(FukuRegAccess(reg = FlagRegister.EDX.value, access = RegisterAccess.WRITE.value))
                             case 8:
-                                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_RAX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_RDX, access = REGISTER_ACCESS_WRITE))
+                                op_access.append(FukuRegAccess(reg = FlagRegister.RAX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                                op_access.append(FukuRegAccess(reg = FlagRegister.RDX.value, access = RegisterAccess.WRITE.value))
                     case 2:
-                        get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ)
-                        get_operand_access(instruction, 1, op_access, self.registers_table, REGISTER_ACCESS_READ)
+                        get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.WRITE.value | RegisterAccess.READ.value)
+                        get_operand_access(instruction, 1, op_access, self.registers_table, RegisterAccess.READ.value)
                     case 3:
-                        get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_WRITE)
-                        get_operand_access(instruction, 1, op_access, self.registers_table, REGISTER_ACCESS_READ)
+                        get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.WRITE.value)
+                        get_operand_access(instruction, 1, op_access, self.registers_table, RegisterAccess.READ.value)
 
                 handled = True
 
@@ -452,7 +454,7 @@ class FukuCodeProfiler(BaseModel):
                 x86_const.X86_INS_CALL |
                 x86_const.X86_INS_JMP
             ):
-                get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_READ)
+                get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.READ.value)
                 handled = True
 
             case (
@@ -473,7 +475,7 @@ class FukuCodeProfiler(BaseModel):
                 x86_const.X86_INS_SETP |
                 x86_const.X86_INS_SETS
             ):
-                get_operand_access(instruction, 0, op_access, self.registers_table, REGISTER_ACCESS_WRITE)
+                get_operand_access(instruction, 0, op_access, self.registers_table, RegisterAccess.WRITE.value)
                 handled = True
 
             case (
@@ -484,7 +486,7 @@ class FukuCodeProfiler(BaseModel):
                 x86_const.X86_INS_PUSHFD |
                 x86_const.X86_INS_PUSHF
             ):
-                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
+                op_access.append(FukuRegAccess(reg = default_stack_pointer, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
                 handled = True
 
             case (
@@ -510,10 +512,10 @@ class FukuCodeProfiler(BaseModel):
                 x86_const.X86_INS_SCASQ
             ):
                 for reg_read in instruction.regs_read:
-                    op_access.append(FukuRegAccess(reg = self.registers_table[reg_read], access = REGISTER_ACCESS_READ))
+                    op_access.append(FukuRegAccess(reg = self.registers_table[reg_read], access = RegisterAccess.READ.value))
 
                 for reg_write in instruction.regs_write:
-                    op_access.append(FukuRegAccess(reg = self.registers_table[reg_write], access = REGISTER_ACCESS_WRITE))
+                    op_access.append(FukuRegAccess(reg = self.registers_table[reg_write], access = RegisterAccess.WRITE.value))
 
                 handled = True
 
@@ -534,33 +536,33 @@ class FukuCodeProfiler(BaseModel):
                 handled = True
 
             case x86_const.X86_INS_CWD:
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_AX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_DX, access = REGISTER_ACCESS_WRITE))
+                op_access.append(FukuRegAccess(reg = FlagRegister.AX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.DX.value, access = RegisterAccess.WRITE.value))
                 handled = True
 
             case x86_const.X86_INS_CDQ:
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EAX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EDX, access = REGISTER_ACCESS_WRITE))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EAX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EDX.value, access = RegisterAccess.WRITE.value))
                 handled = True
 
             case x86_const.X86_INS_CQO:
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_RAX, access = REGISTER_ACCESS_WRITE | REGISTER_ACCESS_READ))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_RDX, access = REGISTER_ACCESS_WRITE))
+                op_access.append(FukuRegAccess(reg = FlagRegister.RAX.value, access = RegisterAccess.WRITE.value | RegisterAccess.READ.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.RDX.value, access = RegisterAccess.WRITE.value))
                 handled = True
 
             case x86_const.X86_INS_CBW:
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_AX, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_AL, access = REGISTER_ACCESS_READ))
+                op_access.append(FukuRegAccess(reg = FlagRegister.AX.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.AL.value, access = RegisterAccess.READ.value))
                 handled = True
 
             case x86_const.X86_INS_CWDE:
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EAX, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_AX, access = REGISTER_ACCESS_READ))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EAX.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.AX.value, access = RegisterAccess.READ.value))
                 handled = True
 
             case x86_const.X86_INS_CDQE:
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_RAX, access = REGISTER_ACCESS_WRITE))
-                op_access.append(FukuRegAccess(reg = FLAG_REGISTER_EAX, access = REGISTER_ACCESS_READ))
+                op_access.append(FukuRegAccess(reg = FlagRegister.RAX.value, access = RegisterAccess.WRITE.value))
+                op_access.append(FukuRegAccess(reg = FlagRegister.EAX.value, access = RegisterAccess.READ.value))
                 handled = True
 
         return handled

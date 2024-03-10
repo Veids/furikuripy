@@ -1,10 +1,16 @@
 from enum import Enum
 from typing import ForwardRef
 from pydantic import BaseModel
+from capstone.x86 import X86Op
 
 from x86.misc import FukuOperandSize
+from x86.fuku_register_math import bit_scan_forward, get_random_bit_by_mask
+from x86.fuku_register_math_metadata import FlagRegisterIndex
+from x86.fuku_register_math_tables import FULL_INCLUDE_FLAGS_TABLE, SIZE_TO_INDEXSZ
 
 FukuRegisterIndex = ForwardRef("FukuRegisterIndex")
+FukuRegisterEnum = ForwardRef("FukuRegisterEnum")
+
 
 class FukuRegisterEnum(Enum):
     FUKU_REG_NONE = 0
@@ -110,6 +116,100 @@ class FukuRegisterEnum(Enum):
 
         return FUKU_EXT_REGISTER_INFO[self.value].is_x64_arch_ext
 
+    def set_grade(self, target_size: FukuOperandSize) -> FukuRegisterEnum:
+        reg = 1 << (SIZE_TO_INDEXSZ[target_size.value] * 16 + CONVERT_FUKU_REGISTER_TO_FLAG[self.value] % 16)
+        index = bit_scan_forward(0, reg) 
+        if index:
+            return CONVERT_FLAG_REGISTER_TO_FUKU[index]
+
+        return FukuRegisterEnum.FUKU_REG_NONE
+
+    @staticmethod
+    def get_rand_free_register_index(
+        inst_regs: int,
+        min_idx: int,
+        max_idx: int
+    ):
+        if not (index := bit_scan_forward(min_idx, inst_regs)):
+            return -1
+
+        if index > max_idx:
+            if max_idx + 16 >= 63:
+                return -1
+
+            index = FukuRegisterEnum.get_rand_free_register_index(inst_regs, min_idx + 16, max_idx + 16)
+
+            if index == -1:
+                return -1
+
+            return index - 16
+        else:
+            return get_random_bit_by_mask(inst_regs, min_idx, max_idx)
+
+    @staticmethod
+    def get_random_free_register(
+        reg_flags: int,
+        reg_size: FukuOperandSize,
+        x86_only: bool,
+        exclude_regs: int = 0 # FukuRegisterEnum.FUKU_REG_NONE
+    ) -> FukuRegisterEnum:
+        reg_flags &= ~(exclude_regs)
+
+        returned_idx = -1
+        if not reg_flags:
+            return FukuRegisterEnum.FUKU_REG_NONE
+
+        match reg_size:
+            case FukuOperandSize.FUKU_OPERAND_SIZE_8:
+                if x86_only:
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_AL, FlagRegisterIndex.FLAG_REGISTER_IDX_BL)
+                else:
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_AL, FlagRegisterIndex.FLAG_REGISTER_IDX_R15B)
+
+            case FukuOperandSize.FUKU_OPERAND_SIZE_16:
+                if x86_only:
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_AX, FlagRegisterIndex.FLAG_REGISTER_IDX_DI)
+                else:
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_AX, FlagRegisterIndex.FLAG_REGISTER_IDX_R15W)
+
+            case FukuOperandSize.FUKU_OPERAND_SIZE_32:
+                if x86_only:
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_EAX, FlagRegisterIndex.FLAG_REGISTER_IDX_EDI)
+                else:
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_EAX, FlagRegisterIndex.FLAG_REGISTER_IDX_R15D)
+
+            case FukuOperandSize.FUKU_OPERAND_SIZE_64:
+                if x86_only:
+                    returned_idx = get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_RAX, FlagRegisterIndex.FLAG_REGISTER_IDX_RDI)
+                else:
+                    returned_idx = get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_RAX, FlagRegisterIndex.FLAG_REGISTER_IDX_R15)
+
+        if returned_idx == -1:
+            return FukuRegisterEnum.FUKU_REG_NONE
+
+        return FukuRegisterEnum(CONVERT_FLAG_REGISTER_TO_FUKU[returned_idx])
+
+    @staticmethod
+    def get_random_free_register_x64(
+        reg_flags: int,
+        reg_size: FukuOperandSize,
+        exclude_regs: int = 0 # FukuRegisterEnum.FUKU_REG_NONE
+    ) -> FukuRegisterEnum:
+        reg: FukuRegisterEnum = FukuRegisterEnum.get_random_free_register(
+            reg_flags,
+            FukuOperandSize.FUKU_OPERAND_SIZE_64 if reg_size == FukuOperandSize.FUKU_OPERAND_SIZE_32 else reg_size,
+            exclude_regs
+        )
+
+        if reg != FukuRegisterEnum.FUKU_REG_NONE and reg_size == FukuOperandSize.FUKU_OPERAND_SIZE_32:
+            return reg.set_grade(FukuOperandSize.FUKU_OPERAND_SIZE_32)
+
+        return reg
+
+    @staticmethod
+    def from_capstone(op: X86Op) -> FukuRegisterEnum:
+        return CAP_TO_FUKU_TABLE[op.reg]
+
 
 class FukuRegisterIndex(Enum):
     FUKU_REG_INDEX_AX = 0
@@ -138,7 +238,7 @@ class FukuRegister(BaseModel):
     size: FukuOperandSize = FukuOperandSize.FUKU_OPERAND_SIZE_0
 
     arch64: bool = False
-    ext64: bool = False
+    is_ext64: bool = False
 
     def __init__(self, inp: FukuRegisterEnum):
         super().__init__()
@@ -153,9 +253,24 @@ class FukuRegister(BaseModel):
         self.arch64 = reg.is_x64_arch
 
         if self.arch64:
-            self.ext64 = reg.is_x64_arch_ext
+            self.is_ext64 = reg.is_x64_arch_ext
         else:
-            self.ext64 = False
+            self.is_ext64 = False
+
+
+    def get_flag_complex(self, size: FukuOperandSize) -> int:
+        match size:
+            case FukuOperandSize.FUKU_OPERAND_SIZE_8:
+                return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.FUKU_OPERAND_SIZE_64.value if self.is_ext64 else FukuOperandSize.FUKU_OPERAND_SIZE_0.value)] & 0xFFFF
+
+            case FukuOperandSize.FUKU_OPERAND_SIZE_16:
+                return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.FUKU_OPERAND_SIZE_64.value if self.is_ext64 else FukuOperandSize.FUKU_OPERAND_SIZE_0.value)] & 0xFFFFFFFF
+
+            case FukuOperandSize.FUKU_OPERAND_SIZE_32:
+                return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.FUKU_OPERAND_SIZE_64.value if self.is_ext64 else FukuOperandSize.FUKU_OPERAND_SIZE_0.value)] & 0xFFFFFFFFFFFF
+
+            case FukuOperandSize.FUKU_OPERAND_SIZE_64:
+                return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.FUKU_OPERAND_SIZE_64.value if self.is_ext64 else FukuOperandSize.FUKU_OPERAND_SIZE_0.value)]
 
 
 class FukuExtRegisterInfo(BaseModel):
@@ -269,4 +384,130 @@ FUKU_EXT_REGISTER_INFO = [
     FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R15D, FukuRegisterIndex.FUKU_REG_INDEX_R15, FukuOperandSize.FUKU_OPERAND_SIZE_32, True, True),
     FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R15W, FukuRegisterIndex.FUKU_REG_INDEX_R15, FukuOperandSize.FUKU_OPERAND_SIZE_16, True, True),
     FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R15B, FukuRegisterIndex.FUKU_REG_INDEX_R15, FukuOperandSize.FUKU_OPERAND_SIZE_8,  True, True),
+]
+
+CAP_TO_FUKU_TABLE = [
+    FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_AH, FukuRegisterEnum.FUKU_REG_AL, FukuRegisterEnum.FUKU_REG_AX, FukuRegisterEnum.FUKU_REG_BH, FukuRegisterEnum.FUKU_REG_BL,
+    FukuRegisterEnum.FUKU_REG_BP, FukuRegisterEnum.FUKU_REG_BPL, FukuRegisterEnum.FUKU_REG_BX, FukuRegisterEnum.FUKU_REG_CH, FukuRegisterEnum.FUKU_REG_CL,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_CX, FukuRegisterEnum.FUKU_REG_DH, FukuRegisterEnum.FUKU_REG_DI, FukuRegisterEnum.FUKU_REG_DIL,
+    FukuRegisterEnum.FUKU_REG_DL, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_DX, FukuRegisterEnum.FUKU_REG_EAX, FukuRegisterEnum.FUKU_REG_EBP,
+    FukuRegisterEnum.FUKU_REG_EBX, FukuRegisterEnum.FUKU_REG_ECX, FukuRegisterEnum.FUKU_REG_EDI, FukuRegisterEnum.FUKU_REG_EDX, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_ESI, FukuRegisterEnum.FUKU_REG_ESP,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_RAX,
+    FukuRegisterEnum.FUKU_REG_RBP, FukuRegisterEnum.FUKU_REG_RBX, FukuRegisterEnum.FUKU_REG_RCX, FukuRegisterEnum.FUKU_REG_RDI, FukuRegisterEnum.FUKU_REG_RDX,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_RSI, FukuRegisterEnum.FUKU_REG_RSP, FukuRegisterEnum.FUKU_REG_SI,
+    FukuRegisterEnum.FUKU_REG_SIL, FukuRegisterEnum.FUKU_REG_SP, FukuRegisterEnum.FUKU_REG_SPL, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_R8, FukuRegisterEnum.FUKU_REG_R9, FukuRegisterEnum.FUKU_REG_R10, FukuRegisterEnum.FUKU_REG_R11,
+    FukuRegisterEnum.FUKU_REG_R12, FukuRegisterEnum.FUKU_REG_R13, FukuRegisterEnum.FUKU_REG_R14, FukuRegisterEnum.FUKU_REG_R15,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_NONE,
+    FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_R8B, FukuRegisterEnum.FUKU_REG_R9B, FukuRegisterEnum.FUKU_REG_R10B, FukuRegisterEnum.FUKU_REG_R11B,
+    FukuRegisterEnum.FUKU_REG_R12B, FukuRegisterEnum.FUKU_REG_R13B, FukuRegisterEnum.FUKU_REG_R14B, FukuRegisterEnum.FUKU_REG_R15B, FukuRegisterEnum.FUKU_REG_R8D,
+    FukuRegisterEnum.FUKU_REG_R9D, FukuRegisterEnum.FUKU_REG_R10D, FukuRegisterEnum.FUKU_REG_R11D, FukuRegisterEnum.FUKU_REG_R12D, FukuRegisterEnum.FUKU_REG_R13D,
+    FukuRegisterEnum.FUKU_REG_R14D, FukuRegisterEnum.FUKU_REG_R15D, FukuRegisterEnum.FUKU_REG_R8W, FukuRegisterEnum.FUKU_REG_R9W, FukuRegisterEnum.FUKU_REG_R10W,
+    FukuRegisterEnum.FUKU_REG_R11W, FukuRegisterEnum.FUKU_REG_R12W, FukuRegisterEnum.FUKU_REG_R13W, FukuRegisterEnum.FUKU_REG_R14W, FukuRegisterEnum.FUKU_REG_R15W,
+
+    FukuRegisterEnum.FUKU_REG_MAX
+]
+
+
+CONVERT_FLAG_REGISTER_TO_FUKU = [
+    FukuRegisterEnum.FUKU_REG_AL,
+    FukuRegisterEnum.FUKU_REG_CL,
+    FukuRegisterEnum.FUKU_REG_DL,
+    FukuRegisterEnum.FUKU_REG_BL,
+    FukuRegisterEnum.FUKU_REG_SPL,
+    FukuRegisterEnum.FUKU_REG_BPL,
+    FukuRegisterEnum.FUKU_REG_SIL,
+    FukuRegisterEnum.FUKU_REG_DIL,
+    FukuRegisterEnum.FUKU_REG_R8B,
+    FukuRegisterEnum.FUKU_REG_R9B,
+    FukuRegisterEnum.FUKU_REG_R10B,
+    FukuRegisterEnum.FUKU_REG_R11B,
+    FukuRegisterEnum.FUKU_REG_R12B,
+    FukuRegisterEnum.FUKU_REG_R13B,
+    FukuRegisterEnum.FUKU_REG_R14B,
+    FukuRegisterEnum.FUKU_REG_R15B,
+    # word
+    FukuRegisterEnum.FUKU_REG_AX,
+    FukuRegisterEnum.FUKU_REG_CX,
+    FukuRegisterEnum.FUKU_REG_DX,
+    FukuRegisterEnum.FUKU_REG_BX,
+    FukuRegisterEnum.FUKU_REG_SP,
+    FukuRegisterEnum.FUKU_REG_BP,
+    FukuRegisterEnum.FUKU_REG_SI,
+    FukuRegisterEnum.FUKU_REG_DI,
+    FukuRegisterEnum.FUKU_REG_R8W,
+    FukuRegisterEnum.FUKU_REG_R9W,
+    FukuRegisterEnum.FUKU_REG_R10W,
+    FukuRegisterEnum.FUKU_REG_R11W,
+    FukuRegisterEnum.FUKU_REG_R12W,
+    FukuRegisterEnum.FUKU_REG_R13W,
+    FukuRegisterEnum.FUKU_REG_R14W,
+    FukuRegisterEnum.FUKU_REG_R15W,
+    # dword
+    FukuRegisterEnum.FUKU_REG_EAX,
+    FukuRegisterEnum.FUKU_REG_ECX,
+    FukuRegisterEnum.FUKU_REG_EDX,
+    FukuRegisterEnum.FUKU_REG_EBX,
+    FukuRegisterEnum.FUKU_REG_ESP,
+    FukuRegisterEnum.FUKU_REG_EBP,
+    FukuRegisterEnum.FUKU_REG_ESI,
+    FukuRegisterEnum.FUKU_REG_EDI,
+    FukuRegisterEnum.FUKU_REG_R8D,
+    FukuRegisterEnum.FUKU_REG_R9D,
+    FukuRegisterEnum.FUKU_REG_R10D,
+    FukuRegisterEnum.FUKU_REG_R11D,
+    FukuRegisterEnum.FUKU_REG_R12D,
+    FukuRegisterEnum.FUKU_REG_R13D,
+    FukuRegisterEnum.FUKU_REG_R14D,
+    FukuRegisterEnum.FUKU_REG_R15D,
+    # qword
+    FukuRegisterEnum.FUKU_REG_RAX,
+    FukuRegisterEnum.FUKU_REG_RCX,
+    FukuRegisterEnum.FUKU_REG_RDX,
+    FukuRegisterEnum.FUKU_REG_RBX,
+    FukuRegisterEnum.FUKU_REG_RSP,
+    FukuRegisterEnum.FUKU_REG_RBP,
+    FukuRegisterEnum.FUKU_REG_RSI,
+    FukuRegisterEnum.FUKU_REG_RDI,
+    FukuRegisterEnum.FUKU_REG_R8,
+    FukuRegisterEnum.FUKU_REG_R9,
+    FukuRegisterEnum.FUKU_REG_R10,
+    FukuRegisterEnum.FUKU_REG_R11,
+    FukuRegisterEnum.FUKU_REG_R12,
+    FukuRegisterEnum.FUKU_REG_R13,
+    FukuRegisterEnum.FUKU_REG_R14,
+    FukuRegisterEnum.FUKU_REG_R15
 ]

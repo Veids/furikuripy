@@ -1,13 +1,20 @@
+from random import random
+from enum import Enum
 from typing import Annotated
 from annotated_types import Gt
 from pydantic import BaseModel
 from capstone import x86_const
-from enum import Enum
 
 
 class FUKU_ASSEMBLER_ARCH(Enum):
     X86 = "X86"
     X64 = "X64"
+
+
+class FukuInstFlags(Enum):
+    FUKU_INST_JUNK_CODE = 1 << 0
+    FUKU_INST_BAD_STACK = 1 << 1
+    FUKU_INST_NO_MUTATE = 1 << 2
 
 
 UnsignedInt = Annotated[int, Gt(0)]
@@ -24,6 +31,15 @@ class FukuObfuscationSettings(BaseModel):
 
     not_allowed_unstable_stack: bool # if true then obfuscator don't use stack above esp
     not_allowed_relocations: bool # if true then obfuscator don't create new relocations in code
+
+    def roll_junk_chance(self) -> bool:
+        return random() * 100 <= self.junk_chance
+
+    def roll_block_chance(self) -> bool:
+        return random() * 100 <= self.block_chance
+
+    def roll_mutate_chance(self) -> bool:
+        return random() * 100 <= self.mutate_chance
 
 
 def X86_REL_ADDR(inst):

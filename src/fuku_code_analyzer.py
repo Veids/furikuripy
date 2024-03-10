@@ -1,5 +1,6 @@
-from typing import Optional
+import struct
 from capstone import *
+from typing import Optional
 from capstone import x86_const
 from pydantic import BaseModel
 
@@ -22,10 +23,10 @@ class FukuCodeAnalyzer(BaseModel):
 
             line.source_address = virtual_address + current_inst.address
             line.current_address = virtual_address + current_inst.address
-            line.opcode = src[current_inst.address:current_inst.address + current_inst.size]
+            line.opcode = bytearray(src[current_inst.address:current_inst.address + current_inst.size])
             line.cpu_flags = current_inst.eflags
             line.id = current_inst.id
-            line.inst_flags = current_inst.encoding.disp_offset << 8 | current_inst.encoding.imm_offset
+            line.flags.inst_flags = current_inst.encoding.disp_offset << 8 | current_inst.encoding.imm_offset
 
             for operand in current_inst.operands:
                 if operand.type == x86_const.X86_OP_MEM and operand.mem.base == x86_const.X86_REG_RIP:
@@ -70,7 +71,41 @@ class FukuCodeAnalyzer(BaseModel):
         analyzed_code.update_source_insts()
 
         if relocations is not None:
-            raise NotImplementedError("")
+            for reloc in relocations:
+                line = analyzed_code.get_source_inst_range(reloc.virtual_address)
+
+                if line is None:
+                    raise Exception("Relocation is not found")
+
+                reloc_offset = (reloc.virtual_address - line.current_address) & 0xFF
+                reloc_dst = None
+                if self.code.arch == FUKU_ASSEMBLER_ARCH.X86:
+                    reloc_dst = struct.unpack("<I", line.opcode[reloc_offset:reloc_offset + 4])
+                else:
+                    reloc_dst = struct.unpack("<Q", line.opcode[reloc_offset:reloc_offset + 8])
+
+                if reloc_offset == (line.flags.inst_flags & 0xFF):
+                    code_label = FukuCodeLabel(address = reloc_dst)
+                    analyzed_code.create_label(code_label)
+
+                    reloc = FukuRelocation(
+                        label = code_label,
+                        offset = reloc_offset,
+                        reloc_id = reloc.reloc_id
+                    )
+
+                    line.disp_reloc = analyzed_code.create_relocation(reloc)
+                elif reloc_offset == ((line.flags.inst_flags >> 8) & 0xFF):
+                    code_label = FukuCodeLabel(address = reloc_dst)
+                    analyzed_code.create_label(code_label)
+
+                    reloc = FukuRelocation(
+                        label = code_label,
+                        offset = reloc_offset,
+                        reloc_id = reloc.reloc_id
+                    )
+                else:
+                    raise Exception("Unhandled case")
 
         analyzed_code.resolve_labels()
 

@@ -1,4 +1,8 @@
+from random import randint
+from capstone import x86_const
+
 from x86.fuku_register_math_tables import FULL_INCLUDE_FLAGS_TABLE
+from x86.fuku_register_math_metadata import EflagsMod
 
 
 def bit_scan_forward(index, mask):
@@ -9,6 +13,50 @@ def bit_scan_forward(index, mask):
         index += 1
 
     return None
+
+
+def bit_scan_backward(index, mask):
+    while index != -1:
+        if mask & (1 << index):
+            return index
+
+        index -= 1
+
+    return None
+
+
+def get_random_bit_by_mask(mask: int, min_index: int, max_index: int):
+    rand_idx = randint(min_index, max_index)
+
+    if rand_idx == min_index:
+        return bit_scan_forward(rand_idx, mask)
+    elif rand_idx == max_index:
+        return bit_scan_backward(rand_idx, mask)
+
+    index = bit_scan_forward(rand_idx, mask)
+
+    if not index or index > max_index:
+        index = bit_scan_backward(rand_idx, mask)
+
+    return index
+
+def has_free_eflags(inst_eflags: int, flags: int) -> bool:
+    pairs = (
+        (x86_const.X86_EFLAGS_MODIFY_CF, EflagsMod.CF.value),
+        (x86_const.X86_EFLAGS_MODIFY_OF, EflagsMod.OF.value),
+        (x86_const.X86_EFLAGS_MODIFY_ZF, EflagsMod.ZF.value),
+        (x86_const.X86_EFLAGS_MODIFY_DF, EflagsMod.DF.value),
+        (x86_const.X86_EFLAGS_MODIFY_SF, EflagsMod.SF.value),
+        (x86_const.X86_EFLAGS_MODIFY_PF, EflagsMod.PF.value),
+        (x86_const.X86_EFLAGS_MODIFY_AF, EflagsMod.AF.value),
+    )
+
+    for x, y in pairs:
+        if flags & x:
+            if not (inst_eflags & y):
+                return False
+
+    return True
 
 
 def get_flag_complex_register(flag_reg: int) -> int:

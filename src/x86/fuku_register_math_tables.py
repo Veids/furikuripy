@@ -1,5 +1,5 @@
 from capstone import x86_const
-from x86.fuku_register_math_metadata import *
+from x86.fuku_register_math_metadata import FlagRegister, FlagRegisterIndex
 
 
 CAPSTONE_JCC = [
@@ -37,16 +37,16 @@ CAPSTONE_MOVCC = [
 
 CAPSTONE_REGISTER_FLAGS = [
     -2,
-    FLAG_REGISTER_AX, FLAG_REGISTER_AL, FLAG_REGISTER_AX, FLAG_REGISTER_BX, FLAG_REGISTER_BL,
-    FLAG_REGISTER_BP, FLAG_REGISTER_BPL, FLAG_REGISTER_BX, FLAG_REGISTER_CX, FLAG_REGISTER_CL,
-    -2, FLAG_REGISTER_CX, FLAG_REGISTER_DX, FLAG_REGISTER_DI, FLAG_REGISTER_DIL,
-    FLAG_REGISTER_DL, -2, FLAG_REGISTER_DX, FLAG_REGISTER_EAX, FLAG_REGISTER_EBP,
-    FLAG_REGISTER_EBX, FLAG_REGISTER_ECX, FLAG_REGISTER_EDI, FLAG_REGISTER_EDX, 0,
-    -2, -2, -2, FLAG_REGISTER_ESI, FLAG_REGISTER_ESP,
-    -2, -2, -2, -2, FLAG_REGISTER_RAX,
-    FLAG_REGISTER_RBP, FLAG_REGISTER_RBX, FLAG_REGISTER_RCX, FLAG_REGISTER_RDI, FLAG_REGISTER_RDX,
-    -2, -2, FLAG_REGISTER_RSI, FLAG_REGISTER_RSP, FLAG_REGISTER_SI,
-    FLAG_REGISTER_SIL, FLAG_REGISTER_SP, FLAG_REGISTER_SPL, -2, -2,
+    FlagRegister.AX.value, FlagRegister.AL.value, FlagRegister.AX.value, FlagRegister.BX.value, FlagRegister.BL.value,
+    FlagRegister.BP.value, FlagRegister.BPL.value, FlagRegister.BX.value, FlagRegister.CX.value, FlagRegister.CL.value,
+    -2, FlagRegister.CX.value, FlagRegister.DX.value, FlagRegister.DI.value, FlagRegister.DIL.value,
+    FlagRegister.DL.value, -2, FlagRegister.DX.value, FlagRegister.EAX.value, FlagRegister.EBP.value,
+    FlagRegister.EBX.value, FlagRegister.ECX.value, FlagRegister.EDI.value, FlagRegister.EDX.value, 0,
+    -2, -2, -2, FlagRegister.ESI.value, FlagRegister.ESP.value,
+    -2, -2, -2, -2, FlagRegister.RAX.value,
+    FlagRegister.RBP.value, FlagRegister.RBX.value, FlagRegister.RCX.value, FlagRegister.RDI.value, FlagRegister.RDX.value,
+    -2, -2, FlagRegister.RSI.value, FlagRegister.RSP.value, FlagRegister.SI.value,
+    FlagRegister.SIL.value, FlagRegister.SP.value, FlagRegister.SPL.value, -2, -2,
     -2, -2, -2, -2, -2,
     -2, -2, -2, -2, -2,
     -2, -2, -2, -2, -2,
@@ -58,8 +58,8 @@ CAPSTONE_REGISTER_FLAGS = [
     -2, -2, -2, -2, -2,
     -2, -2, -2, -2, -2,
     -2, -2, -2, -2, -2,
-    -2, FLAG_REGISTER_R8, FLAG_REGISTER_R9, FLAG_REGISTER_R10, FLAG_REGISTER_R11,
-    FLAG_REGISTER_R12, FLAG_REGISTER_R13, FLAG_REGISTER_R14, FLAG_REGISTER_R15,
+    -2, FlagRegister.R8.value, FlagRegister.R9.value, FlagRegister.R10.value, FlagRegister.R11.value,
+    FlagRegister.R12.value, FlagRegister.R13.value, FlagRegister.R14.value, FlagRegister.R15.value,
     -2, -2, -2, -2,
     -2, -2, -2, -2,
     -2, -2, -2, -2, -2,
@@ -81,29 +81,127 @@ CAPSTONE_REGISTER_FLAGS = [
     -2, -2, -2, -2, -2,
     -2, -2, -2, -2, -2,
     -2, -2, -2, -2, -2,
-    -2, FLAG_REGISTER_R8B, FLAG_REGISTER_R9B, FLAG_REGISTER_R10B, FLAG_REGISTER_R11B,
-    FLAG_REGISTER_R12B, FLAG_REGISTER_R13B, FLAG_REGISTER_R14B, FLAG_REGISTER_R15B, FLAG_REGISTER_R8D,
-    FLAG_REGISTER_R9D, FLAG_REGISTER_R10D, FLAG_REGISTER_R11D, FLAG_REGISTER_R12D, FLAG_REGISTER_R13D,
-    FLAG_REGISTER_R14D, FLAG_REGISTER_R15D, FLAG_REGISTER_R8W, FLAG_REGISTER_R9W, FLAG_REGISTER_R10W,
-    FLAG_REGISTER_R11W, FLAG_REGISTER_R12W, FLAG_REGISTER_R13W, FLAG_REGISTER_R14W, FLAG_REGISTER_R15W,
+    -2, FlagRegister.R8B.value, FlagRegister.R9B.value, FlagRegister.R10B.value, FlagRegister.R11B.value,
+    FlagRegister.R12B.value, FlagRegister.R13B.value, FlagRegister.R14B.value, FlagRegister.R15B.value, FlagRegister.R8D.value,
+    FlagRegister.R9D.value, FlagRegister.R10D.value, FlagRegister.R11D.value, FlagRegister.R12D.value, FlagRegister.R13D.value,
+    FlagRegister.R14D.value, FlagRegister.R15D.value, FlagRegister.R8W.value, FlagRegister.R9W.value, FlagRegister.R10W.value,
+    FlagRegister.R11W.value, FlagRegister.R12W.value, FlagRegister.R13W.value, FlagRegister.R14W.value, FlagRegister.R15W.value,
     -2
 ]
 
 FULL_INCLUDE_FLAGS_TABLE = [
-    FLAG_REGISTER_RAX | FLAG_REGISTER_EAX | FLAG_REGISTER_AX | FLAG_REGISTER_AL,
-    FLAG_REGISTER_RCX | FLAG_REGISTER_ECX | FLAG_REGISTER_CX | FLAG_REGISTER_CL,
-    FLAG_REGISTER_RDX | FLAG_REGISTER_EDX | FLAG_REGISTER_DX | FLAG_REGISTER_DL,
-    FLAG_REGISTER_RBX | FLAG_REGISTER_EBX | FLAG_REGISTER_BX | FLAG_REGISTER_BL,
-    FLAG_REGISTER_RSP | FLAG_REGISTER_ESP | FLAG_REGISTER_SP | FLAG_REGISTER_SPL,
-    FLAG_REGISTER_RBP | FLAG_REGISTER_EBP | FLAG_REGISTER_BP | FLAG_REGISTER_BPL,
-    FLAG_REGISTER_RSI | FLAG_REGISTER_ESI | FLAG_REGISTER_SI | FLAG_REGISTER_SIL,
-    FLAG_REGISTER_RDI | FLAG_REGISTER_EDI | FLAG_REGISTER_DI | FLAG_REGISTER_DIL,
-    FLAG_REGISTER_R8 | FLAG_REGISTER_R8D | FLAG_REGISTER_R8W | FLAG_REGISTER_R8B,
-    FLAG_REGISTER_R9 | FLAG_REGISTER_R9D | FLAG_REGISTER_R9W | FLAG_REGISTER_R9B,
-    FLAG_REGISTER_R10 | FLAG_REGISTER_R10D | FLAG_REGISTER_R10W | FLAG_REGISTER_R10B,
-    FLAG_REGISTER_R11 | FLAG_REGISTER_R11D | FLAG_REGISTER_R11W | FLAG_REGISTER_R11B,
-    FLAG_REGISTER_R12 | FLAG_REGISTER_R12D | FLAG_REGISTER_R12W | FLAG_REGISTER_R12B,
-    FLAG_REGISTER_R13 | FLAG_REGISTER_R13D | FLAG_REGISTER_R13W | FLAG_REGISTER_R13B,
-    FLAG_REGISTER_R14 | FLAG_REGISTER_R14D | FLAG_REGISTER_R14W | FLAG_REGISTER_R14B,
-    FLAG_REGISTER_R15 | FLAG_REGISTER_R15D | FLAG_REGISTER_R15W | FLAG_REGISTER_R15B,
+    FlagRegister.RAX.value | FlagRegister.EAX.value | FlagRegister.AX.value | FlagRegister.AL.value,
+    FlagRegister.RCX.value | FlagRegister.ECX.value | FlagRegister.CX.value | FlagRegister.CL.value,
+    FlagRegister.RDX.value | FlagRegister.EDX.value | FlagRegister.DX.value | FlagRegister.DL.value,
+    FlagRegister.RBX.value | FlagRegister.EBX.value | FlagRegister.BX.value | FlagRegister.BL.value,
+    FlagRegister.RSP.value | FlagRegister.ESP.value | FlagRegister.SP.value | FlagRegister.SPL.value,
+    FlagRegister.RBP.value | FlagRegister.EBP.value | FlagRegister.BP.value | FlagRegister.BPL.value,
+    FlagRegister.RSI.value | FlagRegister.ESI.value | FlagRegister.SI.value | FlagRegister.SIL.value,
+    FlagRegister.RDI.value | FlagRegister.EDI.value | FlagRegister.DI.value | FlagRegister.DIL.value,
+    FlagRegister.R8.value | FlagRegister.R8D.value | FlagRegister.R8W.value | FlagRegister.R8B.value,
+    FlagRegister.R9.value | FlagRegister.R9D.value | FlagRegister.R9W.value | FlagRegister.R9B.value,
+    FlagRegister.R10.value | FlagRegister.R10D.value | FlagRegister.R10W.value | FlagRegister.R10B.value,
+    FlagRegister.R11.value | FlagRegister.R11D.value | FlagRegister.R11W.value | FlagRegister.R11B.value,
+    FlagRegister.R12.value | FlagRegister.R12D.value | FlagRegister.R12W.value | FlagRegister.R12B.value,
+    FlagRegister.R13.value | FlagRegister.R13D.value | FlagRegister.R13W.value | FlagRegister.R13B.value,
+    FlagRegister.R14.value | FlagRegister.R14D.value | FlagRegister.R14W.value | FlagRegister.R14B.value,
+    FlagRegister.R15.value | FlagRegister.R15D.value | FlagRegister.R15W.value | FlagRegister.R15B.value,
+]
+
+
+SIZE_TO_INDEXSZ = [
+    0,
+    0,
+    1,
+    0,2,
+    0,0,0,3
+]
+
+CONVERT_FUKU_REGISTER_TO_FLAG = [
+    0,
+
+    # x86-x32 registers
+    FlagRegisterIndex.RAX.value,
+    FlagRegisterIndex.EAX.value,
+    FlagRegisterIndex.AX.value,
+    FlagRegisterIndex.AX.value,
+    FlagRegisterIndex.AL.value,
+
+    FlagRegisterIndex.RCX.value,
+    FlagRegisterIndex.ECX.value,
+    FlagRegisterIndex.CX.value,
+    FlagRegisterIndex.CX.value,
+    FlagRegisterIndex.CL.value,
+
+    FlagRegisterIndex.RDX.value,
+    FlagRegisterIndex.EDX.value,
+    FlagRegisterIndex.DX.value,
+    FlagRegisterIndex.DX.value,
+    FlagRegisterIndex.DL.value,
+
+    FlagRegisterIndex.RBX.value,
+    FlagRegisterIndex.EBX.value,
+    FlagRegisterIndex.BX.value,
+    FlagRegisterIndex.BX.value,
+    FlagRegisterIndex.BL.value,
+
+    FlagRegisterIndex.RSP.value,
+    FlagRegisterIndex.ESP.value,
+    FlagRegisterIndex.SP.value,
+    FlagRegisterIndex.SPL.value,
+
+    FlagRegisterIndex.RBP.value,
+    FlagRegisterIndex.EBP.value,
+    FlagRegisterIndex.BP.value,
+    FlagRegisterIndex.BPL.value,
+
+    FlagRegisterIndex.RSI.value,
+    FlagRegisterIndex.ESI.value,
+    FlagRegisterIndex.SI.value,
+    FlagRegisterIndex.SIL.value,
+
+    FlagRegisterIndex.RDI.value,
+    FlagRegisterIndex.EDI.value,
+    FlagRegisterIndex.DI.value,
+    FlagRegisterIndex.DIL.value,
+
+    # x86-x64 registers
+    FlagRegisterIndex.R8.value,
+    FlagRegisterIndex.R8D.value,
+    FlagRegisterIndex.R8W.value,
+    FlagRegisterIndex.R8B.value,
+    FlagRegisterIndex.R9.value,
+    FlagRegisterIndex.R9D.value,
+    FlagRegisterIndex.R9W.value,
+    FlagRegisterIndex.R9B.value,
+
+    FlagRegisterIndex.R10.value,
+    FlagRegisterIndex.R10D.value,
+    FlagRegisterIndex.R10W.value,
+    FlagRegisterIndex.R10B.value,
+
+    FlagRegisterIndex.R11.value,
+    FlagRegisterIndex.R11D.value,
+    FlagRegisterIndex.R11W.value,
+    FlagRegisterIndex.R11B.value,
+
+    FlagRegisterIndex.R12.value,
+    FlagRegisterIndex.R12D.value,
+    FlagRegisterIndex.R12W.value,
+    FlagRegisterIndex.R12B.value,
+
+    FlagRegisterIndex.R13.value,
+    FlagRegisterIndex.R13D.value,
+    FlagRegisterIndex.R13W.value,
+    FlagRegisterIndex.R13B.value,
+
+    FlagRegisterIndex.R14.value,
+    FlagRegisterIndex.R14D.value,
+    FlagRegisterIndex.R14W.value,
+    FlagRegisterIndex.R14B.value,
+
+    FlagRegisterIndex.R15.value,
+    FlagRegisterIndex.R15D.value,
+    FlagRegisterIndex.R15W.value,
+    FlagRegisterIndex.R15B.value
 ]

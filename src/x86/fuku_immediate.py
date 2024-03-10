@@ -6,8 +6,8 @@ from x86.misc import FukuOperandSize
 
 
 class FukuImmediate(BaseModel):
-    relocate: bool
-    immediate_value: int
+    relocate: bool = False
+    immediate_value: int = 0
 
     @property
     def is_8(self) -> bool:

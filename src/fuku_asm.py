@@ -118,7 +118,6 @@ class FukuAsm(BaseModel):
 
         if self.hold_type == FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_FULL_OVERWRITE:
             if not self.position:
-                inst = FukuInst()
                 self.code_holder.instructions.append(inst)
                 self.context.inst = inst
             else:
@@ -138,20 +137,17 @@ class FukuAsm(BaseModel):
                 self.first_emit = False
             else:
                 inst = FukuInst()
+                self.context.inst = inst
                 if not self.position:
                     self.code_holder.instructions.append(inst)
-                    self.context.inst = inst
                 else:
-                    current_inst = next(self.position)
-
+                    current_inst = self.position.peek()
                     idx = self.code_holder.instructions.index(current_inst)
                     self.code_holder.instructions.insert(idx, inst)
-                    self.position = seekable(self.code_holder.instructions)
-                    self.position.seek(idx + 1)
 
     def on_new_chain_item(self) -> FukuAsmCtx:
         if len(self.prefixes):
-            opcode = [x.value for x in self.prefixes] + self.context.inst.opcode
+            opcode = bytearray([x.value for x in self.prefixes]) + self.context.inst.opcode
 
             if self.context.displacment_offset:
                 self.context.displacment_offset += len(self.prefixes)
@@ -172,7 +168,7 @@ class FukuAsm(BaseModel):
 
         return self.context
 
-    def _fuku_assambler_command_1op_graph(
+    def _fuku_assembler_command_1op_graph(
         self,
         dst: FukuType,
         op_b_r: Callable,
@@ -192,7 +188,7 @@ class FukuAsm(BaseModel):
         op_qw_imm: Callable
     ):
         self.on_emit(dst)
-        match get_minimal_op_size(dst):
+        match get_minimal_op_size(self.context, dst):
             case FukuOperandSize.FUKU_OPERAND_SIZE_8:
                 match dst.type:
                     case FukuT0Types.FUKU_T0_REGISTER:
@@ -709,18 +705,18 @@ class FukuAsm(BaseModel):
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
 
-            lambda: self.asm.movzx_byte_dw(self.context, dst.register, src.register) if src.register.size.value == 1 else
-            lambda: self.asm.movzx_word_dw(self.context, dst.register, src.register),
-            lambda: self.asm.movzx_byte_dw(self.context, dst.register, src.operand) if src.operand.size.value == 1 else
-            lambda: self.asm.movzx_word_dw(self.context, dst.register, src.operand),
+            (lambda: self.asm.movzx_byte_dw(self.context, dst.register, src.register)) if src.register.size.value == 1 else
+            (lambda: self.asm.movzx_word_dw(self.context, dst.register, src.register)),
+            (lambda: self.asm.movzx_byte_dw(self.context, dst.register, src.operand)) if src.operand.size.value == 1 else
+            (lambda: self.asm.movzx_word_dw(self.context, dst.register, src.operand)),
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
 
-            lambda: self.asm.movzx_byte_qw(self.context, dst.register, src.register) if src.register.size.value == 1 else
-            lambda: self.asm.movzx_word_qw(self.context, dst.register, src.register),
-            lambda: self.asm.movzx_byte_qw(self.context, dst.register, src.operand) if src.operand.size.value == 1 else
-            lambda: self.asm.movzx_word_qw(self.context, dst.register, src.operand),
+            (lambda: self.asm.movzx_byte_qw(self.context, dst.register, src.register)) if src.register.size.value == 1 else
+            (lambda: self.asm.movzx_word_qw(self.context, dst.register, src.register)),
+            (lambda: self.asm.movzx_byte_qw(self.context, dst.register, src.operand)) if src.operand.size.value == 1 else
+            (lambda: self.asm.movzx_word_qw(self.context, dst.register, src.operand)),
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
             UNUSUAL_DATASET
@@ -743,18 +739,18 @@ class FukuAsm(BaseModel):
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
 
-            lambda: self.asm.movsx_byte_dw(self.context, dst.register, src.register) if src.register.size.value == 1 else
-            lambda: self.asm.movsx_word_dw(self.context, dst.register, src.register),
-            lambda: self.asm.movsx_byte_dw(self.context, dst.register, src.operand) if src.operand.size.value == 1 else
-            lambda: self.asm.movsx_word_dw(self.context, dst.register, src.operand),
+            (lambda: self.asm.movsx_byte_dw(self.context, dst.register, src.register)) if src.register.size.value == 1 else
+            (lambda: self.asm.movsx_word_dw(self.context, dst.register, src.register)),
+            (lambda: self.asm.movsx_byte_dw(self.context, dst.register, src.operand)) if src.operand.size.value == 1 else
+            (lambda: self.asm.movsx_word_dw(self.context, dst.register, src.operand)),
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
 
-            lambda: self.asm.movsx_byte_qw(self.context, dst.register, src.register) if src.register.size.value == 1 else
-            lambda: self.asm.movsx_word_qw(self.context, dst.register, src.register),
-            lambda: self.asm.movsx_byte_qw(self.context, dst.register, src.operand) if src.operand.size.value == 1 else
-            lambda: self.asm.movsx_word_qw(self.context, dst.register, src.operand),
+            (lambda: self.asm.movsx_byte_qw(self.context, dst.register, src.register)) if src.register.size.value == 1 else
+            (lambda: self.asm.movsx_word_qw(self.context, dst.register, src.register)),
+            (lambda: self.asm.movsx_byte_qw(self.context, dst.register, src.operand)) if src.operand.size.value == 1 else
+            (lambda: self.asm.movsx_word_qw(self.context, dst.register, src.operand)),
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
             UNUSUAL_DATASET
@@ -1417,28 +1413,28 @@ class FukuAsm(BaseModel):
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
 
-            lambda: self.asm.shrd_cl_w(self.context, dst.register, src.register) if shift_reg else
-            lambda: self.asm.shrd_w(self.context, dst.register, src.register, shift.immediate),
+            (lambda: self.asm.shrd_cl_w(self.context, dst.register, src.register)) if shift_reg else
+            (lambda: self.asm.shrd_w(self.context, dst.register, src.register, shift.immediate)),
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
-            lambda: self.asm.shrd_cl_w(self.context, dst.operand, src.register) if shift_reg else
-            lambda: self.asm.shrd_w(self.context, dst.operand, src.register, shift.immediate),
-            UNUSUAL_DATASET,
-
-            lambda: self.asm.shrd_cl_dw(self.context, dst.register, src.register) if shift_reg else
-            lambda: self.asm.shrd_dw(self.context, dst.register, src.register, shift.immediate),
-            UNUSUAL_DATASET,
-            UNUSUAL_DATASET,
-            lambda: self.asm.shrd_cl_dw(self.context, dst.operand, src.register) if shift_reg else
-            lambda: self.asm.shrd_dw(self.context, dst.operand, src.register, shift.immediate),
+            (lambda: self.asm.shrd_cl_w(self.context, dst.operand, src.register)) if shift_reg else
+            (lambda: self.asm.shrd_w(self.context, dst.operand, src.register, shift.immediate)),
             UNUSUAL_DATASET,
 
-            lambda: self.asm.shrd_cl_qw(self.context, dst.register, src.register) if shift_reg else
-            lambda: self.asm.shrd_qw(self.context, dst.register, src.register, shift.immediate),
+            (lambda: self.asm.shrd_cl_dw(self.context, dst.register, src.register)) if shift_reg else
+            (lambda: self.asm.shrd_dw(self.context, dst.register, src.register, shift.immediate)),
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
-            lambda: self.asm.shrd_cl_qw(self.context, dst.operand, src.register) if shift_reg else
-            lambda: self.asm.shrd_qw(self.context, dst.operand, src.register, shift.immediate),
+            (lambda: self.asm.shrd_cl_dw(self.context, dst.operand, src.register)) if shift_reg else
+            (lambda: self.asm.shrd_dw(self.context, dst.operand, src.register, shift.immediate)),
+            UNUSUAL_DATASET,
+
+            (lambda: self.asm.shrd_cl_qw(self.context, dst.register, src.register)) if shift_reg else
+            (lambda: self.asm.shrd_qw(self.context, dst.register, src.register, shift.immediate)),
+            UNUSUAL_DATASET,
+            UNUSUAL_DATASET,
+            (lambda: self.asm.shrd_cl_qw(self.context, dst.operand, src.register)) if shift_reg else
+            (lambda: self.asm.shrd_qw(self.context, dst.operand, src.register, shift.immediate)),
             UNUSUAL_DATASET
         )
 
@@ -1461,28 +1457,28 @@ class FukuAsm(BaseModel):
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
 
-            lambda: self.asm.shld_cl_w(self.context, dst.register, src.register) if shift_reg else
-            lambda: self.asm.shld_w(self.context, dst.register, src.register, shift.immediate),
+            (lambda: self.asm.shld_cl_w(self.context, dst.register, src.register)) if shift_reg else
+            (lambda: self.asm.shld_w(self.context, dst.register, src.register, shift.immediate)),
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
-            lambda: self.asm.shld_cl_w(self.context, dst.operand, src.register) if shift_reg else
-            lambda: self.asm.shld_w(self.context, dst.operand, src.register, shift.immediate),
-            UNUSUAL_DATASET,
-
-            lambda: self.asm.shld_cl_dw(self.context, dst.register, src.register) if shift_reg else
-            lambda: self.asm.shld_dw(self.context, dst.register, src.register, shift.immediate),
-            UNUSUAL_DATASET,
-            UNUSUAL_DATASET,
-            lambda: self.asm.shld_cl_dw(self.context, dst.operand, src.register) if shift_reg else
-            lambda: self.asm.shld_dw(self.context, dst.operand, src.register, shift.immediate),
+            (lambda: self.asm.shld_cl_w(self.context, dst.operand, src.register)) if shift_reg else
+            (lambda: self.asm.shld_w(self.context, dst.operand, src.register, shift.immediate)),
             UNUSUAL_DATASET,
 
-            lambda: self.asm.shld_cl_qw(self.context, dst.register, src.register) if shift_reg else
-            lambda: self.asm.shld_qw(self.context, dst.register, src.register, shift.immediate),
+            (lambda: self.asm.shld_cl_dw(self.context, dst.register, src.register)) if shift_reg else
+            (lambda: self.asm.shld_dw(self.context, dst.register, src.register, shift.immediate)),
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
-            lambda: self.asm.shld_cl_qw(self.context, dst.operand, src.register) if shift_reg else
-            lambda: self.asm.shld_qw(self.context, dst.operand, src.register, shift.immediate),
+            (lambda: self.asm.shld_cl_dw(self.context, dst.operand, src.register)) if shift_reg else
+            (lambda: self.asm.shld_dw(self.context, dst.operand, src.register, shift.immediate)),
+            UNUSUAL_DATASET,
+
+            (lambda: self.asm.shld_cl_qw(self.context, dst.register, src.register)) if shift_reg else
+            (lambda: self.asm.shld_qw(self.context, dst.register, src.register, shift.immediate)),
+            UNUSUAL_DATASET,
+            UNUSUAL_DATASET,
+            (lambda: self.asm.shld_cl_qw(self.context, dst.operand, src.register)) if shift_reg else
+            (lambda: self.asm.shld_qw(self.context, dst.operand, src.register, shift.immediate)),
             UNUSUAL_DATASET
         )
 
@@ -1903,13 +1899,13 @@ class FukuAsm(BaseModel):
 
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
-            lambda: self.asm.ret(self.context, src.immediate) if src.immediate.immediate16 else
-            lambda: self.asm.ret(self.context),
+            (lambda: self.asm.ret(self.context, src.immediate)) if src.immediate.immediate16 else
+            (lambda: self.asm.ret(self.context)),
 
             UNUSUAL_DATASET,
             UNUSUAL_DATASET,
-            lambda: self.asm.ret(self.context, src.immediate) if src.immediate.immediate16 else
-            lambda: self.asm.ret(self.context)
+            (lambda: self.asm.ret(self.context, src.immediate)) if src.immediate.immediate16 else
+            (lambda: self.asm.ret(self.context))
         )
 
         return self.on_new_chain_item()
