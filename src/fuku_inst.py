@@ -100,8 +100,6 @@ class FukuInst(BaseModel):
         self.opcode = src.opcode
         self.id = src.id
 
-        self.id = src.id;
-
         self.source_address = src.source_address
         self.current_address = src.current_address
         self.label = src.label

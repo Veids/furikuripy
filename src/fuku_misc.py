@@ -1,9 +1,10 @@
-from random import random
 from enum import Enum
 from typing import Annotated
 from annotated_types import Gt
 from pydantic import BaseModel
 from capstone import x86_const
+
+from common import rng
 
 
 class FUKU_ASSEMBLER_ARCH(Enum):
@@ -29,17 +30,17 @@ class FukuObfuscationSettings(BaseModel):
     mutate_chance: float # 0.f - 100.f chance of mutation line
     asm_cfg: int # assembler builder flags
 
-    not_allowed_unstable_stack: bool # if true then obfuscator don't use stack above esp
-    not_allowed_relocations: bool # if true then obfuscator don't create new relocations in code
+    is_not_allowed_unstable_stack: bool # if true then obfuscator don't use stack above esp
+    is_not_allowed_relocations: bool # if true then obfuscator don't create new relocations in code
 
     def roll_junk_chance(self) -> bool:
-        return random() * 100 <= self.junk_chance
+        return rng.random() * 100 <= self.junk_chance
 
     def roll_block_chance(self) -> bool:
-        return random() * 100 <= self.block_chance
+        return rng.random() * 100 <= self.block_chance
 
     def roll_mutate_chance(self) -> bool:
-        return random() * 100 <= self.mutate_chance
+        return rng.random() * 100 <= self.mutate_chance
 
 
 def X86_REL_ADDR(inst):

@@ -68,7 +68,7 @@ class FukuType(BaseModel):
         return 0
 
     @staticmethod
-    def get_random_operand_dst_x64(allow_inst: int, size: int, allow_regs: int, disallow_regs: int) -> Optional[FukuType]:
+    def get_random_operand_dst_x64(allow_inst: int, size: FukuOperandSize, allow_regs: int, disallow_regs: int) -> Optional[FukuType]:
         if not allow_inst:
             return None
 
@@ -77,6 +77,22 @@ class FukuType(BaseModel):
                 op = FukuRegisterEnum.get_random_free_register_x64(allow_regs, size, disallow_regs)
                 if op != FukuRegisterEnum.FUKU_REG_NONE:
                     return FukuRegister(op).ftype
+
+        return None
+
+    @staticmethod
+    def get_random_operand_src_x64(allow_inst: int, size: FukuOperandSize, disallow_regs: int) -> Optional[FukuType]:
+        if not allow_inst:
+            return None
+
+        match get_random_bit_by_mask(allow_inst, 0, 2):
+            case 0:
+                op = FukuRegisterEnum.get_random_register(size, False, disallow_regs)
+                if op != FukuRegisterEnum.FUKU_REG_NONE:
+                    return FukuRegister(op).ftype
+
+            case 2:
+                return FukuImmediate.get_random_x64(size).ftype
 
         return None
 

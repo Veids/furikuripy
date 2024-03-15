@@ -1,13 +1,23 @@
 import ctypes
 
+from typing import ForwardRef
 from pydantic import BaseModel
 
+from common import rng
 from x86.misc import FukuOperandSize
+
+FukuImmediate = ForwardRef("FukuImmediate")
 
 
 class FukuImmediate(BaseModel):
     relocate: bool = False
     immediate_value: int = 0
+
+    def __init__(self, immediate_value: int = 0, relocate: bool = False):
+        super().__init__(
+            immediate_value = immediate_value,
+            relocate = relocate
+        )
 
     @property
     def is_8(self) -> bool:
@@ -73,3 +83,25 @@ class FukuImmediate(BaseModel):
     @property
     def signed_value64(self):
         return self.immediate_value
+
+    @staticmethod
+    def get_random_x64(size: FukuOperandSize) -> FukuImmediate:
+        sw = rng.randint(0, size.value * 4)
+
+        match sw:
+            case 0:
+                return FukuImmediate(rng.randint(1, size.value * 0xFF) * 4)
+
+            case 1:
+                return FukuImmediate(rng.randint(1, 0xFFFFFFFF))
+
+            case (
+                2 | 3 | 4 | 5 |
+                6 | 7 | 8 | 9 |
+                10 | 11 | 12 | 13 |
+                14 | 15 | 16
+            ):
+                return FukuImmediate(rng.randint(1, 0xF) * (1 << ((sw - 2) * 4)))
+
+            case _:
+                return FukuImmediate(rng.randint(1, 0xFFFFFFFF))

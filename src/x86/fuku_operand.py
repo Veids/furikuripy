@@ -59,12 +59,12 @@ class FukuMemOperandType(Enum):
 
 
 class FukuOperand(BaseModel):
-    base: FukuRegister
-    index: FukuRegister
-    scale: FukuOperandScale
-    disp: FukuImmediate
+    base: FukuRegister = FukuRegister(FukuRegisterEnum.FUKU_REG_NONE)
+    index: FukuRegister = FukuRegister(FukuRegisterEnum.FUKU_REG_NONE)
+    scale: FukuOperandScale = FukuOperandScale.FUKU_OPERAND_SCALE_1
+    disp: FukuImmediate = FukuImmediate(0)
     size: FukuOperandSize
-    segment: FukuPrefix
+    segment: FukuPrefix = FukuPrefix.FUKU_PREFIX_NONE
 
     @property
     def type(self) -> FukuMemOperandType:
@@ -94,7 +94,7 @@ class FukuOperand(BaseModel):
         base = FukuRegisterEnum.FUKU_REG_NONE
         index = FukuRegisterEnum.FUKU_REG_NONE
         scale = FukuOperandScale.FUKU_OPERAND_SCALE_1
-        disp = FukuImmediate()
+        imm = FukuImmediate()
         size = FukuOperandSize.FUKU_OPERAND_SIZE_0
         
         if op.type == x86_const.X86_OP_MEM:
@@ -107,13 +107,13 @@ class FukuOperand(BaseModel):
                 index = CAP_TO_FUKU_TABLE[op.mem.index]
                 scale = FukuOperandScale.from_capstone(op.mem.scale)
 
-            imm = op.mem.disp
+            imm = FukuImmediate(op.mem.disp)
 
         return FukuOperand(
             base = FukuRegister(base),
             index = FukuRegister(index),
             scale = scale,
-            disp = disp,
+            disp = imm,
             size = size,
             segment = FukuPrefix.FUKU_PREFIX_NONE
         )

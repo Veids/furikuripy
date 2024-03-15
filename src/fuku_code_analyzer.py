@@ -1,10 +1,9 @@
 import struct
-from capstone import *
 from typing import Optional
-from capstone import x86_const
+from capstone import x86_const, Cs, CS_ARCH_X86, CS_MODE_32, CS_MODE_64
 from pydantic import BaseModel
 
-from fuku_inst import FukuCodeLabel, FukuRipRelocation
+from fuku_inst import FukuCodeLabel, FukuRipRelocation, FukuRelocation
 from fuku_misc import FUKU_ASSEMBLER_ARCH, X86_REL_ADDR
 from fuku_code_holder import FukuCodeHolder
 

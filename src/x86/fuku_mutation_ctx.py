@@ -1,13 +1,14 @@
 from copy import copy
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Iterator
 from pydantic import BaseModel, ConfigDict
 from capstone import CsInsn
+from more_itertools import seekable
 
 from x86.misc import FukuOperandSize
 from x86.fuku_type import FukuType, FukuT0Types
-from fuku_asm import FukuAsm, FukuAsmHoldType
+from fuku_asm import FukuAsm
 from fuku_code_holder import FukuCodeHolder
-from fuku_misc import FukuInstFlags, FukuObfuscationSettings, FUKU_ASSEMBLER_ARCH
+from fuku_misc import FukuInstFlags, FukuObfuscationSettings
 from fuku_inst import FukuCodeLabel, FukuInst, FukuRelocation
 
 
@@ -27,7 +28,7 @@ class FukuMutationCtx(BaseModel):
 
     original_start_label: Optional[FukuCodeLabel] = None
     payload_start_label: Optional[FukuCodeLabel] = None
-    
+
     is_first_inst: bool = False # is inst iter on begin
     is_next_last_inst: bool = False # is next inst iter on end
     has_source_address: bool = False # is inst has source address
@@ -42,9 +43,11 @@ class FukuMutationCtx(BaseModel):
 
         self.is_first_inst = self.code_holder.instructions.index(inst) == 0
 
-        self.prev_inst_iter = copy(iter)
+        idx = self.code_holder.instructions.index(iter.peek())
+        self.prev_inst_iter = seekable(self.code_holder.instructions)
         if not self.is_first_inst:
-            self.prev_inst_iter.seek(-1)
+            self.prev_inst_iter.seek(idx)
+
         self.original_inst_iter = copy(iter)
         self.payload_inst_iter = copy(iter)
         self.next_inst_iter = copy(iter)
@@ -62,6 +65,33 @@ class FukuMutationCtx(BaseModel):
 
         if self.has_source_address:
             self.source_address = inst.source_address
+
+    def generate_payload_label(self):
+        if not self.payload_start_label:
+            self.payload_start_label = self.code_holder.create_label(FukuCodeLabel())
+
+        return self.payload_start_label
+
+    def calc_original_inst_iter(self) -> Iterator:
+        if self.is_first_inst:
+            return seekable(self.code_holder.instructions)
+        else:
+            idx = self.code_holder.instructions.index(self.prev_inst_iter.peek())
+            iter = seekable(self.code_holder.instructions)
+            iter.seek(idx + 1)
+            return iter
+
+    def update_payload_inst_iter(self) -> Iterator:
+        idx = self.code_holder.instructions.index(self.next_inst_iter.peek())
+        iter = seekable(self.code_holder.instructions)
+        iter.seek(idx)
+        return iter
+
+    def calc_next_inst_iter(self) -> Iterator:
+        idx = self.code_holder.instructions.index(self.next_inst_iter.peek())
+        iter = seekable(self.code_holder.instructions)
+        iter.seek(idx)
+        return iter
 
     @property
     def is_allowed_stack_operations(self) -> bool:
@@ -81,7 +111,7 @@ class FukuMutationCtx(BaseModel):
             op.type == FukuT0Types.FUKU_T0_IMMEDIATE and imm_reloc
         ):
             self.f_asm.context.inst.imm_reloc = imm_reloc
-            imm_reloc.offset = ctx.f_asm.context.immediate_offset
+            imm_reloc.offset = self.f_asm.context.immediate_offset
             return True
 
         return False
@@ -94,14 +124,15 @@ class FukuMutationCtx(BaseModel):
                     offset = self.f_asm.context.immediate_offset
                 )
             )
-            self.code_holder.relocations.remove(rip_reloc)
+            rip_reloc.label = None
+            self.code_holder.rip_relocations.remove(rip_reloc)
             return True
 
         return False
 
     def restore_rip_relocate_in_imm(self, op: FukuType, rip_reloc, used_disp_reloc: bool, inst_size: int) -> bool:
         if (
-            inst_size == FukuOperandSize.FUKU_OPERAND_SIZE_64.value and 
+            inst_size == FukuOperandSize.FUKU_OPERAND_SIZE_64.value and
             op.type == FukuT0Types.FUKU_T0_IMMEDIATE and
             rip_reloc and not used_disp_reloc
         ):

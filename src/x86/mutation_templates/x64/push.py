@@ -1,0 +1,140 @@
+from capstone import x86_const
+
+from common import trace, rng
+from fuku_misc import FukuInstFlags
+from fuku_inst import FukuInst
+from x86.misc import FukuOperandSize
+from x86.fuku_operand import FukuOperand, qword_ptr
+from x86.fuku_type import FukuType, FukuT0Types
+from x86.fuku_register import FukuRegister, FukuRegisterEnum, FukuRegisterIndex
+from x86.fuku_immediate import FukuImmediate
+from x86.fuku_mutation_ctx import FukuMutationCtx
+from x86.fuku_register_math import has_free_eflags
+
+
+# (sub esp,4) or (lea esp,[esp - 4])
+# mov [esp],reg
+def _push_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -> bool:
+    if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index == FukuRegisterIndex.FUKU_REG_INDEX_SP:
+        return False
+
+    inst: FukuInst = ctx.payload_inst_iter.peek()
+    out_regflags = ctx.cpu_registers & ~(src.get_mask_register())
+
+    if has_free_eflags(
+        ctx.cpu_flags,
+        x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_SF |
+        x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_AF |
+        x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_PF
+    ):
+        ctx.f_asm.sub(FukuRegister(FukuRegisterEnum.FUKU_REG_RSP).ftype, FukuImmediate(inst_size).ftype)
+        ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+        ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    else:
+        ctx.f_asm.lea(
+            FukuRegister(FukuRegisterEnum.FUKU_REG_RSP).ftype,
+            qword_ptr(
+                base = FukuRegister(FukuRegisterEnum.FUKU_REG_RSP),
+                disp = FukuImmediate(-inst_size))
+            .ftype
+        )
+        ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+        ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+
+    ctx.f_asm.mov(
+        FukuOperand(
+            base = FukuRegister(FukuRegisterEnum.FUKU_REG_RSP),
+            size = FukuOperandSize(inst_size)
+        ).ftype,
+        src
+    )
+
+    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+    ctx.f_asm.context.inst.cpu_registers = out_regflags
+
+    ctx.restore_disp_relocate(src, inst.disp_reloc, inst.flags.inst_used_disp)
+
+    trace.info("push src -> sub rsp, 8 or lea rsp, [rsp, 8]; mov [rsp], reg")
+    return True
+
+# mov [esp - 4],reg
+# (sub esp,4) or (lea esp,[esp - 4])
+def _push_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -> bool:
+    if ctx.settings.is_not_allowed_unstable_stack:
+        return False
+
+    if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index == FukuRegisterIndex.FUKU_REG_INDEX_SP:
+        return False
+
+    inst: FukuInst = ctx.payload_inst_iter.peek()
+
+    ctx.f_asm.mov(
+        FukuOperand(
+            base = FukuRegister(FukuRegisterEnum.FUKU_REG_RSP),
+            disp = FukuImmediate(-inst_size),
+            size = FukuOperandSize(inst_size)
+        ).ftype,
+        src
+    )
+
+    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+
+
+    out_regflags = ctx.cpu_registers & ~(src.get_mask_register())
+    ctx.restore_disp_relocate(src, inst.disp_reloc, inst.flags.inst_used_disp)
+
+    if has_free_eflags(
+        ctx.cpu_flags,
+        x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_SF |
+        x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_AF |
+        x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_PF
+    ):
+        ctx.f_asm.sub(FukuRegister(FukuRegisterEnum.FUKU_REG_RSP).ftype, FukuImmediate(inst_size).ftype)
+        ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+        ctx.f_asm.context.inst.cpu_registers = out_regflags
+        ctx.f_asm.context.inst.flags.inst_flags = FukuInstFlags.FUKU_INST_BAD_STACK.value
+    else:
+        ctx.f_asm.lea(
+            FukuRegister(FukuRegisterEnum.FUKU_REG_RSP).ftype,
+            qword_ptr(
+                base = FukuRegister(FukuRegisterEnum.FUKU_REG_RSP),
+                disp = FukuImmediate(immediate_value=-inst_size))
+            .ftype
+        )
+        ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+        ctx.f_asm.context.inst.cpu_registers = out_regflags
+        ctx.f_asm.context.inst.flags.inst_flags = FukuInstFlags.FUKU_INST_BAD_STACK.value
+
+    trace.info("push src -> mov [rsp - 8], reg; sub rsp, 8 or lea rsp, [rsp, 8]")
+    return True
+
+def _push_64_imm_tmpl(ctx: FukuMutationCtx) -> bool:
+    imm_src = FukuImmediate(ctx.instruction.operands[0].imm).ftype
+
+    match rng.randint(0, 1):
+        case 0:
+            return _push_64_multi_tmpl_1(ctx, imm_src, ctx.instruction.operands[0].size)
+
+        case 1:
+            return _push_64_multi_tmpl_2(ctx, imm_src, ctx.instruction.operands[0].size)
+
+def _push_64_reg_tmpl(ctx: FukuMutationCtx) -> bool:
+    reg_src = FukuRegister.from_capstone(ctx.instruction.operands[0]).ftype
+
+    match rng.randint(0, 1):
+        case 0:
+            return _push_64_multi_tmpl_1(ctx, reg_src, ctx.instruction.operands[0].size)
+
+        case 1:
+            return _push_64_multi_tmpl_2(ctx, reg_src, ctx.instruction.operands[0].size)
+
+def fukutate_64_push(ctx: FukuMutationCtx) -> bool:
+    match ctx.instruction.operands[0].type:
+        case x86_const.X86_OP_REG:
+            return _push_64_reg_tmpl(ctx)
+
+        case x86_const.X86_OP_IMM:
+            return _push_64_imm_tmpl(ctx)
+
+    return False

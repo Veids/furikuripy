@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional, Iterator, List, Callable
 from pydantic import BaseModel, ConfigDict
-from more_itertools import peekable, seekable
+from more_itertools import peekable
 
 from fuku_misc import FUKU_ASSEMBLER_ARCH, UNUSUAL_DATASET
 from fuku_inst import FukuInst, FukuCodeLabel
@@ -107,7 +107,7 @@ class FukuAsm(BaseModel):
     def on_emit(self, dst: Optional[FukuType] = None, src: Optional[FukuType] = None):
         if dst is not None:
             if dst.type == FukuT0Types.FUKU_T0_OPERAND:
-                if dst.segment != FukuT0Types.FUKU_T0_OPERAND:
+                if dst.segment != FukuPrefix.FUKU_PREFIX_NONE:
                     self.prefixes.append(dst.segment)
             elif src is not None and src.type == FukuT0Types.FUKU_T0_OPERAND:
                 if src.segment != FukuPrefix.FUKU_PREFIX_NONE:
@@ -118,6 +118,7 @@ class FukuAsm(BaseModel):
 
         if self.hold_type == FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_FULL_OVERWRITE:
             if not self.position:
+                inst = FukuInst()
                 self.code_holder.instructions.append(inst)
                 self.context.inst = inst
             else:
@@ -2159,7 +2160,7 @@ class FukuAsm(BaseModel):
 
         return self.on_new_chain_item()
 
-    def nop(self, size: int) -> FukuAsmCtx:
+    def nop(self, size: int = None) -> FukuAsmCtx:
         self.on_emit()
         self.asm.nop(self.context, size)
         return self.on_new_chain_item()

@@ -1,17 +1,15 @@
-from common import trace
-from random import randint
 from capstone import x86_const
 
-from fuku_misc import FukuInstFlags
-from fuku_inst import FukuInst, FukuRipRelocation, FukuCodeLabel
-from x86.misc import FukuOperandSize, FukuCondition
+from common import trace, rng
+from fuku_inst import FukuInst
+from x86.misc import FukuOperandSize
 from x86.fuku_type import FukuType, FukuT0Types
 from x86.fuku_operand import FukuOperand
 from x86.fuku_register import FukuRegister, FukuRegisterEnum, FukuRegisterIndex
 from x86.fuku_immediate import FukuImmediate
 from x86.fuku_mutation_ctx import FukuMutationCtx
 from x86.fuku_register_math import has_free_eflags
-from x86.fuku_register_math_metadata import ODI_FL_JCC, AllowInstruction, FlagRegister
+from x86.fuku_register_math_metadata import AllowInstruction, FlagRegister
 
 # mov somereg, src
 # xchg dst, somereg
@@ -109,7 +107,7 @@ def _mov_64_reg_reg_tmpl(ctx: FukuMutationCtx) -> bool:
     reg_dst = FukuRegister(FukuRegisterEnum.from_capstone(ctx.instruction.operands[0])).ftype
     reg_src = FukuRegister(FukuRegisterEnum.from_capstone(ctx.instruction.operands[1])).ftype
 
-    match randint(0, 2):
+    match rng.randint(0, 2):
         case 0:
             return _mov_64_multi_tmpl_1(ctx, reg_dst, reg_src, ctx.instruction.operands[0].size)
 
@@ -122,9 +120,9 @@ def _mov_64_reg_reg_tmpl(ctx: FukuMutationCtx) -> bool:
 
 def _mov_64_reg_imm_tmpl(ctx: FukuMutationCtx) -> bool:
     reg_dst = FukuRegister(FukuRegisterEnum.from_capstone(ctx.instruction.operands[0])).ftype
-    imm_src = FukuImmediate(immediate_value = ctx.instruction.operands[1].imm).ftype
+    imm_src = FukuImmediate(ctx.instruction.operands[1].imm).ftype
 
-    match randint(0, 2):
+    match rng.randint(0, 2):
         case 0:
             return _mov_64_multi_tmpl_1(ctx, reg_dst, imm_src, ctx.instruction.operands[0].size)
 
@@ -138,7 +136,7 @@ def _mov_64_reg_op_tmpl(ctx: FukuMutationCtx) -> bool:
     reg_dst = FukuRegister(FukuRegisterEnum.from_capstone(ctx.instruction.operands[0])).ftype
     op_src = FukuOperand.from_capstone(ctx.instruction.operands[1]).ftype
 
-    match randint(0, 2):
+    match rng.randint(0, 2):
         case 0:
             return _mov_64_multi_tmpl_1(ctx, reg_dst, op_src, ctx.instruction.operands[0].size)
 
@@ -153,24 +151,24 @@ def _mov_64_op_reg_tmpl(ctx: FukuMutationCtx) -> bool:
     op_dst = FukuOperand.from_capstone(ctx.instruction.operands[0]).ftype
     reg_src = FukuRegister(FukuRegisterEnum.from_capstone(ctx.instruction.operands[1])).ftype
 
-    match randint(0, 1):
+    match rng.randint(0, 1):
         case 0:
             return _mov_64_multi_tmpl_1(ctx, op_dst, reg_src, ctx.instruction.operands[0].size)
 
         case 1:
-            return _mov_64_multi_tmpl_3(ctx, op_dst, reg_src, ctx.instruction.operands[0].size);
+            return _mov_64_multi_tmpl_3(ctx, op_dst, reg_src, ctx.instruction.operands[0].size)
 
 
 def _mov_64_op_imm_tmpl(ctx: FukuMutationCtx) -> bool:
     op_dst = FukuOperand.from_capstone(ctx.instruction.operands[0]).ftype
-    imm_src = FukuImmediate(immediate_value = ctx.instruction.operands[1].imm).ftype
+    imm_src = FukuImmediate(ctx.instruction.operands[1].imm).ftype
 
-    match randint(0, 1):
+    match rng.randint(0, 1):
         case 0:
             return _mov_64_multi_tmpl_1(ctx, op_dst, imm_src, ctx.instruction.operands[0].size)
 
         case 1:
-            return _mov_64_multi_tmpl_3(ctx, op_dst, imm_src, ctx.instruction.operands[0].size);
+            return _mov_64_multi_tmpl_3(ctx, op_dst, imm_src, ctx.instruction.operands[0].size)
 
 def fukutate_64_mov(ctx: FukuMutationCtx) -> bool:
     operands = ctx.instruction.operands

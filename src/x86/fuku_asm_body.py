@@ -1,3 +1,4 @@
+from common import rng
 from typing import Tuple, Optional
 from capstone import x86_const
 
@@ -1088,8 +1089,11 @@ class FukuAsmBody:
         )
 
     # SYSTEM INSTRUCTIONS
-    def nop(self, ctx: FukuAsmCtx, n: int):
+    def nop(self, ctx: FukuAsmCtx, n: int = None):
         ctx.clear()
+
+        if not n:
+            n = rng.randint(1, 11)
 
         match n:
             case 2:

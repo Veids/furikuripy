@@ -1,6 +1,6 @@
-from random import randint
 from capstone import x86_const
 
+from common import rng
 from x86.fuku_register_math_tables import FULL_INCLUDE_FLAGS_TABLE
 from x86.fuku_register_math_metadata import EflagsMod
 
@@ -26,7 +26,7 @@ def bit_scan_backward(index, mask):
 
 
 def get_random_bit_by_mask(mask: int, min_index: int, max_index: int):
-    rand_idx = randint(min_index, max_index)
+    rand_idx = rng.randint(min_index, max_index)
 
     if rand_idx == min_index:
         return bit_scan_forward(rand_idx, mask)
@@ -39,6 +39,9 @@ def get_random_bit_by_mask(mask: int, min_index: int, max_index: int):
         index = bit_scan_backward(rand_idx, mask)
 
     return index
+
+def has_flag_free_register(regs_flags: int, reg: int) -> bool:
+    return (regs_flags & reg) == reg
 
 def has_free_eflags(inst_eflags: int, flags: int) -> bool:
     pairs = (

@@ -1,3 +1,4 @@
+import random
 import logging
 from rich.logging import RichHandler
 
@@ -8,3 +9,4 @@ logging.basicConfig(
 
 log = logging.getLogger("furikuri")
 trace = logging.getLogger("furikuri-trace")
+rng = random.Random()

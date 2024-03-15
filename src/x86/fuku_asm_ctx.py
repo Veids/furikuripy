@@ -1,5 +1,5 @@
 import struct
-from typing import Optional, List, ForwardRef
+from typing import Optional, ForwardRef
 from pydantic import BaseModel
 
 from fuku_inst import FukuInst

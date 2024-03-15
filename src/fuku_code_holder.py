@@ -44,7 +44,7 @@ class FukuCodeHolder(BaseModel):
 
     def create_label(self, label):
         if label.inst is not None and label.inst.label:
-            return label.inst.get_label()
+            return label.inst.label
 
         self.labels.append(label)
         return label

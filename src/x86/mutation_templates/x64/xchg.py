@@ -1,17 +1,14 @@
-from common import trace
-from random import randint
 from capstone import x86_const
 
+from common import trace, rng
 from fuku_misc import FukuInstFlags
-from fuku_inst import FukuInst, FukuRipRelocation, FukuCodeLabel
-from x86.misc import FukuOperandSize, FukuCondition
+from fuku_inst import FukuInst
 from x86.fuku_type import FukuType, FukuT0Types
 from x86.fuku_operand import FukuOperand
-from x86.fuku_register import FukuRegister, FukuRegisterEnum, FukuRegisterIndex
-from x86.fuku_immediate import FukuImmediate
+from x86.fuku_register import FukuRegister, FukuRegisterIndex
 from x86.fuku_mutation_ctx import FukuMutationCtx
 from x86.fuku_register_math import has_free_eflags
-from x86.fuku_register_math_metadata import ODI_FL_JCC, AllowInstruction, FlagRegister
+from x86.fuku_register_math_metadata import AllowInstruction, FlagRegister
 
 # xor dst_1, dst_2
 # xor dst_2, dst_1
@@ -62,7 +59,7 @@ def _xchg_64_multi_tmpl_2(ctx: FukuMutationCtx, dst_1: FukuType, dst_2: FukuType
     out_regflags = ctx.cpu_registers & ~(dst_1.get_mask_register() | dst_2.get_mask_register())
 
     somereg_1 = FukuType.get_random_operand_dst_x64(
-        AllowInstruction.REGISTER.value, inst_size, changes_regflags,
+        AllowInstruction.REGISTER.value, inst_size, out_regflags,
         FlagRegister.SP.value |
         FlagRegister.ESP.value
     )
@@ -73,7 +70,7 @@ def _xchg_64_multi_tmpl_2(ctx: FukuMutationCtx, dst_1: FukuType, dst_2: FukuType
     out_regflags &= ~(somereg_1.get_mask_register())
 
     somereg_2 = FukuType.get_random_operand_dst_x64(
-        AllowInstruction.REGISTER.value, inst_size, changes_regflags,
+        AllowInstruction.REGISTER.value, inst_size, out_regflags,
         FlagRegister.SP.value |
         FlagRegister.ESP.value
     )
@@ -108,5 +105,36 @@ def _xchg_64_multi_tmpl_2(ctx: FukuMutationCtx, dst_1: FukuType, dst_2: FukuType
 
     return True
 
+def _xchg_64_reg_reg_tmpl(ctx: FukuMutationCtx) -> bool:
+    reg_dst_1 = FukuRegister.from_capstone(ctx.instruction.operands[0]).ftype
+    reg_dst_2 = FukuRegister.from_capstone(ctx.instruction.operands[1]).ftype
+
+    match rng.randint(0, 1):
+        case 0:
+            return _xchg_64_multi_tmpl_1(ctx, reg_dst_1, reg_dst_2, ctx.instruction.operands[0].size)
+
+        case 1:
+            return _xchg_64_multi_tmpl_2(ctx, reg_dst_1, reg_dst_2, ctx.instruction.operands[0].size)
+
 def _xchg_64_op_reg_tmpl(ctx: FukuMutationCtx) -> bool:
-    pass
+    op_dst = None
+    reg_dst = None
+
+    if ctx.instruction.operands[0].type == x86_const.X86_OP_MEM:
+        op_dst = FukuOperand.from_capstone(ctx.instruction.operands[0])
+        reg_dst = FukuRegister.from_capstone(ctx.instruction.operands[1])
+    else:
+        op_dst = FukuOperand.from_capstone(ctx.instruction.operands[1])
+        reg_dst = FukuRegister.from_capstone(ctx.instruction.operands[0])
+
+    return _xchg_64_multi_tmpl_2(ctx, op_dst.ftype, reg_dst.ftype, ctx.instruction.operand[0].size)
+
+
+def fukutate_64_xchg(ctx: FukuMutationCtx) -> bool:
+    if (
+        ctx.instruction.operands[0].type == x86_const.X86_OP_MEM or
+        ctx.instruction.operands[1].type == x86_const.X86_OP_MEM
+    ):
+        return _xchg_64_op_reg_tmpl(ctx)
+
+    return _xchg_64_reg_reg_tmpl(ctx)

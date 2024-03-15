@@ -1,10 +1,10 @@
-from common import trace
-from random import randint
 from capstone import x86_const
 
+from common import trace, rng
 from fuku_misc import FukuInstFlags
-from fuku_inst import FukuInst
-from x86.misc import FukuOperandSize
+from fuku_inst import FukuInst, FukuRipRelocation
+from x86.misc import FukuOperandSize, FukuCondition
+from x86.fuku_operand import FukuOperand
 from x86.fuku_type import FukuType, FukuT0Types
 from x86.fuku_register import FukuRegister, FukuRegisterEnum
 from x86.fuku_immediate import FukuImmediate
@@ -14,7 +14,7 @@ from x86.fuku_register_math_metadata import ODI_FL_JCC
 # push dst
 # ret
 def _jmp_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType) -> bool:
-    if ctx.settings.not_allowed_relocations:
+    if ctx.settings.is_not_allowed_relocations:
         return False
 
     if src.type == FukuT0Types.FUKU_T0_IMMEDIATE:
@@ -44,27 +44,27 @@ def _jmp_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType) -> bool:
     if src.type != FukuT0Types.FUKU_T0_IMMEDIATE:
         return False
 
-    cond = randint(0, 15)
-    reloc_rip = ctx.payload_inst_iter.peek().rip_reloc
-    
-    ctx.f_asm.jcc(FukuCondition(cond), FukuImmediate(immediate_value = 0xFFFFFFFF).ftype)
+    cond = rng.randint(0, 15)
+    rip_reloc = ctx.payload_inst_iter.peek().rip_reloc
+
+    ctx.f_asm.jcc(FukuCondition(cond), FukuImmediate(0xFFFFFFFF).ftype)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     ctx.f_asm.context.inst.rip_reloc = ctx.code_holder.create_rip_relocation(
         FukuRipRelocation(
-            label = reloc_rip.label,
+            label = rip_reloc.label,
             offset = ctx.f_asm.context.immediate_offset
         )
     )
     ctx.f_asm.context.inst.flags.inst_flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE.value
 
     rev_cond = FukuCondition(cond ^ 1)
-    ctx.f_asm.jcc(rev_cond, FukuImmediate(immediate_value = 0xFFFFFFFF).ftype)
+    ctx.f_asm.jcc(rev_cond, FukuImmediate(0xFFFFFFFF).ftype)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags & (~ODI_FL_JCC[rev_cond.value])
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     ctx.f_asm.context.inst.rip_reloc = ctx.code_holder.create_rip_relocation(
         FukuRipRelocation(
-            label = reloc_rip.label,
+            label = rip_reloc.label,
             offset = ctx.f_asm.context.immediate_offset
         )
     )
@@ -78,7 +78,7 @@ def _jmp_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType) -> bool:
 # mov randreg, dst
 # jmp randreg
 def _jmp_64_multi_tmpl_3(ctx: FukuMutationCtx, src: FukuType) -> bool:
-    if ctx.settings.not_allowed_relocations:
+    if ctx.settings.is_not_allowed_relocations:
         return False
 
     rand_reg: FukuRegister = FukuRegister(
@@ -96,12 +96,12 @@ def _jmp_64_multi_tmpl_3(ctx: FukuMutationCtx, src: FukuType) -> bool:
     out_regflags = ctx.cpu_registers & ~(rand_reg.ftype.get_mask_register() | src.get_mask_register())
 
     if src.type == FukuT0Types.FUKU_T0_IMMEDIATE:
-        ctx.f_asm.mov(rand_reg.ftype, FukuImmediate(immediate_value = 0xFFFFFFFFFFFFFFFF).ftype)
-        ctx.restore_rip_to_imm_relocate(src, inst.reloc_rip, inst.flags.inst_used_disp)
+        ctx.f_asm.mov(rand_reg.ftype, FukuImmediate(0xFFFFFFFFFFFFFFFF).ftype)
+        ctx.restore_rip_to_imm_relocate(src, inst.rip_reloc, inst.flags.inst_used_disp)
     else:
         ctx.f_asm.mov(rand_reg.ftype, src)
-        ctx.restore_disp_relocate(src, inst.reloc_disp, inst.flags.inst_used_disp)
-        
+        ctx.restore_disp_relocate(src, inst.disp_reloc, inst.flags.inst_used_disp)
+
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
 
@@ -115,7 +115,7 @@ def _jmp_64_multi_tmpl_3(ctx: FukuMutationCtx, src: FukuType) -> bool:
 def _jmp_64_reg_tmpl(ctx: FukuMutationCtx) -> bool:
     reg_src: FukuRegister = FukuRegister(FukuRegisterEnum.from_capstone(ctx.instruction.operands[0]))
 
-    match randint(0, 1):
+    match rng.randint(0, 1):
         case 0:
             return _jmp_64_multi_tmpl_1(ctx, reg_src.ftype)
 
@@ -125,7 +125,7 @@ def _jmp_64_reg_tmpl(ctx: FukuMutationCtx) -> bool:
 def _jmp_64_op_tmpl(ctx: FukuMutationCtx) -> bool:
     op_src: FukuOperand = FukuOperand.from_capstone(ctx.instruction.operands[0])
 
-    match randint(0, 1):
+    match rng.randint(0, 1):
         case 0:
             return _jmp_64_multi_tmpl_1(ctx, op_src.ftype)
 
@@ -133,9 +133,9 @@ def _jmp_64_op_tmpl(ctx: FukuMutationCtx) -> bool:
             return _jmp_64_multi_tmpl_3(ctx, op_src.ftype)
 
 def _jmp_64_imm_tmpl(ctx: FukuMutationCtx) -> bool:
-    imm_src = FukuImmediate(immediate_value = ctx.instruction.operands[0].imm)
+    imm_src = FukuImmediate(ctx.instruction.operands[0].imm)
 
-    match randint(0, 1):
+    match rng.randint(0, 1):
         case 0:
             return _jmp_64_multi_tmpl_2(ctx, imm_src.ftype)
 

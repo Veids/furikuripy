@@ -6,10 +6,11 @@ from capstone.x86 import X86Op
 from x86.misc import FukuOperandSize
 from x86.fuku_register_math import bit_scan_forward, get_random_bit_by_mask
 from x86.fuku_register_math_metadata import FlagRegisterIndex
-from x86.fuku_register_math_tables import FULL_INCLUDE_FLAGS_TABLE, SIZE_TO_INDEXSZ
+from x86.fuku_register_math_tables import FULL_INCLUDE_FLAGS_TABLE, SIZE_TO_INDEXSZ, CONVERT_FUKU_REGISTER_TO_FLAG
 
 FukuRegisterIndex = ForwardRef("FukuRegisterIndex")
 FukuRegisterEnum = ForwardRef("FukuRegisterEnum")
+FukuRegister = ForwardRef("FukuRegister")
 
 
 class FukuRegisterEnum(Enum):
@@ -118,7 +119,7 @@ class FukuRegisterEnum(Enum):
 
     def set_grade(self, target_size: FukuOperandSize) -> FukuRegisterEnum:
         reg = 1 << (SIZE_TO_INDEXSZ[target_size.value] * 16 + CONVERT_FUKU_REGISTER_TO_FLAG[self.value] % 16)
-        index = bit_scan_forward(0, reg) 
+        index = bit_scan_forward(0, reg)
         if index:
             return CONVERT_FLAG_REGISTER_TO_FUKU[index]
 
@@ -162,27 +163,27 @@ class FukuRegisterEnum(Enum):
         match reg_size:
             case FukuOperandSize.FUKU_OPERAND_SIZE_8:
                 if x86_only:
-                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_AL, FlagRegisterIndex.FLAG_REGISTER_IDX_BL)
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.AL.value, FlagRegisterIndex.BL.value)
                 else:
-                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_AL, FlagRegisterIndex.FLAG_REGISTER_IDX_R15B)
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.AL.value, FlagRegisterIndex.R15B.value)
 
             case FukuOperandSize.FUKU_OPERAND_SIZE_16:
                 if x86_only:
-                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_AX, FlagRegisterIndex.FLAG_REGISTER_IDX_DI)
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.AX.value, FlagRegisterIndex.DI.value)
                 else:
-                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_AX, FlagRegisterIndex.FLAG_REGISTER_IDX_R15W)
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.AX.value, FlagRegisterIndex.R15W.value)
 
             case FukuOperandSize.FUKU_OPERAND_SIZE_32:
                 if x86_only:
-                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_EAX, FlagRegisterIndex.FLAG_REGISTER_IDX_EDI)
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.EAX.value, FlagRegisterIndex.EDI.value)
                 else:
-                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_EAX, FlagRegisterIndex.FLAG_REGISTER_IDX_R15D)
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.EAX.value, FlagRegisterIndex.R15D.value)
 
             case FukuOperandSize.FUKU_OPERAND_SIZE_64:
                 if x86_only:
-                    returned_idx = get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_RAX, FlagRegisterIndex.FLAG_REGISTER_IDX_RDI)
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.RAX.value, FlagRegisterIndex.RDI.value)
                 else:
-                    returned_idx = get_rand_free_register_index(reg_flags, FlagRegisterIndex.FLAG_REGISTER_IDX_RAX, FlagRegisterIndex.FLAG_REGISTER_IDX_R15)
+                    returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.RAX.value, FlagRegisterIndex.R15.value)
 
         if returned_idx == -1:
             return FukuRegisterEnum.FUKU_REG_NONE
@@ -205,6 +206,24 @@ class FukuRegisterEnum(Enum):
             return reg.set_grade(FukuOperandSize.FUKU_OPERAND_SIZE_32)
 
         return reg
+
+    @staticmethod
+    def get_random_register(reg_size: FukuOperandSize, x86_only: bool, exclude_regs: int) -> FukuRegisterEnum:
+        match reg_size:
+            case FukuOperandSize.FUKU_OPERAND_SIZE_8:
+                return FukuRegisterEnum.get_random_free_register(0xFFFFFFFFFFFFFFFF, FukuOperandSize.FUKU_OPERAND_SIZE_8, x86_only, exclude_regs)
+
+            case FukuOperandSize.FUKU_OPERAND_SIZE_16:
+                return FukuRegisterEnum.get_random_free_register(0xFFFFFFFFFFFF0000, FukuOperandSize.FUKU_OPERAND_SIZE_16, x86_only, exclude_regs)
+
+            case FukuOperandSize.FUKU_OPERAND_SIZE_32:
+                return FukuRegisterEnum.get_random_free_register(0xFFFFFFFF00000000, FukuOperandSize.FUKU_OPERAND_SIZE_32, x86_only, exclude_regs)
+
+            case FukuOperandSize.FUKU_OPERAND_SIZE_64:
+                return FukuRegisterEnum.get_random_free_register(0xFFFF000000000000, FukuOperandSize.FUKU_OPERAND_SIZE_64, x86_only, exclude_regs)
+
+        return FukuRegisterEnum.FUKU_REG_NONE
+
 
     @staticmethod
     def from_capstone(op: X86Op) -> FukuRegisterEnum:
@@ -271,6 +290,14 @@ class FukuRegister(BaseModel):
 
             case FukuOperandSize.FUKU_OPERAND_SIZE_64:
                 return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.FUKU_OPERAND_SIZE_64.value if self.is_ext64 else FukuOperandSize.FUKU_OPERAND_SIZE_0.value)]
+
+    @staticmethod
+    def from_capstone(op: X86Op) -> FukuRegister:
+        return FukuRegister(
+            FukuRegisterEnum.from_capstone(
+                op
+            )
+        )
 
 
 class FukuExtRegisterInfo(BaseModel):
