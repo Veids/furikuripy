@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 from enum import Enum
 from pydantic import BaseModel
-from typing import ForwardRef, Optional
+from typing import Optional
 
 from x86.fuku_register import FukuRegister, FukuRegisterEnum
 from x86.fuku_immediate import FukuImmediate
 from x86.fuku_operand import FukuOperand, FukuOperandScale, FukuOperandSize, FukuPrefix
 from x86.fuku_register_math import get_random_bit_by_mask
-
-FukuType = ForwardRef("FukuType")
 
 
 class FukuT0Types(Enum):

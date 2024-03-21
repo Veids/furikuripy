@@ -1,6 +1,6 @@
 from capstone import x86_const
 
-from common import trace, rng
+from common import rng, trace_inst
 from fuku_inst import FukuInst
 from x86.misc import FukuOperandSize
 from x86.fuku_type import FukuType, FukuT0Types
@@ -26,22 +26,26 @@ def _mov_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
     if not somereg:
         return False
 
-    inst: FukuInst = ctx.payload_inst_iter.peek()
+    opcodes = []
+    disp_reloc = ctx.payload_inst.disp_reloc
+    rip_reloc = ctx.payload_inst.rip_reloc
+    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
+    imm_reloc = ctx.payload_inst.imm_reloc
     out_regflags = changes_regflags & ~(somereg.register.get_flag_complex(FukuOperandSize.FUKU_OPERAND_SIZE_64))
 
     ctx.f_asm.mov(somereg, src)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
-
-    ctx.restore_imm_or_disp(src, inst.disp_reloc, inst.flags.inst_used_disp, inst.imm_reloc, inst_size)
+    ctx.restore_imm_or_disp(src, disp_reloc, inst_used_disp, imm_reloc, inst_size)
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.xchg(dst, somereg)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
+    ctx.restore_disp_relocate(src, disp_reloc, inst_used_disp)
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
-    ctx.restore_disp_relocate(src, inst.disp_reloc, inst.flags.inst_used_disp)
-
-    trace.info("mov dst, src -> mov somereg, src; xchg dst, somereg")
+    trace_inst("mov dst, src -> mov somereg, src; xchg dst, somereg", opcodes)
     return True
 
 # xor dst, dst
@@ -55,21 +59,42 @@ def _mov_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
     ):
         return False
 
+    if (
+        src.type == FukuT0Types.FUKU_T0_REGISTER and
+        dst.type == FukuT0Types.FUKU_T0_REGISTER and
+        src.register.index == dst.register.index
+    ):
+        return False
+
+    if (
+        src.type == FukuT0Types.FUKU_T0_OPERAND and
+        dst.type == FukuT0Types.FUKU_T0_REGISTER and
+        (
+            dst.register.index == src.register.index or
+            dst.register.index == src.index.index
+        )
+    ):
+        return False
+
+    opcodes = []
     out_regflags = ctx.cpu_registers & ~(dst.get_mask_register() | src.get_mask_register())
 
     ctx.f_asm.xor(dst, dst)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.add(dst, src)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
-    trace.info("mov dst, src -> xor dst, dst; add dst, src")
+    trace_inst("mov dst, src -> xor dst, dst; add dst, src", opcodes)
     return True
 
 # push src
-# pop dst
+# pop randreg
+# mov dst, randreg
 def _mov_64_multi_tmpl_3(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, inst_size: int) -> bool:
     if (
         not ctx.is_allowed_stack_operations or
@@ -84,22 +109,57 @@ def _mov_64_multi_tmpl_3(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
     ):
         return False
 
-    inst: FukuInst = ctx.payload_inst_iter.peek()
+    opcodes = []
+    disp_reloc = ctx.payload_inst.disp_reloc
+    rip_reloc = ctx.payload_inst.rip_reloc
+    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
+    imm_reloc = ctx.payload_inst.imm_reloc
     out_regflags = ctx.cpu_registers & ~(dst.get_mask_register() | src.get_mask_register())
 
-    ctx.f_asm.push(src)
-    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
-    ctx.f_asm.context.inst.cpu_registers = out_regflags
+    if inst_size != FukuOperandSize.FUKU_OPERAND_SIZE_64.value:
+        randreg = FukuType.get_random_operand_dst_x64(
+            AllowInstruction.REGISTER.value, inst_size, out_regflags,
+            FlagRegister.SP.value |
+            FlagRegister.ESP.value |
+            FlagRegister.RSP.value
+        )
 
-    ctx.restore_imm_or_disp(src, inst.disp_reloc, inst.flags.inst_used_disp, inst.imm_reloc, inst_size)
+        if not randreg:
+            return False
 
-    ctx.f_asm.pop(dst)
-    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
-    ctx.f_asm.context.inst.cpu_registers = out_regflags
+        out_regflags = out_regflags & ~ (randreg.get_mask_register())
 
-    ctx.restore_disp_relocate(dst, inst.disp_reloc, inst.flags.inst_used_disp)
+        ctx.f_asm.push(src)
+        ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+        ctx.f_asm.context.inst.cpu_registers = out_regflags
+        ctx.restore_imm_or_disp(src, disp_reloc, inst_used_disp, imm_reloc, inst_size)
+        opcodes.append(ctx.f_asm.context.inst.opcode)
 
-    trace.info("mov dst, src -> push src; pop dst")
+        ctx.f_asm.pop(randreg)
+        ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+        ctx.f_asm.context.inst.cpu_registers = out_regflags
+        opcodes.append(ctx.f_asm.context.inst.opcode)
+
+        ctx.f_asm.mov(dst, randreg)
+        ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+        ctx.f_asm.context.inst.cpu_registers = out_regflags
+        ctx.restore_disp_relocate(dst, disp_reloc, inst_used_disp)
+        opcodes.append(ctx.f_asm.context.inst.opcode)
+        trace_inst("mov dst, src -> push src; pop rand_reg; mov dst, rand_reg", opcodes)
+    else:
+        ctx.f_asm.push(src)
+        ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+        ctx.f_asm.context.inst.cpu_registers = out_regflags
+        ctx.restore_imm_or_disp(src, disp_reloc, inst_used_disp, imm_reloc, inst_size)
+        opcodes.append(ctx.f_asm.context.inst.opcode)
+
+        ctx.f_asm.pop(dst)
+        ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+        ctx.f_asm.context.inst.cpu_registers = out_regflags
+        ctx.restore_disp_relocate(dst, disp_reloc, inst_used_disp)
+        opcodes.append(ctx.f_asm.context.inst.opcode)
+        trace_inst("mov dst, src -> push src; pop dst", opcodes)
+
     return True
 
 

@@ -1,3 +1,5 @@
+import ctypes
+import struct
 import itertools
 from typing import List, Tuple, Dict, Optional
 
@@ -79,47 +81,45 @@ class FukuCodeHolder(BaseModel):
         associations = {}
         relocations = []
 
+        size = 8
+        format = "<Q"
+        converter = ctypes.c_uint64
+        if self.arch == FUKU_ASSEMBLER_ARCH.X86:
+            size = 4
+            format = "<I"
+            converter = ctypes.c_uint32
+
         for inst in self.instructions:
             if inst.has_source_address:
                 associations[inst.source_address] = inst.current_address
 
             if inst.disp_reloc:
-                if inst.flags.inst_used_disp:
-                    if self.arch == FUKU_ASSEMBLER_ARCH.X86:
-                        if inst.disp_reloc.label.has_linked_instruction:
-                            inst.opcode[inst.disp_reloc.offset] = inst.disp_reloc.label.inst.current_address 
-                        else:
-                            inst.opcode[inst.disp_reloc.offset] = inst.disp_reloc.label.address
-                    else:
-                        if inst.disp_reloc.label.has_linked_instruction:
-                            inst.opcode[inst.disp_reloc.offset] = inst.disp_reloc.label.inst.current_address
-                        else:
-                            inst.opcode[inst.disp_reloc.offset] = inst.disp_reloc.label.address
-
-                    relocations.append(
-                        FukuImageRelocation(
-                            relocation_id = inst.disp_reloc.reloc_id,
-                            virtual_address = inst.current_address + inst.disp_reloc.offset
-                        )
-                    )
+                if inst.disp_reloc.label.has_linked_instruction:
+                    inst.opcode[inst.disp_reloc.offset:inst.disp_reloc.offset + size] = struct.pack(format, converter(inst.disp_reloc.label.inst.current_address).value)
                 else:
-                    if inst.rip_reloc.label.has_linked_instruction:
-                        inst.opcode[inst.rip_reloc.offset] = inst.rip_reloc.label.inst.current_address - inst.current_address - len(inst.opcode)
-                    else:
-                        inst.opcode[inst.rip_reloc.offset] = inst.rip_reloc.label.address - inst.current_address - len(inst.opcode)
+                    inst.opcode[inst.disp_reloc.offset:inst.disp_reloc.offset + size] = struct.pack(format, converter(inst.disp_reloc.label.address).value)
+
+                relocations.append(
+                    FukuImageRelocation(
+                        relocation_id = inst.disp_reloc.reloc_id,
+                        virtual_address = inst.current_address + inst.disp_reloc.offset
+                    )
+                )
+
+            if inst.rip_reloc:
+                if inst.rip_reloc.label.has_linked_instruction:
+                    value = ctypes.c_uint32(inst.rip_reloc.label.inst.current_address - inst.current_address - len(inst.opcode)).value
+                    inst.opcode[inst.rip_reloc.offset:inst.rip_reloc.offset + 4] = struct.pack("<I", value)
+                else:
+                    value = ctypes.c_uint32(inst.rip_reloc.label.address - inst.current_address - len(inst.opcode)).value
+                    inst.opcode[inst.rip_reloc.offset:inst.rip_reloc.offset + 4] = struct.pack("<I", value)
 
             if inst.imm_reloc:
-                if self.arch == FUKU_ASSEMBLER_ARCH.X86:
-                    if inst.imm_reloc.label.has_linked_instruction:
-                        inst.opcode[inst.imm_reloc.offset] = inst.imm_reloc.label.inst.current_address
-                    else:
-                        inst.opcode[inst.imm_reloc.offset] = inst.imm_reloc.label.address
+                if inst.imm_reloc.label.has_linked_instruction:
+                    inst.opcode[inst.imm_reloc.offset:inst.imm_reloc.offset + size] = struct.pack(format, converter(inst.imm_reloc.label.inst.current_address).value)
                 else:
-                    if inst.imm_reloc.label.has_linked_instruction:
-                        inst.opcode[inst.imm_reloc.offset] = inst.imm_reloc.label.inst.current_address
-                    else:
-                        inst.opcode[inst.imm_reloc.offset] = inst.imm_reloc.label.address
-                
+                    inst.opcode[inst.imm_reloc.offset:inst.imm_reloc.offset + size] = struct.pack(format, converter(inst.imm_reloc.label.address).value)
+
                 relocations.append(
                     FukuImageRelocation(
                         relocation_id = inst.imm_reloc.reloc_id,
@@ -137,7 +137,7 @@ class FukuCodeHolder(BaseModel):
 
     def get_source_inst_range(self, virtual_address: int) -> Optional[FukuInst]:
         if (
-            len(self.source_intructions) and 
+            len(self.source_intructions) and
             self.source_intructions[0].source_address <= virtual_address and
             (self.source_intructions[-1].source_address + len(self.source_intructions[-1].opcode)) >= virtual_address
         ):
@@ -200,12 +200,12 @@ class FukuCodeHolder(BaseModel):
                         label.inst = inst_dst
                         inst_dst.label = label
 
-        if len(remap_labels):
+        if not len(remap_labels):
             return
 
         for reloc in itertools.chain(self.relocations, self.rip_relocations):
             if reloc.label is not None:
-                if reloc_map_label := remap_labels.get(label):
+                if reloc_map_label := remap_labels.get(reloc.label):
                     reloc.label = reloc_map_label
 
         for x in reversed(delete_labels):

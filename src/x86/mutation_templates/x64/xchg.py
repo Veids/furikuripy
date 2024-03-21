@@ -1,6 +1,6 @@
 from capstone import x86_const
 
-from common import trace, rng
+from common import rng, trace_inst
 from fuku_misc import FukuInstFlags
 from fuku_inst import FukuInst
 from x86.fuku_type import FukuType, FukuT0Types
@@ -22,21 +22,25 @@ def _xchg_64_multi_tmpl_1(ctx: FukuMutationCtx, dst_1: FukuType, dst_2: FukuType
     ):
         return False
 
+    opcodes = []
     changes_regflags = ctx.cpu_registers & ~(dst_1.get_mask_register() | dst_2.get_mask_register())
 
     ctx.f_asm.xor(dst_1, dst_2)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = changes_regflags
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.xor(dst_2, dst_1)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = changes_regflags
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.xor(dst_1, dst_2)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = changes_regflags
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
-    trace.info("xchg dst_1, dst_2 -> xor dst_1, dst_2; xor dst_2, dst_1, xor dst_1, dst_2")
+    trace_inst("xchg dst_1, dst_2 -> xor dst_1, dst_2; xor dst_2, dst_1, xor dst_1, dst_2", opcodes)
     return True
 
 # mov somereg_1, dst_1
@@ -78,31 +82,40 @@ def _xchg_64_multi_tmpl_2(ctx: FukuMutationCtx, dst_1: FukuType, dst_2: FukuType
     if not somereg_2:
         return False
 
+    opcodes = []
+    disp_reloc = ctx.payload_inst.disp_reloc
+    rip_reloc = ctx.payload_inst.rip_reloc
+    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
+    imm_reloc = ctx.payload_inst.imm_reloc
     out_regflags &= ~(somereg_2.get_mask_register())
-    inst: FukuInst = ctx.payload_inst_iter.peek()
 
     ctx.f_asm.mov(somereg_1, dst_1)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
     ctx.f_asm.context.inst.flags.inst_flags = additation_inst_flag
-    ctx.restore_disp_relocate(dst_1, inst.disp_reloc, inst.flags.inst_used_disp)
+    ctx.restore_disp_relocate(dst_1, disp_reloc, inst_used_disp)
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.mov(somereg_2, dst_2)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
     ctx.f_asm.context.inst.flags.inst_flags = additation_inst_flag
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.mov(dst_1, somereg_2)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
     ctx.f_asm.context.inst.flags.inst_flags = additation_inst_flag
-    ctx.restore_disp_relocate(dst_1, inst.disp_reloc, inst.flags.inst_used_disp)
+    ctx.restore_disp_relocate(dst_1, disp_reloc, inst_used_disp)
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.mov(dst_2, somereg_1)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
     ctx.f_asm.context.inst.flags.inst_flags = additation_inst_flag
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
+    trace_inst("xchg dst_1, dst_2 -> mov reg_1, dst_1; mov reg_2, dst_2, mov dst_1, reg_2; mov dst_2, reg_1", opcodes)
     return True
 
 def _xchg_64_reg_reg_tmpl(ctx: FukuMutationCtx) -> bool:

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from enum import Enum
-from typing import ForwardRef
 from pydantic import BaseModel
 from capstone.x86 import X86Op
 
@@ -7,10 +8,6 @@ from x86.misc import FukuOperandSize
 from x86.fuku_register_math import bit_scan_forward, get_random_bit_by_mask
 from x86.fuku_register_math_metadata import FlagRegisterIndex
 from x86.fuku_register_math_tables import FULL_INCLUDE_FLAGS_TABLE, SIZE_TO_INDEXSZ, CONVERT_FUKU_REGISTER_TO_FLAG
-
-FukuRegisterIndex = ForwardRef("FukuRegisterIndex")
-FukuRegisterEnum = ForwardRef("FukuRegisterEnum")
-FukuRegister = ForwardRef("FukuRegister")
 
 
 class FukuRegisterEnum(Enum):

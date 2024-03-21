@@ -1,6 +1,6 @@
 from capstone import x86_const
 
-from common import trace, rng
+from common import rng, trace_inst
 from fuku_misc import FukuInstFlags
 from fuku_inst import FukuInst
 from x86.misc import FukuOperandSize
@@ -18,7 +18,11 @@ def _push_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
     if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index == FukuRegisterIndex.FUKU_REG_INDEX_SP:
         return False
 
-    inst: FukuInst = ctx.payload_inst_iter.peek()
+    opcodes = []
+    disp_reloc = ctx.payload_inst.disp_reloc
+    rip_reloc = ctx.payload_inst.rip_reloc
+    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
+    imm_reloc = ctx.payload_inst.imm_reloc
     out_regflags = ctx.cpu_registers & ~(src.get_mask_register())
 
     if has_free_eflags(
@@ -41,6 +45,8 @@ def _push_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
 
+    opcodes.append(ctx.f_asm.context.inst.opcode)
+
     ctx.f_asm.mov(
         FukuOperand(
             base = FukuRegister(FukuRegisterEnum.FUKU_REG_RSP),
@@ -48,13 +54,12 @@ def _push_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
         ).ftype,
         src
     )
-
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
+    ctx.restore_disp_relocate(src, disp_reloc, inst_used_disp)
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
-    ctx.restore_disp_relocate(src, inst.disp_reloc, inst.flags.inst_used_disp)
-
-    trace.info("push src -> sub rsp, 8 or lea rsp, [rsp, 8]; mov [rsp], reg")
+    trace_inst("push src -> sub rsp, 8 or lea rsp, [rsp, 8]; mov [rsp], reg", opcodes)
     return True
 
 # mov [esp - 4],reg
@@ -66,7 +71,11 @@ def _push_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
     if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index == FukuRegisterIndex.FUKU_REG_INDEX_SP:
         return False
 
-    inst: FukuInst = ctx.payload_inst_iter.peek()
+    opcodes = []
+    disp_reloc = ctx.payload_inst.disp_reloc
+    rip_reloc = ctx.payload_inst.rip_reloc
+    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
+    imm_reloc = ctx.payload_inst.imm_reloc
 
     ctx.f_asm.mov(
         FukuOperand(
@@ -76,13 +85,11 @@ def _push_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
         ).ftype,
         src
     )
-
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
-
-
     out_regflags = ctx.cpu_registers & ~(src.get_mask_register())
-    ctx.restore_disp_relocate(src, inst.disp_reloc, inst.flags.inst_used_disp)
+    ctx.restore_disp_relocate(src, disp_reloc, inst_used_disp)
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     if has_free_eflags(
         ctx.cpu_flags,
@@ -106,7 +113,9 @@ def _push_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
         ctx.f_asm.context.inst.cpu_registers = out_regflags
         ctx.f_asm.context.inst.flags.inst_flags = FukuInstFlags.FUKU_INST_BAD_STACK.value
 
-    trace.info("push src -> mov [rsp - 8], reg; sub rsp, 8 or lea rsp, [rsp, 8]")
+    opcodes.append(ctx.f_asm.context.inst.opcode)
+
+    trace_inst("push src -> mov [rsp - 8], reg; sub rsp, 8 or lea rsp, [rsp, 8]", opcodes)
     return True
 
 def _push_64_imm_tmpl(ctx: FukuMutationCtx) -> bool:

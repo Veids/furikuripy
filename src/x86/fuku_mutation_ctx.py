@@ -1,9 +1,9 @@
-from copy import copy
-from typing import Iterable, Optional, Iterator
-from pydantic import BaseModel, ConfigDict
+import logging
+from typing import Optional, List
+from pydantic import BaseModel, ConfigDict, StrictBytes
 from capstone import CsInsn
-from more_itertools import seekable
 
+from common import trace
 from x86.misc import FukuOperandSize
 from x86.fuku_type import FukuType, FukuT0Types
 from fuku_asm import FukuAsm
@@ -21,10 +21,9 @@ class FukuMutationCtx(BaseModel):
 
     instruction: Optional[CsInsn] = None
 
-    prev_inst_iter: Optional[Iterable] = None # previus inst iter
-    original_inst_iter: Optional[Iterable] = None # current insts row iter
-    payload_inst_iter: Optional[Iterable] = None # current insts "payload" iter
-    next_inst_iter: Optional[Iterable] = None # next inst iter
+    prev_inst: Optional[FukuInst] = None
+    payload_inst: Optional[FukuInst] = None
+    next_inst: Optional[FukuInst] = None
 
     original_start_label: Optional[FukuCodeLabel] = None
     payload_start_label: Optional[FukuCodeLabel] = None
@@ -38,22 +37,21 @@ class FukuMutationCtx(BaseModel):
     cpu_registers: int = 0
     source_address: int = 0
 
-    def initialize_context(self, iter: Iterable):
-        inst: FukuInst = iter.peek()
+    def initialize_context(self, inst: FukuInst, next_inst: Optional[FukuInst]):
+        cur_idx = self.code_holder.instructions.index(inst)
 
-        self.is_first_inst = self.code_holder.instructions.index(inst) == 0
-
-        idx = self.code_holder.instructions.index(iter.peek())
-        self.prev_inst_iter = seekable(self.code_holder.instructions)
+        self.is_first_inst = cur_idx == 0
         if not self.is_first_inst:
-            self.prev_inst_iter.seek(idx)
+            self.prev_inst = self.code_holder.instructions[cur_idx - 1]
 
-        self.original_inst_iter = copy(iter)
-        self.payload_inst_iter = copy(iter)
-        self.next_inst_iter = copy(iter)
-        next(self.next_inst_iter)
+        self.payload_inst = inst
 
-        self.is_next_last_inst = not bool(self.next_inst_iter)
+        if cur_idx == len(self.code_holder.instructions) - 1:
+            self.next_inst = None
+            self.is_next_last_inst = True
+        else:
+            self.next_inst = self.code_holder.instructions[cur_idx + 1]
+            self.is_next_last_inst = False
 
         self.original_start_label = inst.label
         self.payload_start_label = None
@@ -72,26 +70,19 @@ class FukuMutationCtx(BaseModel):
 
         return self.payload_start_label
 
-    def calc_original_inst_iter(self) -> Iterator:
+    def calc_original_inst(self) -> FukuInst:
         if self.is_first_inst:
-            return seekable(self.code_holder.instructions)
+            return self.code_holder.instructions[0]
         else:
-            idx = self.code_holder.instructions.index(self.prev_inst_iter.peek())
-            iter = seekable(self.code_holder.instructions)
-            iter.seek(idx + 1)
-            return iter
+            idx = self.code_holder.instructions.index(self.prev_inst) + 1
+            return self.code_holder.instructions[idx]
 
-    def update_payload_inst_iter(self) -> Iterator:
-        idx = self.code_holder.instructions.index(self.next_inst_iter.peek())
-        iter = seekable(self.code_holder.instructions)
-        iter.seek(idx)
-        return iter
+    def update_payload_inst_iter(self):
+        if not self.next_inst:
+            return self.code_holder.instructions[-1]
 
-    def calc_next_inst_iter(self) -> Iterator:
-        idx = self.code_holder.instructions.index(self.next_inst_iter.peek())
-        iter = seekable(self.code_holder.instructions)
-        iter.seek(idx)
-        return iter
+        idx = self.code_holder.instructions.index(self.next_inst) - 1
+        return self.code_holder.instructions[idx]
 
     @property
     def is_allowed_stack_operations(self) -> bool:

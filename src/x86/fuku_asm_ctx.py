@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import struct
-from typing import Optional, ForwardRef
+from typing import Optional
 from pydantic import BaseModel
 
 from fuku_inst import FukuInst
@@ -9,8 +11,6 @@ from x86.fuku_register import FukuRegister, FukuRegisterIndex
 from x86.fuku_operand import FukuOperand, FukuMemOperandType, FukuOperandScale
 from x86.misc import FukuAsmShortCfg
 from x86.fuku_asm_ctx_pattern import FukuAsmCtxPattern
-
-FukuAsmCtx = ForwardRef("FukuAsmCtx")
 
 
 class RawOperand(BaseModel):
@@ -37,7 +37,7 @@ class RawOperand(BaseModel):
         self.operand_size += 1
 
     def set_dispr(self, disp):
-        self.data += struct.pack("<I", disp)
+        self.data[self.operand_size:self.operand_size + 4] = struct.pack("<I", disp)
         self.ctx.displacment_offset = len(self.ctx.bytecode) + self.operand_size
         self.operand_size += 4
 
@@ -260,7 +260,7 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
                 disp = rm_reg.disp
 
                 # [base + disp/r]
-                if disp.immediate32 == 0 and base_idx == FukuRegisterIndex.FUKU_REG_INDEX_BP:
+                if disp.immediate32 == 0 and base_idx != FukuRegisterIndex.FUKU_REG_INDEX_BP:
                     # [base]
                     raw_operand.set_modrm(0, reg, base_idx)
                 elif self.is_used_short_disp and disp.is_8:

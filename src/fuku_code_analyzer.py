@@ -32,11 +32,10 @@ class FukuCodeAnalyzer(BaseModel):
                     code_label = FukuCodeLabel(
                         address = virtual_address + X86_REL_ADDR(current_inst)
                     )
-                    analyzed_code.create_label(code_label)
 
                     rip_reloc = FukuRipRelocation()
                     rip_reloc.offset = current_inst.encoding.disp_offset
-                    rip_reloc.label = code_label
+                    rip_reloc.label = analyzed_code.create_label(code_label)
 
                     line.rip_reloc = analyzed_code.create_rip_relocation(rip_reloc)
 
@@ -48,18 +47,17 @@ class FukuCodeAnalyzer(BaseModel):
                     x86_const.X86_INS_JS | x86_const.X86_INS_JNS | x86_const.X86_INS_JP |
                     x86_const.X86_INS_JNP | x86_const.X86_INS_JL | x86_const.X86_INS_JGE |
                     x86_const.X86_INS_JLE | x86_const.X86_INS_JG | x86_const.X86_INS_JMP |
-                    x86_const.X86_INS_JECXZ | x86_const.X86_INS_JCXZ | x86_const.X86_INS_LOOP |
-                    x86_const.X86_INS_LOOPE | x86_const.X86_INS_LOOPNE
+                    x86_const.X86_INS_JECXZ | x86_const.X86_INS_JCXZ | x86_const.X86_INS_JRCXZ |
+                    x86_const.X86_INS_LOOP | x86_const.X86_INS_LOOPE | x86_const.X86_INS_LOOPNE
                 ):
                     if current_inst.operands[0].type == x86_const.X86_OP_IMM:
                         code_label = FukuCodeLabel(
                             address = virtual_address + current_inst.operands[0].imm
                         )
-                        analyzed_code.create_label(code_label)
 
                         rip_reloc = FukuRipRelocation()
                         rip_reloc.offset = current_inst.encoding.imm_offset
-                        rip_reloc.label = code_label
+                        rip_reloc.label = analyzed_code.create_label(code_label)
 
                         line.rip_reloc = analyzed_code.create_rip_relocation(rip_reloc)
             count += 1
@@ -85,10 +83,9 @@ class FukuCodeAnalyzer(BaseModel):
 
                 if reloc_offset == (line.flags.inst_flags & 0xFF):
                     code_label = FukuCodeLabel(address = reloc_dst)
-                    analyzed_code.create_label(code_label)
 
                     reloc = FukuRelocation(
-                        label = code_label,
+                        label = analyzed_code.create_label(code_label),
                         offset = reloc_offset,
                         reloc_id = reloc.reloc_id
                     )
@@ -96,10 +93,9 @@ class FukuCodeAnalyzer(BaseModel):
                     line.disp_reloc = analyzed_code.create_relocation(reloc)
                 elif reloc_offset == ((line.flags.inst_flags >> 8) & 0xFF):
                     code_label = FukuCodeLabel(address = reloc_dst)
-                    analyzed_code.create_label(code_label)
 
                     reloc = FukuRelocation(
-                        label = code_label,
+                        label = analyzed_code.create_label(code_label),
                         offset = reloc_offset,
                         reloc_id = reloc.reloc_id
                     )
@@ -107,5 +103,4 @@ class FukuCodeAnalyzer(BaseModel):
                     raise Exception("Unhandled case")
 
         analyzed_code.resolve_labels()
-
         return True

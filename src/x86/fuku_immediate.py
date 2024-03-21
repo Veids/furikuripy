@@ -1,12 +1,11 @@
+from __future__ import annotations
+
 import ctypes
 
-from typing import ForwardRef
 from pydantic import BaseModel
 
 from common import rng
 from x86.misc import FukuOperandSize
-
-FukuImmediate = ForwardRef("FukuImmediate")
 
 
 class FukuImmediate(BaseModel):
@@ -58,15 +57,15 @@ class FukuImmediate(BaseModel):
 
     @property
     def immediate16(self):
-        return ctypes.c_uint8(self.immediate_value & 0xFFFF).value
+        return ctypes.c_uint16(self.immediate_value & 0xFFFF).value
 
     @property
     def immediate32(self):
-        return ctypes.c_uint8(self.immediate_value & 0xFFFFFFFF).value
+        return ctypes.c_uint32(self.immediate_value & 0xFFFFFFFF).value
 
     @property
     def immediate64(self):
-        return ctypes.c_uint8(self.immediate_value).value
+        return ctypes.c_uint64(self.immediate_value).value
 
     @property
     def signed_value8(self):

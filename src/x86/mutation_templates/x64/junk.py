@@ -1,16 +1,15 @@
 from capstone import x86_const
 
-from common import trace, rng
+from common import rng, trace_inst
 from fuku_misc import FukuInstFlags
-from fuku_inst import FukuInst, FukuRipRelocation
+from fuku_inst import FukuRipRelocation
 from x86.misc import FukuOperandSize, FukuCondition
-from x86.fuku_operand import FukuOperand
 from x86.fuku_type import FukuType, FukuT0Types
 from x86.fuku_register import FukuRegister, FukuRegisterEnum
 from x86.fuku_immediate import FukuImmediate
 from x86.fuku_mutation_ctx import FukuMutationCtx
 from x86.fuku_register_math import has_free_eflags, has_flag_free_register
-from x86.fuku_register_math_metadata import ODI_FL_JCC, AllowInstruction, FlagRegister
+from x86.fuku_register_math_metadata import AllowInstruction, FlagRegister
 
 REG_SIZES_64 = [1, 2, 4, 8]
 REG_SIZES_16_64 = [2, 8]
@@ -44,7 +43,7 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
                 return False
 
             ctx.f_asm.mov(dst, src)
-            trace.info("junk: mov dst, src")
+            trace_inst("junk: mov dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 1:
             dst = FukuType.get_random_operand_dst_x64(
@@ -59,7 +58,7 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
                 return False
 
             ctx.f_asm.setcc(FukuCondition(rng.randint(0, 15)), dst)
-            trace.info("junk: setcc dst")
+            trace_inst("junk: setcc dst", [ctx.f_asm.context.inst.opcode])
 
         case 2:
             reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(1, 3)])
@@ -83,7 +82,7 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
                 return False
 
             ctx.f_asm.cmovcc(FukuCondition(rng.randint(0, 15)), dst, src)
-            trace.info("junk: cmovcc dst, src")
+            trace_inst("junk: cmovcc dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 3:
             reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(0, 3)])
@@ -109,7 +108,7 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
 
 
             ctx.f_asm.xchg(dst_1, dst_2)
-            trace.info("junk: xchg dst1, dst2")
+            trace_inst("junk: xchg dst1, dst2", [ctx.f_asm.context.inst.opcode])
 
         case 4 | 5:
             reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(1, 3)])
@@ -140,12 +139,14 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
 
             if choice == 4:
                 ctx.f_asm.movzx(dst, src)
-                trace.info("junk: movzx dst, src")
+                trace_inst("junk: movzx dst, src", [ctx.f_asm.context.inst.opcode])
             else:
                 ctx.f_asm.movsx(dst, src)
-                trace.info("junk: movsx dst, src")
+                trace_inst("junk: movsx dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 6:
+            # TODO: Check capstone properly dissasemblying this
+            return False
             reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(1, 3)])
 
             dst = FukuType.get_random_operand_dst_x64(
@@ -168,7 +169,7 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
                 return False
 
             ctx.f_asm.movsxd(dst, src)
-            trace.info("junk: movsxd dst, src")
+            trace_inst("junk: movsxd dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 7:
             reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(1, 2)])
@@ -183,7 +184,7 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
                 return False
 
             ctx.f_asm.bswap(dst)
-            trace.info("junk: bswap dst")
+            trace_inst("junk: bswap dst", [ctx.f_asm.context.inst.opcode])
 
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
@@ -223,23 +224,23 @@ def junk_64_low_pattern_2(ctx: FukuMutationCtx) -> bool:
     match rng.randint(0 if src else 4, 4):
         case 0:
             ctx.f_asm.xor(dst, src)
-            trace.info("junk: xor dst, src")
+            trace_inst("junk: xor dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 1:
             ctx.f_asm.and_(dst, src)
-            trace.info("junk: and dst, src")
+            trace_inst("junk: and dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 2:
             ctx.f_asm.or_(dst, src)
-            trace.info("junk: or dst, src")
+            trace_inst("junk: or dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 3:
             ctx.f_asm.test(dst, src)
-            trace.info("junk: test dst, src")
+            trace_inst("junk: test dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 4:
             ctx.f_asm.not_(dst)
-            trace.info("junk: not dst")
+            trace_inst("junk: not dst", [ctx.f_asm.context.inst.opcode])
 
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
@@ -278,35 +279,35 @@ def junk_64_low_pattern_3(ctx: FukuMutationCtx) -> bool:
     match rng.randint(0 if src else 5, 7):
         case 0:
             ctx.f_asm.add(dst, src)
-            trace.info("junk: add dst, src")
+            trace_inst("junk: add dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 1:
             ctx.f_asm.adc(dst, src)
-            trace.info("junk: adc dst, src")
+            trace_inst("junk: adc dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 2:
             ctx.f_asm.sub(dst, src)
-            trace.info("junk: sub dst, src")
+            trace_inst("junk: sub dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 3:
             ctx.f_asm.sbb(dst, src)
-            trace.info("junk: sbb dst, src")
+            trace_inst("junk: sbb dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 4:
             ctx.f_asm.cmp(dst, src)
-            trace.info("junk: cmp dst, src")
+            trace_inst("junk: cmp dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 5:
             ctx.f_asm.inc(dst)
-            trace.info("junk: inc dst")
+            trace_inst("junk: inc dst", [ctx.f_asm.context.inst.opcode])
 
         case 6:
             ctx.f_asm.dec(dst)
-            trace.info("junk: dec dst")
+            trace_inst("junk: dec dst", [ctx.f_asm.context.inst.opcode])
 
         case 7:
             ctx.f_asm.neg(dst)
-            trace.info("junk: neg dst")
+            trace_inst("junk: neg dst", [ctx.f_asm.context.inst.opcode])
 
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
@@ -342,19 +343,19 @@ def junk_64_low_pattern_4(ctx: FukuMutationCtx) -> bool:
     match rng.randint(0, 3):
         case 0:
             ctx.f_asm.rol(dst, src)
-            trace.info("junk: rol dst, src")
+            trace_inst("junk: rol dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 1:
             ctx.f_asm.ror(dst, src)
-            trace.info("junk: rol dst, src")
+            trace_inst("junk: rol dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 2:
             ctx.f_asm.rcl(dst, src)
-            trace.info("junk: rcl dst, src")
+            trace_inst("junk: rcl dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 3:
             ctx.f_asm.rcr(dst, src)
-            trace.info("junk: rcr dst, src")
+            trace_inst("junk: rcr dst, src", [ctx.f_asm.context.inst.opcode])
 
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
@@ -385,22 +386,22 @@ def junk_64_low_pattern_5(ctx: FukuMutationCtx) -> bool:
         return False
 
     if rng.randint(0, 1):
-        src = FukuRegister(FukuRegister.FUKU_REG_CL).ftype
+        src = FukuRegister(FukuRegisterEnum.FUKU_REG_CL).ftype
     else:
         src = FukuImmediate(rng.randint(1, reg_size.value * 16 - 1)).ftype
 
     match rng.randint(0, 2):
         case 0:
             ctx.f_asm.sar(dst, src)
-            trace.info("junk: sar dst, src")
+            trace_inst("junk: sar dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 1:
             ctx.f_asm.shl(dst, src)
-            trace.info("junk: shl dst, src")
+            trace_inst("junk: shl dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 2:
             ctx.f_asm.shr(dst, src)
-            trace.info("junk: shr dst, src")
+            trace_inst("junk: shr dst, src", [ctx.f_asm.context.inst.opcode])
 
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
@@ -442,19 +443,19 @@ def junk_64_low_pattern_6(ctx: FukuMutationCtx) -> bool:
     match rng.randint(0, 3):
         case 0:
             ctx.f_asm.bt(dst, src)
-            trace.info("junk: bt dst, src")
+            trace_inst("junk: bt dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 1:
             ctx.f_asm.btc(dst, src)
-            trace.info("junk: btc dst, src")
+            trace_inst("junk: btc dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 2:
             ctx.f_asm.bts(dst, src)
-            trace.info("junk: bts dst, src")
+            trace_inst("junk: bts dst, src", [ctx.f_asm.context.inst.opcode])
 
         case 3:
             ctx.f_asm.btr(dst, src)
-            trace.info("junk: btr dst, src")
+            trace_inst("junk: btr dst, src", [ctx.f_asm.context.inst.opcode])
 
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
@@ -485,36 +486,36 @@ def junk_64_low_pattern_7(ctx: FukuMutationCtx) -> bool:
     match dst.register.reg:
         case FukuRegisterEnum.FUKU_REG_AX:
             ctx.f_asm.cbw()
-            trace.info("junk: cbw")
+            trace_inst("junk: cbw", [ctx.f_asm.context.inst.opcode])
 
         case FukuRegisterEnum.FUKU_REG_EAX:
             ctx.f_asm.cwde()
-            trace.info("junk: cwde")
+            trace_inst("junk: cwde", [ctx.f_asm.context.inst.opcode])
 
         case FukuRegisterEnum.FUKU_REG_RAX:
             ctx.f_asm.cdqe()
-            trace.info("junk: cdqe")
+            trace_inst("junk: cdqe", [ctx.f_asm.context.inst.opcode])
 
         case FukuRegisterEnum.FUKU_REG_DX:
             if not has_flag_free_register(ctx.cpu_registers, FlagRegister.AX.value):
                 return False
 
             ctx.f_asm.cwd()
-            trace.info("junk: cwd")
+            trace_inst("junk: cwd", [ctx.f_asm.context.inst.opcode])
 
         case FukuRegisterEnum.FUKU_REG_EDX:
             if not has_flag_free_register(ctx.cpu_registers, FlagRegister.EAX.value):
                 return False
 
             ctx.f_asm.cdq()
-            trace.info("junk: cdq")
+            trace_inst("junk: cdq", [ctx.f_asm.context.inst.opcode])
 
         case FukuRegisterEnum.FUKU_REG_RDX:
             if not has_flag_free_register(ctx.cpu_registers, FlagRegister.RAX.value):
                 return False
 
             ctx.f_asm.cqo()
-            trace.info("junk: cqo")
+            trace_inst("junk: cqo", [ctx.f_asm.context.inst.opcode])
 
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
@@ -529,35 +530,35 @@ def junk_64_low_pattern_8(ctx: FukuMutationCtx) -> bool:
                 return False
 
             ctx.f_asm.stc()
-            trace.info("junk: stc")
+            trace_inst("junk: stc", [ctx.f_asm.context.inst.opcode])
 
         case 1:
             if not has_free_eflags(ctx.cpu_flags, x86_const.X86_EFLAGS_MODIFY_CF):
                 return False
 
             ctx.f_asm.clc()
-            trace.info("junk: clc")
+            trace_inst("junk: clc", [ctx.f_asm.context.inst.opcode])
 
         case 2:
             if not has_free_eflags(ctx.cpu_flags, x86_const.X86_EFLAGS_MODIFY_CF):
                 return False
 
             ctx.f_asm.cmc()
-            trace.info("junk: cmc")
+            trace_inst("junk: cmc", [ctx.f_asm.context.inst.opcode])
 
         case 3:
             if not has_free_eflags(ctx.cpu_flags, x86_const.X86_EFLAGS_MODIFY_CF):
                 return False
 
             ctx.f_asm.cld()
-            trace.info("junk: cld")
+            trace_inst("junk: cld", [ctx.f_asm.context.inst.opcode])
 
         case 4:
             if not has_free_eflags(ctx.cpu_flags, x86_const.X86_EFLAGS_MODIFY_DF):
                 return False
 
             ctx.f_asm.std()
-            trace.info("junk: std")
+            trace_inst("junk: std", [ctx.f_asm.context.inst.opcode])
 
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
@@ -588,20 +589,29 @@ def junk_64_high_pattern_1(ctx: FukuMutationCtx) -> bool:
     if not dst:
         return False
 
-    ctx.f_asm.inc(dst)
-    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
-    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
-    ctx.f_asm.neg(dst)
-    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
-    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
-    ctx.f_asm.inc(dst)
-    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
-    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
-    ctx.f_asm.neg(dst)
-    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
-    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    opcodes = []
 
-    trace.info("junk: inc reg; neg reg; inc reg; neg reg")
+    ctx.f_asm.inc(dst)
+    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    opcodes.append(ctx.f_asm.context.inst.opcode)
+
+    ctx.f_asm.neg(dst)
+    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    opcodes.append(ctx.f_asm.context.inst.opcode)
+
+    ctx.f_asm.inc(dst)
+    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    opcodes.append(ctx.f_asm.context.inst.opcode)
+
+    ctx.f_asm.neg(dst)
+    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    opcodes.append(ctx.f_asm.context.inst.opcode)
+
+    trace_inst("junk: inc reg; neg reg; inc reg; neg reg", opcodes)
     return True
 
 # not reg1
@@ -618,14 +628,19 @@ def junk_64_high_pattern_2(ctx: FukuMutationCtx) -> bool: # what the hell rex64 
     if not dst:
         return False
 
-    ctx.f_asm.not_(dst)
-    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
-    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
-    ctx.f_asm.not_(dst)
-    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
-    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    opcodes = []
 
-    trace.info("junk: not dst; not dst")
+    ctx.f_asm.not_(dst)
+    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    opcodes.append(ctx.f_asm.context.inst.opcode)
+
+    ctx.f_asm.not_(dst)
+    ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
+    ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    opcodes.append(ctx.f_asm.context.inst.opcode)
+
+    trace_inst("junk: not dst; not dst", opcodes)
     return True
 
 # push reg1
@@ -645,17 +660,20 @@ def junk_64_high_pattern_3(ctx: FukuMutationCtx) -> bool:
     if not src:
         return False
 
+    opcodes = []
     flag_reg = src.register.get_flag_complex(reg_size)
 
     ctx.f_asm.push(src)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.pop(src)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers | flag_reg
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
-    trace.info("junk: push reg, pop reg")
+    trace_inst("junk: push reg, pop reg", opcodes)
     return True
 
 # jcc next_inst
@@ -675,7 +693,7 @@ def junk_64_high_pattern_4(ctx: FukuMutationCtx) -> bool:
         )
     )
 
-    trace.info("junk: jcc next_inst")
+    trace_inst("junk: jcc next_inst", [ctx.f_asm.context.inst.opcode])
     return True
 
 
@@ -684,6 +702,8 @@ def junk_64_high_pattern_4(ctx: FukuMutationCtx) -> bool:
 def junk_64_high_pattern_5(ctx: FukuMutationCtx) -> bool:
     if ctx.is_next_last_inst:
         return False
+
+    opcodes = []
 
     ctx.f_asm.jmp(FukuImmediate(-1).ftype)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
@@ -694,13 +714,16 @@ def junk_64_high_pattern_5(ctx: FukuMutationCtx) -> bool:
             offset = ctx.f_asm.context.immediate_offset
         )
     )
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     trash = bytearray(rng.randint(0, 0xFF) for i in range(1, 15))
 
     ctx.f_asm.nop()
     ctx.f_asm.context.inst.opcode = trash
+    ctx.f_asm.context.inst.flags.inst_flags = FukuInstFlags.FUKU_INST_JUNK_CODE.value
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
-    trace.info("junk: jcc next_inst; some code trash")
+    trace_inst("junk: jcc next_inst; some code trash", opcodes)
     return True
 
 

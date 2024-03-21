@@ -1,10 +1,9 @@
-from copy import copy
-from typing import Dict, Callable, Iterator
+from binascii import hexlify
+from typing import Dict, Callable, List, Optional
 from pydantic import BaseModel, ConfigDict
 from capstone import x86_const, Cs, CS_ARCH_X86, CS_MODE_64
-from more_itertools import peekable, seekable
 
-from common import rng
+from common import rng, trace
 from fuku_inst import FukuInst
 from fuku_code_holder import FukuCodeHolder
 from fuku_misc import FukuInstFlags, FukuObfuscationSettings, FUKU_ASSEMBLER_ARCH
@@ -105,19 +104,21 @@ class FukuMutationX64(BaseModel):
             settings = self.settings
         )
 
-        self.obfuscate_lines(ctx, peekable(code.instructions), -1)
+        self.obfuscate_lines(ctx, code.instructions[:], -1)
 
-    def obfuscate_lines(self, ctx: FukuMutationCtx, lines_iter: Iterator, recurse_idx: int):
-        while lines_iter:
-            idx = ctx.code_holder.instructions.index(lines_iter.peek())
-            lines_iter_c = seekable(ctx.code_holder.instructions)
-            lines_iter_c.seek(idx)
-            self.fukutuation(ctx, lines_iter_c)
-            next(lines_iter)
+    def obfuscate_lines(self, ctx: FukuMutationCtx, instruction: List[FukuInst], recurse_idx: int):
+        trace.info("Iterating...")
+        for inst in instruction:
+            line_idx = instruction.index(inst)
 
-    def fukutuation(self, ctx: FukuMutationCtx, lines_iter: Iterator):
-        inst: FukuInst = lines_iter.peek()
+            next_idx = line_idx + 1
+            next_inst = None
+            if next_idx != len(instruction):
+                next_inst = instruction[next_idx]
 
+            self.fukutuation(ctx, inst, next_inst)
+
+    def fukutuation(self, ctx: FukuMutationCtx, inst: FukuInst, next_inst: Optional[FukuInst]):
         if inst.flags.inst_flags & FukuInstFlags.FUKU_INST_JUNK_CODE.value:
             return
 
@@ -127,12 +128,12 @@ class FukuMutationX64(BaseModel):
         if not (is_chanced_junk or is_chanced_mutate):
             return
 
-        ctx.initialize_context(lines_iter)
+        ctx.initialize_context(inst, next_inst)
         try:
             ctx.instruction = next(self.cs.disasm(inst.opcode, 0))
-        except Exception:
-            from IPython import embed; embed()  # DEBUG
-            exit(0)
+        except Exception as e:
+            trace.error("Capstone failed to disassemble opcode: %s" % hexlify(inst.opcode))
+            raise e
 
         self.f_asm.context.short_cfg = 0xFF & ~(self.settings.asm_cfg & rng.randint(0, 0xFF))
 
@@ -151,19 +152,22 @@ class FukuMutationX64(BaseModel):
                     code_holder = ctx.code_holder,
                     hold_type = FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_FIRST_OVERWRITE
                 )
-                self.f_asm.position = copy(lines_iter)
+                self.f_asm.position = ctx.code_holder.instructions.index(inst)
                 self.f_asm.first_emit = True
 
                 was_mutated = fukutuate(ctx)
 
         if was_junked or was_mutated:
+            if inst.id == -1:
+                return
+
             # reset labels
             if ctx.original_start_label:
                 ctx.original_start_label.inst.label = None
-                ctx.calc_original_inst_iter().peek().label = ctx.original_start_label
+                ctx.calc_original_inst().label = ctx.original_start_label
 
             if ctx.payload_start_label:
-                ctx.payload_inst_iter.label = ctx.payload_start_label
+                ctx.payload_inst.label = ctx.payload_start_label
 
             # reset source address and flags
 
@@ -171,28 +175,27 @@ class FukuMutationX64(BaseModel):
                 ctx.has_source_address or
                 (not ctx.settings.is_not_allowed_unstable_stack and ctx.inst_flags & FukuInstFlags.FUKU_INST_BAD_STACK.value)
             ):
-                start_inst = ctx.calc_original_inst_iter()
-                current_inst = ctx.calc_original_inst_iter()
-                end_inst = ctx.calc_next_inst_iter()
+                idx = ctx.code_holder.instructions.index(ctx.calc_original_inst())
+                end_idx = len(ctx.code_holder.instructions)
+                if ctx.next_inst:
+                    end_idx = ctx.code_holder.instructions.index(ctx.next_inst)
 
-                while current_inst.peek() != end_inst.peek():
+                for i, inst in enumerate(ctx.code_holder.instructions[idx:end_idx]):
                     if ctx.inst_flags & FukuInstFlags.FUKU_INST_BAD_STACK.value:
-                        current_inst.peek().flags.inst_flags |= FukuInstFlags.FUKU_INST_BAD_STACK.value
+                        inst.flags.inst_flags |= FukuInstFlags.FUKU_INST_BAD_STACK.value
 
                     if ctx.has_source_address:
-                        if current_inst.peek() != start_inst.peek():
-                            current_inst.peek().flags.inst_has_address = False
+                        if i != 0:
+                            inst.flags.inst_has_address = False
                         else:
-                            current_inst.peek().source_address = ctx.source_address
-
-                    next(current_inst)
+                            inst.source_address = ctx.source_address
 
     def fuku_junk(self, ctx: FukuMutationCtx) -> bool:
         self.f_asm.set_holder(
             code_holder = ctx.code_holder,
             hold_type = FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_NOOVERWRITE
         )
-        self.f_asm.position = copy(ctx.payload_inst_iter)
+        self.f_asm.position = ctx.code_holder.instructions.index(ctx.payload_inst)
         self.f_asm.first_emit = False
 
         return fuku_junk_64_generic(ctx)

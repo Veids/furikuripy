@@ -1,7 +1,6 @@
 from enum import Enum
-from typing import Optional, Iterator, List, Callable
+from typing import Optional, List, Callable
 from pydantic import BaseModel, ConfigDict
-from more_itertools import peekable
 
 from fuku_misc import FUKU_ASSEMBLER_ARCH, UNUSUAL_DATASET
 from fuku_inst import FukuInst, FukuCodeLabel
@@ -11,7 +10,7 @@ from x86.fuku_asm_ctx import FukuAsmCtx
 from x86.fuku_asm_body import FukuAsmBody
 from x86.fuku_type import FukuType, FukuT0Types
 from x86.misc import FukuCondition
-from x86.fuku_register import FukuRegisterEnum
+from x86.fuku_register import FukuRegisterIndex
 
 
 def get_minimal_op_size(dst: FukuType | FukuAsmCtx, src: FukuType) -> FukuOperandSize:
@@ -66,7 +65,7 @@ class FukuAsm(BaseModel):
 
     hold_type: FukuAsmHoldType = FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_NOOVERWRITE
     code_holder: Optional[FukuCodeHolder] = None
-    position: Iterator = peekable(())
+    position: int = 0
 
     first_emit: bool = True
     has_label_to_set: bool = False
@@ -88,7 +87,7 @@ class FukuAsm(BaseModel):
     def set_holder(self, code_holder: FukuCodeHolder, hold_type: FukuAsmHoldType):
         self.code_holder = code_holder
         self.hold_type = hold_type
-        self.position = peekable(self.code_holder.instructions)
+        self.position = 0
 
     @property
     def label(self) -> Optional[FukuCodeLabel]:
@@ -117,34 +116,38 @@ class FukuAsm(BaseModel):
             return
 
         if self.hold_type == FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_FULL_OVERWRITE:
-            if not self.position:
+            if self.position == len(self.code_holder.instructions):
                 inst = FukuInst()
                 self.code_holder.instructions.append(inst)
                 self.context.inst = inst
+                self.position += 1
             else:
-                self.context.inst = next(self.position)
+                self.context.inst = self.code_holder.instructions[self.position]
+                self.position += 1
         else:
             if (
                 self.hold_type == FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_FIRST_OVERWRITE and
                 self.first_emit
             ):
-                if not self.position:
+                if self.position == len(self.code_holder.instructions):
                     inst = FukuInst()
                     self.code_holder.instructions.append(inst)
                     self.context.inst = inst
+                    self.position += 1
                 else:
-                    self.context.inst = next(self.position)
+                    self.context.inst = self.code_holder.instructions[self.position]
+                    self.position += 1
 
                 self.first_emit = False
             else:
                 inst = FukuInst()
                 self.context.inst = inst
-                if not self.position:
+                if self.position == len(self.code_holder.instructions):
                     self.code_holder.instructions.append(inst)
+                    self.position += 1
                 else:
-                    current_inst = self.position.peek()
-                    idx = self.code_holder.instructions.index(current_inst)
-                    self.code_holder.instructions.insert(idx, inst)
+                    self.code_holder.instructions.insert(self.position, inst)
+                    self.position += 1
 
     def on_new_chain_item(self) -> FukuAsmCtx:
         if len(self.prefixes):
@@ -1299,7 +1302,7 @@ class FukuAsm(BaseModel):
 
     # Shift and Rotate Instructions
     def sar(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterEnum.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(
@@ -1332,7 +1335,7 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def shr(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterEnum.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(
@@ -1365,7 +1368,7 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def shl(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterEnum.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(
@@ -1399,7 +1402,7 @@ class FukuAsm(BaseModel):
 
     def shrd(self, dst: FukuType, src: FukuType, shift: FukuType) -> FukuAsmCtx:
         if (
-            (shift.type == FukuT0Types.FUKU_T0_REGISTER and shift.register.index != FukuRegisterEnum.FUKU_REG_INDEX_CX) or
+            (shift.type == FukuT0Types.FUKU_T0_REGISTER and shift.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX) or
             not (shift.type == FukuT0Types.FUKU_T0_REGISTER or shift.type == FukuT0Types.FUKU_T0_IMMEDIATE)
         ):
             UNUSUAL_DATASET()
@@ -1443,7 +1446,7 @@ class FukuAsm(BaseModel):
 
     def shld(self, dst: FukuType, src: FukuType, shift: FukuType) -> FukuAsmCtx:
         if (
-            (shift.type == FukuT0Types.FUKU_T0_REGISTER and shift.register.index != FukuRegisterEnum.FUKU_REG_INDEX_CX) or
+            (shift.type == FukuT0Types.FUKU_T0_REGISTER and shift.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX) or
             not (shift.type == FukuT0Types.FUKU_T0_REGISTER or shift.type == FukuT0Types.FUKU_T0_IMMEDIATE)
         ):
             UNUSUAL_DATASET()
@@ -1486,7 +1489,7 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def ror(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterEnum.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(
@@ -1519,7 +1522,7 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def rol(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterEnum.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(
@@ -1552,7 +1555,7 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def rcr(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterEnum.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(
@@ -1585,7 +1588,7 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def rcl(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterEnum.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(

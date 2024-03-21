@@ -12,6 +12,7 @@ from fuku_code_holder import FukuCodeHolder
 from fuku_code_analyzer import FukuCodeAnalyzer
 from fuku_code_profiler import FukuCodeProfiler
 from fuku_misc import FUKU_ASSEMBLER_ARCH, FukuObfuscationSettings
+from fuku_inst import FukuInst
 from x86.misc import FukuAsmShortCfg
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
@@ -23,6 +24,7 @@ def get_rand_seed() -> int:
 def main(
     arch: FUKU_ASSEMBLER_ARCH,
     input: Annotated[typer.FileBinaryRead, typer.Argument()],
+    output: Annotated[typer.FileBinaryRead, typer.Argument(mode="wb+")],
     seed: Annotated[int, typer.Option(default_factory=get_rand_seed)],
     ranges: Annotated[Optional[int], typer.Option(help="specify ranges to skip data (ex. 1-100,120-500)")] = None,
     relocations_allowed: Annotated[bool, typer.Option(help="allow relocations")] = True,
@@ -40,10 +42,21 @@ def main(
     if not ranges:
         ranges = len(data)
 
+    virtual_address = 0
     code_holder = FukuCodeHolder(arch = arch)
     code_analyzer = FukuCodeAnalyzer(arch = arch)
 
-    code_analyzer.analyze_code(code_holder, data[:ranges], 0, None)
+    code_analyzer.analyze_code(code_holder, data[:ranges], virtual_address, None)
+
+    #debug
+    inst = code_holder.add_inst()
+    inst.source_address = virtual_address + data.index(data[ranges])
+    inst.opcode = bytearray(data[ranges:])
+    inst.id = -1
+    code_holder.update_source_insts()
+    code_holder.resolve_labels()
+    #debug_end
+
 
     code_profiler = FukuCodeProfiler(arch = arch)
     code_profiler.profile_code(code_holder)
@@ -78,10 +91,10 @@ def main(
     code = obfuscation_code_analyzer.code.dump_code()
     end_time = time.time()
 
-    code += data[ranges:]
+    # code += data[ranges:]
 
     log.info(f"Finished in {datetime.fromtimestamp(end_time) - datetime.fromtimestamp(start_time)}")
-
+    output.write(code)
 
 if __name__ == "__main__":
     app()

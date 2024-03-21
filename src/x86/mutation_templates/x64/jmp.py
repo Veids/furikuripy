@@ -1,6 +1,6 @@
 from capstone import x86_const
 
-from common import trace, rng
+from common import rng, trace_inst
 from fuku_misc import FukuInstFlags
 from fuku_inst import FukuInst, FukuRipRelocation
 from x86.misc import FukuOperandSize, FukuCondition
@@ -23,19 +23,23 @@ def _jmp_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType) -> bool:
     if not ctx.is_allowed_stack_operations:
         return False
 
-    inst: FukuInst = ctx.payload_inst_iter.peek()
+    opcodes = []
+    disp_reloc = ctx.payload_inst.disp_reloc
+    rip_reloc = ctx.payload_inst.rip_reloc
+    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
 
     ctx.f_asm.push(src)
-    ctx.restore_disp_relocate(src, inst.disp_reloc, inst.flags.inst_used_disp)
-
+    ctx.restore_disp_relocate(src, disp_reloc, inst_used_disp)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.ret(FukuImmediate().ftype)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
-    trace.info("jmp dst -> push dst; ret")
+    trace_inst("jmp dst -> push dst; ret", opcodes)
     return True
 
 # je dst
@@ -44,9 +48,10 @@ def _jmp_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType) -> bool:
     if src.type != FukuT0Types.FUKU_T0_IMMEDIATE:
         return False
 
-    cond = rng.randint(0, 15)
-    rip_reloc = ctx.payload_inst_iter.peek().rip_reloc
+    opcodes = []
+    rip_reloc = ctx.payload_inst.rip_reloc
 
+    cond = rng.randint(0, 15)
     ctx.f_asm.jcc(FukuCondition(cond), FukuImmediate(0xFFFFFFFF).ftype)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
@@ -57,6 +62,7 @@ def _jmp_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType) -> bool:
         )
     )
     ctx.f_asm.context.inst.flags.inst_flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE.value
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     rev_cond = FukuCondition(cond ^ 1)
     ctx.f_asm.jcc(rev_cond, FukuImmediate(0xFFFFFFFF).ftype)
@@ -69,10 +75,12 @@ def _jmp_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType) -> bool:
         )
     )
     ctx.f_asm.context.inst.flags.inst_flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE.value
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
+    rip_reloc.label = None
     ctx.code_holder.rip_relocations.remove(rip_reloc)
 
-    trace.info("jmp dst -> je dst; jne dst")
+    trace_inst("jmp dst -> je dst; jne dst", opcodes)
     return True
 
 # mov randreg, dst
@@ -92,24 +100,29 @@ def _jmp_64_multi_tmpl_3(ctx: FukuMutationCtx, src: FukuType) -> bool:
     if rand_reg.reg == FukuRegisterEnum.FUKU_REG_NONE:
         return False
 
-    inst: FukuInst = ctx.payload_inst_iter.peek()
+    opcodes = []
+    disp_reloc = ctx.payload_inst.disp_reloc
+    rip_reloc = ctx.payload_inst.rip_reloc
+    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
     out_regflags = ctx.cpu_registers & ~(rand_reg.ftype.get_mask_register() | src.get_mask_register())
 
     if src.type == FukuT0Types.FUKU_T0_IMMEDIATE:
         ctx.f_asm.mov(rand_reg.ftype, FukuImmediate(0xFFFFFFFFFFFFFFFF).ftype)
-        ctx.restore_rip_to_imm_relocate(src, inst.rip_reloc, inst.flags.inst_used_disp)
+        ctx.restore_rip_to_imm_relocate(src, rip_reloc, inst_used_disp)
     else:
         ctx.f_asm.mov(rand_reg.ftype, src)
-        ctx.restore_disp_relocate(src, inst.disp_reloc, inst.flags.inst_used_disp)
+        ctx.restore_disp_relocate(src, disp_reloc, inst_used_disp)
 
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.jmp(rand_reg.ftype)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
+    opcodes.append(ctx.f_asm.context.inst.opcode)
 
-    trace.info("jmp dst -> mov randreg, dst; jmp randreg")
+    trace_inst("jmp dst -> mov randreg, dst; jmp randreg", opcodes)
     return True
 
 def _jmp_64_reg_tmpl(ctx: FukuMutationCtx) -> bool:

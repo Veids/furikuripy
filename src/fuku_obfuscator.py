@@ -1,6 +1,4 @@
 from common import log
-from copy import copy
-from more_itertools import peekable
 from pydantic import BaseModel
 
 from fuku_asm import FukuAsm, FukuAsmHoldType
@@ -53,11 +51,7 @@ class FukuObfuscator(BaseModel):
             hold_type = FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_FIRST_OVERWRITE
         )
 
-        line_iter = peekable(self.code.instructions)
-
-        while line_iter:
-            line = line_iter.peek()
-
+        for line in self.code.instructions[:]:
             match line.id:
                 case x86_const.X86_INS_JMP:
                     if line.opcode[line.prefix_count()] == 0xEB: # near jump
@@ -83,23 +77,28 @@ class FukuObfuscator(BaseModel):
                     x86_const.X86_INS_JG
                 ):
                     if (line.opcode[line.prefix_count()] & 0xF0) == 0x70: # near jump
-                        line.opcode[line.prefix_count()] = 0x0F
-                        line.opcode[line.prefix_count() + 1] = (0x80 | line.opcode[line.prefix_count()] & 0x0F)
-                        line.opcode.extend([0, 0, 0, 0])
+                        opcode = line.opcode.copy()
+                        opcode[line.prefix_count()] = 0x0F
+                        opcode[line.prefix_count() + 1] = (0x80 | line.opcode[line.prefix_count()] & 0x0F)
+                        opcode.extend([0, 0, 0, 0])
+                        line.opcode = opcode
                         line.rip_reloc.offset = 2
 
                 case (
                     x86_const.X86_INS_JCXZ |
-                    x86_const.X86_INS_JECXZ
+                    x86_const.X86_INS_JECXZ |
+                    x86_const.X86_INS_JRCXZ
                 ):
                     fuku_asm.first_emit = True
-                    fuku_asm.position = copy(line_iter)
+                    fuku_asm.position = self.code.instructions.index(line)
 
                     label = line.label
                     rip_reloc = line.rip_reloc
 
                     reg = None
 
+                    if line.id == x86_const.X86_INS_JRCXZ: # or rcx, rcx
+                        reg = FukuRegister(FukuRegisterEnum.FUKU_REG_RCX).ftype
                     if line.id == x86_const.X86_INS_JECXZ: # or ecx, ecx
                         reg = FukuRegister(FukuRegisterEnum.FUKU_REG_ECX).ftype
                     else: # or cx, cx
@@ -115,7 +114,7 @@ class FukuObfuscator(BaseModel):
 
                 case x86_const.X86_INS_LOOP:
                     fuku_asm.first_emit = True
-                    fuku_asm.position = copy(line_iter)
+                    fuku_asm.position = self.code.instructions.index(line)
 
                     label = line.label
                     rip_reloc = line.rip_reloc
@@ -130,7 +129,7 @@ class FukuObfuscator(BaseModel):
 
                 case x86_const.X86_INS_LOOPE:
                     fuku_asm.first_emit = True
-                    fuku_asm.position = copy(line_iter)
+                    fuku_asm.position = self.code.instructions.index(line)
 
                     label = line.label
                     rip_reloc = line.rip_reloc
@@ -145,7 +144,7 @@ class FukuObfuscator(BaseModel):
 
                 case x86_const.X86_INS_LOOPNE:
                     fuku_asm.first_emit = True
-                    fuku_asm.position = copy(line_iter)
+                    fuku_asm.position = self.code.instructions.index(line)
 
                     label = line.label
                     rip_reloc = line.rip_reloc
@@ -157,5 +156,3 @@ class FukuObfuscator(BaseModel):
                     fuku_asm.context.inst.rip_reloc = rip_reloc
 
                     rip_reloc.offset = fuku_asm.context.immediate_offset
-
-            next(line_iter)

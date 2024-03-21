@@ -1,7 +1,7 @@
-from typing import Optional, ForwardRef
-from pydantic import BaseModel, StrictBytes
+from __future__ import annotations
 
-FukuInst = ForwardRef("FukuInst")
+from typing import Optional, Self
+from pydantic import BaseModel, StrictBytes
 
 
 class FukuCodeLabel(BaseModel):
@@ -36,6 +36,8 @@ class Flags(BaseModel):
 
 
 class FukuInst(BaseModel):
+    __hash__ = object.__hash__
+
     id: int = -1
 
     opcode: Optional[StrictBytes] = None
@@ -48,7 +50,7 @@ class FukuInst(BaseModel):
     imm_reloc: Optional[FukuRelocation] = None
 
     disp_reloc: Optional[FukuRelocation] = None
-    rip_reloc: Optional[FukuRipRelocation] = None
+    _rip_reloc: Optional[FukuRipRelocation] = None
 
     cpu_flags: int = 0
     cpu_registers: int = 0
@@ -64,10 +66,6 @@ class FukuInst(BaseModel):
         return self.source_address is not None
 
     @property
-    def inst_used_disp(self):
-        return self.disp_reloc is not None
-
-    @property
     def label(self):
         return self._label
 
@@ -77,6 +75,15 @@ class FukuInst(BaseModel):
 
         if self._label:
             self._label.inst = self
+
+    @property
+    def rip_reloc(self):
+        return self._rip_reloc
+
+    @rip_reloc.setter
+    def rip_reloc(self, value):
+        self._rip_reloc = value
+        self.flags.inst_used_disp = False
 
     def prefix_count(self) -> int:
         i = 0
@@ -105,8 +112,12 @@ class FukuInst(BaseModel):
         self.label = src.label
         self.imm_reloc = src.imm_reloc
         self.disp_reloc = src.disp_reloc
+        self.rip_reloc = src.rip_reloc
         self.cpu_flags = src.cpu_flags
         self.cpu_registers = src.cpu_registers
         self.flags.inst_flags = src.flags.inst_flags
         self.flags.inst_used_disp = src.flags.inst_used_disp
         self.flags.inst_has_address = src.flags.inst_has_address
+
+    def __eq__(self, other: Self) -> bool:
+        return hash(self) == hash(other)

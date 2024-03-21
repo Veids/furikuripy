@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from enum import Enum
-from typing import ForwardRef
 from pydantic import BaseModel
 from capstone.x86 import X86Op
 from capstone import x86_const
@@ -7,9 +8,6 @@ from capstone import x86_const
 from x86.misc import FukuOperandSize
 from x86.fuku_register import FukuRegister, FukuRegisterEnum, CAP_TO_FUKU_TABLE
 from x86.fuku_immediate import FukuImmediate
-
-FukuOperand = ForwardRef("FukuOperand")
-FukuOperandScale = ForwardRef("FukuOperandScale")
 
 
 class FukuPrefix(Enum):
@@ -25,6 +23,11 @@ class FukuPrefix(Enum):
     FUKU_PREFIX_GS               = 0x65
     FUKU_PREFIX_OVERRIDE_DATA    = 0x66
     FUKU_PREFIX_OVERRIDE_ADDRESS = 0x67
+
+    @staticmethod
+    def from_capstone_mem_segment(val: int) -> FukuPrefix:
+        if val == x86_const.X86_REG_GS:
+            return FukuPrefix.FUKU_PREFIX_GS
 
 
 class FukuOperandScale(Enum):
@@ -96,6 +99,7 @@ class FukuOperand(BaseModel):
         scale = FukuOperandScale.FUKU_OPERAND_SCALE_1
         imm = FukuImmediate()
         size = FukuOperandSize.FUKU_OPERAND_SIZE_0
+        segment = FukuPrefix.FUKU_PREFIX_NONE
         
         if op.type == x86_const.X86_OP_MEM:
             size = FukuOperandSize(op.size)
@@ -107,6 +111,9 @@ class FukuOperand(BaseModel):
                 index = CAP_TO_FUKU_TABLE[op.mem.index]
                 scale = FukuOperandScale.from_capstone(op.mem.scale)
 
+            if op.mem.segment != x86_const.X86_REG_INVALID:
+                segment = FukuPrefix.from_capstone_mem_segment(op.mem.segment)
+
             imm = FukuImmediate(op.mem.disp)
 
         return FukuOperand(
@@ -115,7 +122,7 @@ class FukuOperand(BaseModel):
             scale = scale,
             disp = imm,
             size = size,
-            segment = FukuPrefix.FUKU_PREFIX_NONE
+            segment = segment
         )
 
 def qword_ptr(

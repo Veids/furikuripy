@@ -376,7 +376,7 @@ class FukuAsmBody:
         if isinstance(src, FukuOperand):
             ctx.gen_pattern64_2em_op_r(0x0F, 0x40 | cond.value, src, dst)
         else:
-            ctx.gen_pattern64_2em_rm_r(0x0F, 0x40 | cond, src, dst)
+            ctx.gen_pattern64_2em_rm_r(0x0F, 0x40 | cond.value, src, dst)
 
         ctx.gen_func_return(cond.to_capstone_cc(FukuToCapConvertType.CONVERT_TYPE_CMOVCC), ADI_FL_JCC[cond.value])
 
@@ -640,7 +640,7 @@ class FukuAsmBody:
 
         ctx.gen_func_return(x86_const.X86_INS_MOVSXD, 0)
 
-    def movsxd_word_dw(self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand):
+    def movsxd_dword_dw(self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand):
         ctx.clear()
 
         if isinstance(src, FukuRegister):
@@ -650,7 +650,7 @@ class FukuAsmBody:
 
         ctx.gen_func_return(x86_const.X86_INS_MOVSXD, 0)
 
-    def movsxd_word_qw(self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand):
+    def movsxd_dword_qw(self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand):
         ctx.clear()
 
         if isinstance(src, FukuRegister):
