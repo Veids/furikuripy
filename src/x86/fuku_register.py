@@ -196,6 +196,7 @@ class FukuRegisterEnum(Enum):
         reg: FukuRegisterEnum = FukuRegisterEnum.get_random_free_register(
             reg_flags,
             FukuOperandSize.FUKU_OPERAND_SIZE_64 if reg_size == FukuOperandSize.FUKU_OPERAND_SIZE_32 else reg_size,
+            False,
             exclude_regs
         )
 
@@ -535,3 +536,15 @@ CONVERT_FLAG_REGISTER_TO_FUKU = [
     FukuRegisterEnum.FUKU_REG_R14,
     FukuRegisterEnum.FUKU_REG_R15
 ]
+
+
+def cpu_registers_to_names(cpu_registers: int) -> List:
+    bits = []
+
+    for i, c in enumerate(bin(cpu_registers)[:1:-1], 1):
+        if c == '1':
+            bits.append(i - 1)
+
+    return [
+        CONVERT_FLAG_REGISTER_TO_FUKU[index] for index in bits
+    ]

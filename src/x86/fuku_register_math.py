@@ -1,3 +1,4 @@
+from typing import List
 from capstone import x86_const
 
 from common import rng

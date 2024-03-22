@@ -1,6 +1,5 @@
 import capstone
 
-from copy import copy
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
 from capstone import x86_const
@@ -17,7 +16,7 @@ def get_bits_included(src, include_mask, exclude_mask):
     return (((src) & (include_mask)) & (~(exclude_mask)))
 
 
-def get_operand_access(instruction, op_num, op_access, table, default_access):
+def get_operand_access(instruction, op_num, op_access: List, table, default_access):
     op = instruction.operands[op_num]
 
     if op.type == x86_const.X86_OP_MEM:
@@ -91,7 +90,7 @@ class FukuCodeProfiler(BaseModel):
 
             handled = self.get_instruction_operand_access(instruction, op_access)
             if not handled:
-                log.warn("not profiled %s %s" % (instruction.mnemonic, instruction.op_str))
+                log.warning("not profiled %s %s" % (instruction.mnemonic, instruction.op_str))
                 return included_registers
 
             current_included_registers = 0
@@ -105,6 +104,7 @@ class FukuCodeProfiler(BaseModel):
 
             excluded_registers |= current_excluded_registers
             included_registers |= current_included_registers & (~excluded_registers)
+
 
         return included_registers
 
@@ -139,6 +139,8 @@ class FukuCodeProfiler(BaseModel):
         return included_flags
 
     def get_instruction_operand_access(self, instruction, op_access):
+        op_access.clear()
+
         default_stack_pointer = FlagRegister.ESP.value if self.arch == FUKU_ASSEMBLER_ARCH.X86 else FlagRegister.RSP.value
         default_frame_pointer = FlagRegister.EBP.value if self.arch == FUKU_ASSEMBLER_ARCH.X86 else FlagRegister.RBP.value
 
@@ -573,14 +575,10 @@ class FukuCodeProfiler(BaseModel):
 
         self.registers_table = CAPSTONE_REGISTER_FLAGS.copy()
 
-        iterator = iter(code.instructions)
         try:
-            while True:
-                instructions = copy(iterator)
-
-                line = next(iterator)
-                line.cpu_flags = self.profile_graph_eflags(code, copy(instructions))
-                line.cpu_registers = self.profile_graph_registers(code, copy(instructions))
+            for i, line in enumerate(code.instructions):
+                line.cpu_flags = self.profile_graph_eflags(code, code.instructions[i:])
+                line.cpu_registers = self.profile_graph_registers(code, code.instructions[i:])
         except StopIteration:
             pass
 

@@ -59,6 +59,7 @@ def _mov_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
     ):
         return False
 
+    # TODO: check are those requirements really essential
     if (
         src.type == FukuT0Types.FUKU_T0_REGISTER and
         dst.type == FukuT0Types.FUKU_T0_REGISTER and

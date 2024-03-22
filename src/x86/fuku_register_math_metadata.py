@@ -106,7 +106,7 @@ FlagRegisterIndex = Enum('FlagRegisterIndex', [
     "R13",
     "R14",
     "R15",
-])
+], start = 0)
 
 
 class FlagRegister(Enum):
