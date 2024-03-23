@@ -12,7 +12,6 @@ from fuku_code_holder import FukuCodeHolder
 from fuku_code_analyzer import FukuCodeAnalyzer
 from fuku_code_profiler import FukuCodeProfiler
 from fuku_misc import FUKU_ASSEMBLER_ARCH, FukuObfuscationSettings
-from fuku_inst import FukuInst
 from x86.misc import FukuAsmShortCfg
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
@@ -27,7 +26,7 @@ def main(
     output: Annotated[typer.FileBinaryRead, typer.Argument(mode="wb+")],
     seed: Annotated[int, typer.Option(default_factory=get_rand_seed)],
     ranges: Annotated[Optional[int], typer.Option(help="specify ranges to skip data (ex. 1-100,120-500)")] = None,
-    relocations_allowed: Annotated[bool, typer.Option(help="allow relocations")] = True,
+    relocations_allowed: Annotated[bool, typer.Option(help="allow relocations")] = False,
     complexity: Annotated[int, typer.Option(help="number of passes for single line")] = 3,
     number_of_passes: Annotated[int, typer.Option(min=1)] = 2,
     junk_chance: Annotated[int, typer.Option(min=0, max=100)] = 30,

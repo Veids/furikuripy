@@ -2,7 +2,7 @@ from capstone import x86_const
 
 from common import rng, trace_inst
 from fuku_misc import FukuInstFlags
-from fuku_inst import FukuInst, FukuRipRelocation
+from fuku_inst import FukuRipRelocation
 from x86.misc import FukuOperandSize, FukuCondition
 from x86.fuku_operand import FukuOperand
 from x86.fuku_type import FukuType, FukuT0Types
@@ -25,7 +25,6 @@ def _jmp_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType) -> bool:
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    rip_reloc = ctx.payload_inst.rip_reloc
     inst_used_disp = ctx.payload_inst.flags.inst_used_disp
 
     ctx.f_asm.push(src)

@@ -1,9 +1,7 @@
-import logging
-from typing import Optional, List
-from pydantic import BaseModel, ConfigDict, StrictBytes
+from typing import Optional
+from pydantic import BaseModel, ConfigDict
 from capstone import CsInsn
 
-from common import trace
 from x86.misc import FukuOperandSize
 from x86.fuku_type import FukuType, FukuT0Types
 from fuku_asm import FukuAsm

@@ -2,7 +2,6 @@ from capstone import x86_const
 
 from common import rng, trace_inst
 from fuku_misc import FukuInstFlags
-from fuku_inst import FukuInst
 from x86.misc import FukuOperandSize
 from x86.fuku_operand import FukuOperand, qword_ptr
 from x86.fuku_type import FukuType, FukuT0Types
@@ -20,9 +19,7 @@ def _push_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    rip_reloc = ctx.payload_inst.rip_reloc
     inst_used_disp = ctx.payload_inst.flags.inst_used_disp
-    imm_reloc = ctx.payload_inst.imm_reloc
     out_regflags = ctx.cpu_registers & ~(src.get_mask_register())
 
     if has_free_eflags(
@@ -73,9 +70,7 @@ def _push_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    rip_reloc = ctx.payload_inst.rip_reloc
     inst_used_disp = ctx.payload_inst.flags.inst_used_disp
-    imm_reloc = ctx.payload_inst.imm_reloc
 
     ctx.f_asm.mov(
         FukuOperand(

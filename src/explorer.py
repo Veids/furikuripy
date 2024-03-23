@@ -1,22 +1,13 @@
 import typer
-import random
-import sys
-import time
 
-from datetime import datetime
 from typing import Annotated, Optional
 
-from common import log, rng
-from fuku_obfuscator import FukuObfuscator
 from fuku_code_holder import FukuCodeHolder
 from fuku_code_analyzer import FukuCodeAnalyzer
 from fuku_code_profiler import FukuCodeProfiler
-from fuku_misc import FUKU_ASSEMBLER_ARCH, FukuObfuscationSettings
-from fuku_inst import FukuInst
-from x86.misc import FukuAsmShortCfg
+from fuku_misc import FUKU_ASSEMBLER_ARCH
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
-
 
 
 @app.command()

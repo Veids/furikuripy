@@ -1,7 +1,6 @@
 from capstone import x86_const
 
 from common import rng, trace_inst
-from fuku_inst import FukuInst
 from x86.misc import FukuOperandSize
 from x86.fuku_type import FukuType, FukuT0Types
 from x86.fuku_operand import FukuOperand
@@ -28,7 +27,6 @@ def _mov_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    rip_reloc = ctx.payload_inst.rip_reloc
     inst_used_disp = ctx.payload_inst.flags.inst_used_disp
     imm_reloc = ctx.payload_inst.imm_reloc
     out_regflags = changes_regflags & ~(somereg.register.get_flag_complex(FukuOperandSize.FUKU_OPERAND_SIZE_64))
@@ -59,14 +57,7 @@ def _mov_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
     ):
         return False
 
-    # TODO: check are those requirements really essential
-    if (
-        src.type == FukuT0Types.FUKU_T0_REGISTER and
-        dst.type == FukuT0Types.FUKU_T0_REGISTER and
-        src.register.index == dst.register.index
-    ):
-        return False
-
+    # mov rax, gs:[eax]
     if (
         src.type == FukuT0Types.FUKU_T0_OPERAND and
         dst.type == FukuT0Types.FUKU_T0_REGISTER and
@@ -112,7 +103,6 @@ def _mov_64_multi_tmpl_3(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    rip_reloc = ctx.payload_inst.rip_reloc
     inst_used_disp = ctx.payload_inst.flags.inst_used_disp
     imm_reloc = ctx.payload_inst.imm_reloc
     out_regflags = ctx.cpu_registers & ~(dst.get_mask_register() | src.get_mask_register())

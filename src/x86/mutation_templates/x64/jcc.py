@@ -1,6 +1,6 @@
 from common import trace_inst
 from fuku_misc import FukuInstFlags
-from fuku_inst import FukuInst, FukuRipRelocation, FukuCodeLabel
+from fuku_inst import FukuRipRelocation, FukuCodeLabel
 from x86.misc import FukuCondition
 from x86.fuku_type import FukuType
 from x86.fuku_immediate import FukuImmediate
