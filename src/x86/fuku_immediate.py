@@ -37,15 +37,15 @@ class FukuImmediate(BaseModel):
     @property
     def size(self):
         if self.is_8:
-            return FukuOperandSize.FUKU_OPERAND_SIZE_8
+            return FukuOperandSize.SIZE_8
         if self.is_16:
-            return FukuOperandSize.FUKU_OPERAND_SIZE_16
+            return FukuOperandSize.SIZE_16
         if self.is_32:
-            return FukuOperandSize.FUKU_OPERAND_SIZE_32
+            return FukuOperandSize.SIZE_32
         if self.is_64:
-            return FukuOperandSize.FUKU_OPERAND_SIZE_64
+            return FukuOperandSize.SIZE_64
 
-        return FukuOperandSize.FUKU_OPERAND_SIZE_0
+        return FukuOperandSize.SIZE_0
 
     @property
     def is_relocate(self):

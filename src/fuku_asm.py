@@ -44,11 +44,11 @@ def get_minimal_op_size(dst: FukuType | FukuAsmCtx, src: FukuType) -> FukuOperan
 
             case FukuT0Types.FUKU_T0_IMMEDIATE:
                 return (
-                    FukuOperandSize.FUKU_OPERAND_SIZE_32 if dst.arch == FUKU_ASSEMBLER_ARCH.X86 else
-                    FukuOperandSize.FUKU_OPERAND_SIZE_64
+                    FukuOperandSize.SIZE_32 if dst.arch == FUKU_ASSEMBLER_ARCH.X86 else
+                    FukuOperandSize.SIZE_64
                 )
 
-    return FukuOperandSize.FUKU_OPERAND_SIZE_0
+    return FukuOperandSize.SIZE_0
 
 
 class FukuAsmHoldType(Enum):
@@ -193,7 +193,7 @@ class FukuAsm(BaseModel):
     ):
         self.on_emit(dst)
         match get_minimal_op_size(self.context, dst):
-            case FukuOperandSize.FUKU_OPERAND_SIZE_8:
+            case FukuOperandSize.SIZE_8:
                 match dst.type:
                     case FukuT0Types.FUKU_T0_REGISTER:
                         op_b_r()
@@ -207,7 +207,7 @@ class FukuAsm(BaseModel):
                     case _:
                         UNUSUAL_DATASET()
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_16:
+            case FukuOperandSize.SIZE_16:
                 match dst.type:
                     case FukuT0Types.FUKU_T0_REGISTER:
                         op_w_r()
@@ -221,7 +221,7 @@ class FukuAsm(BaseModel):
                     case _:
                         UNUSUAL_DATASET()
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_32:
+            case FukuOperandSize.SIZE_32:
                 match dst.type:
                     case FukuT0Types.FUKU_T0_REGISTER:
                         op_dw_r()
@@ -235,7 +235,7 @@ class FukuAsm(BaseModel):
                     case _:
                         UNUSUAL_DATASET()
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_64:
+            case FukuOperandSize.SIZE_64:
                 match dst.type:
                     case FukuT0Types.FUKU_T0_REGISTER:
                         op_qw_r()
@@ -281,7 +281,7 @@ class FukuAsm(BaseModel):
     ):
         self.on_emit(dst, src)
         match get_minimal_op_size(dst, src):
-            case FukuOperandSize.FUKU_OPERAND_SIZE_8:
+            case FukuOperandSize.SIZE_8:
                 match dst.type:
                     case FukuT0Types.FUKU_T0_REGISTER:
                         match src.type:
@@ -311,7 +311,7 @@ class FukuAsm(BaseModel):
                     case _:
                         UNUSUAL_DATASET()
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_16:
+            case FukuOperandSize.SIZE_16:
                 match dst.type:
                     case FukuT0Types.FUKU_T0_REGISTER:
                         match src.type:
@@ -341,7 +341,7 @@ class FukuAsm(BaseModel):
                     case _:
                         UNUSUAL_DATASET()
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_32:
+            case FukuOperandSize.SIZE_32:
                 match dst.type:
                     case FukuT0Types.FUKU_T0_REGISTER:
                         match src.type:
@@ -371,7 +371,7 @@ class FukuAsm(BaseModel):
                     case _:
                         UNUSUAL_DATASET()
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_64:
+            case FukuOperandSize.SIZE_64:
                 match dst.type:
                     case FukuT0Types.FUKU_T0_REGISTER:
                         match src.type:

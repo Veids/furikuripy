@@ -98,7 +98,7 @@ class FukuOperand(BaseModel):
         index = FukuRegisterEnum.FUKU_REG_NONE
         scale = FukuOperandScale.FUKU_OPERAND_SCALE_1
         imm = FukuImmediate()
-        size = FukuOperandSize.FUKU_OPERAND_SIZE_0
+        size = FukuOperandSize.SIZE_0
         segment = FukuPrefix.FUKU_PREFIX_NONE
         
         if op.type == x86_const.X86_OP_MEM:
@@ -129,6 +129,6 @@ def qword_ptr(
         **kwargs
     ) -> FukuOperand:
     return FukuOperand(
-        size = FukuOperandSize.FUKU_OPERAND_SIZE_64,
+        size = FukuOperandSize.SIZE_64,
         **kwargs
     )

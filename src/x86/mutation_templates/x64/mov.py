@@ -29,7 +29,7 @@ def _mov_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
     disp_reloc = ctx.payload_inst.disp_reloc
     inst_used_disp = ctx.payload_inst.flags.inst_used_disp
     imm_reloc = ctx.payload_inst.imm_reloc
-    out_regflags = changes_regflags & ~(somereg.register.get_flag_complex(FukuOperandSize.FUKU_OPERAND_SIZE_64))
+    out_regflags = changes_regflags & ~(somereg.register.get_flag_complex(FukuOperandSize.SIZE_64))
 
     ctx.f_asm.mov(somereg, src)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
@@ -90,8 +90,8 @@ def _mov_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
 def _mov_64_multi_tmpl_3(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, inst_size: int) -> bool:
     if (
         not ctx.is_allowed_stack_operations or
-        inst_size == FukuOperandSize.FUKU_OPERAND_SIZE_8.value or
-        (src.type == FukuT0Types.FUKU_T0_IMMEDIATE and inst_size != FukuOperandSize.FUKU_OPERAND_SIZE_32.value)
+        inst_size == FukuOperandSize.SIZE_8.value or
+        (src.type == FukuT0Types.FUKU_T0_IMMEDIATE and inst_size != FukuOperandSize.SIZE_32.value)
     ):
         return False
 
@@ -107,7 +107,7 @@ def _mov_64_multi_tmpl_3(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
     imm_reloc = ctx.payload_inst.imm_reloc
     out_regflags = ctx.cpu_registers & ~(dst.get_mask_register() | src.get_mask_register())
 
-    if inst_size != FukuOperandSize.FUKU_OPERAND_SIZE_64.value:
+    if inst_size != FukuOperandSize.SIZE_64.value:
         randreg = FukuType.get_random_operand_dst_x64(
             AllowInstruction.REGISTER.value, inst_size, out_regflags,
             FlagRegister.SP.value |

@@ -358,7 +358,7 @@ class FukuAsmBody:
         else:
             ctx.gen_pattern32_2em_rm_r_word(0x0F, 0x40 | cond.value, src, dst)
 
-        ctx.gen_func_return(cond.to_capstone_cc(FukuToCapConvertType.CONVERT_TYPE_CMOVCC), ADI_FL_JCC[cond.value])
+        ctx.gen_func_return(cond.to_capstone_cc(FukuToCapConvertType.CMOVCC), ADI_FL_JCC[cond.value])
 
     def cmovcc_dw(self, ctx: FukuAsmCtx, cond: FukuCondition, dst: FukuRegister, src: FukuOperand | FukuRegister):
         ctx.clear()
@@ -368,7 +368,7 @@ class FukuAsmBody:
         else:
             ctx.gen_pattern32_2em_rm_r(0x0F, 0x40 | cond.value, src, dst)
 
-        ctx.gen_func_return(cond.to_capstone_cc(FukuToCapConvertType.CONVERT_TYPE_CMOVCC), ADI_FL_JCC[cond.value])
+        ctx.gen_func_return(cond.to_capstone_cc(FukuToCapConvertType.CMOVCC), ADI_FL_JCC[cond.value])
 
     def cmovcc_qw(self, ctx: FukuAsmCtx, cond: FukuCondition, dst: FukuRegister, src: FukuOperand | FukuRegister):
         ctx.clear()
@@ -378,7 +378,7 @@ class FukuAsmBody:
         else:
             ctx.gen_pattern64_2em_rm_r(0x0F, 0x40 | cond.value, src, dst)
 
-        ctx.gen_func_return(cond.to_capstone_cc(FukuToCapConvertType.CONVERT_TYPE_CMOVCC), ADI_FL_JCC[cond.value])
+        ctx.gen_func_return(cond.to_capstone_cc(FukuToCapConvertType.CMOVCC), ADI_FL_JCC[cond.value])
 
     def xchg_b(self, ctx: FukuAsmCtx, dst: FukuOperand | FukuRegister, src: FukuRegister):
         ctx.clear()
@@ -766,7 +766,7 @@ class FukuAsmBody:
     def setcc(self, ctx: FukuAsmCtx, cond: FukuCondition, dst: FukuRegister | FukuOperand):
         ctx.clear()
 
-        assert cond not in [FukuCondition.FUKU_NO_CONDITION, FukuCondition.FUKU_CONDITION_MAX]
+        assert cond not in [FukuCondition.NO_CONDITION, FukuCondition.CONDITION_MAX]
 
         if isinstance(dst, FukuRegister):
             ctx.gen_pattern32_2em_rm_idx(0x0F, 0x90 | cond.value, dst, 0)
@@ -774,7 +774,7 @@ class FukuAsmBody:
             ctx.gen_pattern32_2em_op_idx(0x0F, 0x90 | cond.value, dst, 0)
 
         ctx.gen_func_return(
-            cond.to_capstone_cc(FukuToCapConvertType.CONVERT_TYPE_SETCC),
+            cond.to_capstone_cc(FukuToCapConvertType.SETCC),
             ADI_FL_JCC[cond.value]
         )
 
@@ -954,12 +954,12 @@ class FukuAsmBody:
     def jcc(self, ctx: FukuAsmCtx, cond: FukuCondition, imm: FukuImmediate):
         ctx.clear()
 
-        assert cond not in [FukuCondition.FUKU_NO_CONDITION, FukuCondition.FUKU_CONDITION_MAX]
+        assert cond not in [FukuCondition.NO_CONDITION, FukuCondition.CONDITION_MAX]
 
         ctx.gen_pattern32_2em_immdw(0x0F, 0x80 | cond.value, FukuRegister(FukuRegisterEnum.FUKU_REG_NONE), imm)
 
         ctx.gen_func_return(
-            cond.to_capstone_cc(FukuToCapConvertType.CONVERT_TYPE_JCC),
+            cond.to_capstone_cc(FukuToCapConvertType.JCC),
             ADI_FL_JCC[cond.value]
         )
 

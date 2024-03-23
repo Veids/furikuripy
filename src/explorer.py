@@ -14,7 +14,10 @@ app = typer.Typer(pretty_exceptions_show_locals=False)
 def main(
     arch: FUKU_ASSEMBLER_ARCH,
     input: Annotated[typer.FileBinaryRead, typer.Argument()],
-    ranges: Annotated[Optional[int], typer.Option(help="specify ranges to skip data (ex. 1-100,120-500)")] = None,
+    ranges: Annotated[
+        Optional[int],
+        typer.Option(help="specify ranges to skip data (ex. 1-100,120-500)"),
+    ] = None,
 ):
     data = input.read()
 
@@ -22,23 +25,23 @@ def main(
         ranges = len(data)
 
     virtual_address = 0
-    code_holder = FukuCodeHolder(arch = arch)
-    code_analyzer = FukuCodeAnalyzer(arch = arch)
+    code_holder = FukuCodeHolder(arch=arch)
+    code_analyzer = FukuCodeAnalyzer(arch=arch)
 
     code_analyzer.analyze_code(code_holder, data[:ranges], virtual_address, None)
 
-    #debug
+    # debug
     inst = code_holder.add_inst()
     inst.source_address = virtual_address + data.index(data[ranges])
     inst.opcode = bytearray(data[ranges:])
     inst.id = -1
     code_holder.update_source_insts()
     code_holder.resolve_labels()
-    #debug_end
+    # debug_end
 
-    code_profiler = FukuCodeProfiler(arch = arch)
+    code_profiler = FukuCodeProfiler(arch=arch)
     code_profiler.profile_code(code_holder)
-    from IPython import embed; embed()  # DEBUG
+
 
 if __name__ == "__main__":
     app()

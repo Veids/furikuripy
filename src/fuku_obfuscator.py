@@ -107,7 +107,7 @@ class FukuObfuscator(BaseModel):
                     fuku_asm.or_(reg, reg)
                     fuku_asm.context.inst.label = label
 
-                    fuku_asm.jcc(FukuCondition.FUKU_CONDITION_EQUAL, FukuImmediate().ftype)
+                    fuku_asm.jcc(FukuCondition.EQUAL, FukuImmediate().ftype)
                     fuku_asm.context.inst.rip_reloc = rip_reloc
 
                     rip_reloc.offset = fuku_asm.context.immediate_offset
@@ -122,7 +122,7 @@ class FukuObfuscator(BaseModel):
                     fuku_asm.dec(FukuRegister(FukuRegisterEnum.FUKU_REG_ECX).ftype)
                     fuku_asm.context.inst.label = label
 
-                    fuku_asm.jcc(FukuCondition.FUKU_CONDITION_NOT_EQUAL, FukuImmediate().ftype) # jnz
+                    fuku_asm.jcc(FukuCondition.NOT_EQUAL, FukuImmediate().ftype) # jnz
                     fuku_asm.context.inst.rip_reloc = rip_reloc
 
                     rip_reloc.offset = fuku_asm.context.immediate_offset
@@ -137,7 +137,7 @@ class FukuObfuscator(BaseModel):
                     fuku_asm.dec(FukuRegister(FukuRegisterEnum.FUKU_REG_ECX).ftype)
                     fuku_asm.context.inst.label = label
 
-                    fuku_asm.jcc(FukuCondition.FUKU_CONDITION_EQUAL, FukuImmediate().ftype) # jz
+                    fuku_asm.jcc(FukuCondition.EQUAL, FukuImmediate().ftype) # jz
                     fuku_asm.context.inst.rip_reloc = rip_reloc
 
                     rip_reloc.offset = fuku_asm.context.immediate_offset
@@ -152,7 +152,7 @@ class FukuObfuscator(BaseModel):
                     fuku_asm.dec(FukuRegister(FukuRegisterEnum.FUKU_REG_ECX))
                     fuku_asm.context.inst.label = label
 
-                    fuku_asm.jcc(FukuCondition.FUKU_CONDITION_NOT_EQUAL, FukuImmediate().ftype) # jne
+                    fuku_asm.jcc(FukuCondition.NOT_EQUAL, FukuImmediate().ftype) # jne
                     fuku_asm.context.inst.rip_reloc = rip_reloc
 
                     rip_reloc.offset = fuku_asm.context.immediate_offset

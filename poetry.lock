@@ -494,24 +494,6 @@ plugins = ["importlib-metadata"]
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
-name = "pytermgui"
-version = "7.7.1"
-description = "Python TUI framework with mouse support, modular widget system, customizable and rapid terminal markup language and more!"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "pytermgui-7.7.1-py3-none-any.whl", hash = "sha256:d09d2bd77164191bd60e0286414f66ca660ef6f6636f1f0f5f55dc3d3dbc6105"},
-    {file = "pytermgui-7.7.1.tar.gz", hash = "sha256:030458be5c3cbeaab17fb9aa3d19e6232be4ce4a3f54418fe13bb97fdef446db"},
-]
-
-[package.dependencies]
-typing-extensions = "*"
-wcwidth = "*"
-
-[package.extras]
-yaml = ["pyyaml"]
-
-[[package]]
 name = "rich"
 version = "13.7.1"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
@@ -620,4 +602,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "9f7f3885f7121e2241c7fa6e0b06b0763d9a61a0fdf1dc59bfae1fd644354513"
+content-hash = "6aec01c757f702127ad374744e87e4287ff12285fed554e783b4a9f8af0e7f10"

@@ -86,7 +86,7 @@ class FukuRegisterEnum(Enum):
     @property
     def size(self) -> FukuOperandSize:
         if self in [FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterEnum.FUKU_REG_MAX]:
-            return FukuOperandSize.FUKU_OPERAND_SIZE_0
+            return FukuOperandSize.SIZE_0
 
         return FUKU_EXT_REGISTER_INFO[self.value].register_size
 
@@ -159,25 +159,25 @@ class FukuRegisterEnum(Enum):
             return FukuRegisterEnum.FUKU_REG_NONE
 
         match reg_size:
-            case FukuOperandSize.FUKU_OPERAND_SIZE_8:
+            case FukuOperandSize.SIZE_8:
                 if x86_only:
                     returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.AL.value, FlagRegisterIndex.BL.value)
                 else:
                     returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.AL.value, FlagRegisterIndex.R15B.value)
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_16:
+            case FukuOperandSize.SIZE_16:
                 if x86_only:
                     returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.AX.value, FlagRegisterIndex.DI.value)
                 else:
                     returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.AX.value, FlagRegisterIndex.R15W.value)
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_32:
+            case FukuOperandSize.SIZE_32:
                 if x86_only:
                     returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.EAX.value, FlagRegisterIndex.EDI.value)
                 else:
                     returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.EAX.value, FlagRegisterIndex.R15D.value)
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_64:
+            case FukuOperandSize.SIZE_64:
                 if x86_only:
                     returned_idx = FukuRegisterEnum.get_rand_free_register_index(reg_flags, FlagRegisterIndex.RAX.value, FlagRegisterIndex.RDI.value)
                 else:
@@ -196,30 +196,30 @@ class FukuRegisterEnum(Enum):
     ) -> FukuRegisterEnum:
         reg: FukuRegisterEnum = FukuRegisterEnum.get_random_free_register(
             reg_flags,
-            FukuOperandSize.FUKU_OPERAND_SIZE_64 if reg_size == FukuOperandSize.FUKU_OPERAND_SIZE_32 else reg_size,
+            FukuOperandSize.SIZE_64 if reg_size == FukuOperandSize.SIZE_32 else reg_size,
             False,
             exclude_regs
         )
 
-        if reg != FukuRegisterEnum.FUKU_REG_NONE and reg_size == FukuOperandSize.FUKU_OPERAND_SIZE_32:
-            return reg.set_grade(FukuOperandSize.FUKU_OPERAND_SIZE_32)
+        if reg != FukuRegisterEnum.FUKU_REG_NONE and reg_size == FukuOperandSize.SIZE_32:
+            return reg.set_grade(FukuOperandSize.SIZE_32)
 
         return reg
 
     @staticmethod
     def get_random_register(reg_size: FukuOperandSize, x86_only: bool, exclude_regs: int) -> FukuRegisterEnum:
         match reg_size:
-            case FukuOperandSize.FUKU_OPERAND_SIZE_8:
-                return FukuRegisterEnum.get_random_free_register(0xFFFFFFFFFFFFFFFF, FukuOperandSize.FUKU_OPERAND_SIZE_8, x86_only, exclude_regs)
+            case FukuOperandSize.SIZE_8:
+                return FukuRegisterEnum.get_random_free_register(0xFFFFFFFFFFFFFFFF, FukuOperandSize.SIZE_8, x86_only, exclude_regs)
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_16:
-                return FukuRegisterEnum.get_random_free_register(0xFFFFFFFFFFFF0000, FukuOperandSize.FUKU_OPERAND_SIZE_16, x86_only, exclude_regs)
+            case FukuOperandSize.SIZE_16:
+                return FukuRegisterEnum.get_random_free_register(0xFFFFFFFFFFFF0000, FukuOperandSize.SIZE_16, x86_only, exclude_regs)
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_32:
-                return FukuRegisterEnum.get_random_free_register(0xFFFFFFFF00000000, FukuOperandSize.FUKU_OPERAND_SIZE_32, x86_only, exclude_regs)
+            case FukuOperandSize.SIZE_32:
+                return FukuRegisterEnum.get_random_free_register(0xFFFFFFFF00000000, FukuOperandSize.SIZE_32, x86_only, exclude_regs)
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_64:
-                return FukuRegisterEnum.get_random_free_register(0xFFFF000000000000, FukuOperandSize.FUKU_OPERAND_SIZE_64, x86_only, exclude_regs)
+            case FukuOperandSize.SIZE_64:
+                return FukuRegisterEnum.get_random_free_register(0xFFFF000000000000, FukuOperandSize.SIZE_64, x86_only, exclude_regs)
 
         return FukuRegisterEnum.FUKU_REG_NONE
 
@@ -253,7 +253,7 @@ class FukuRegisterIndex(Enum):
 class FukuRegister(BaseModel):
     reg: FukuRegisterEnum = FukuRegisterEnum.FUKU_REG_NONE
     index: FukuRegisterIndex = FukuRegisterIndex.FUKU_REG_INDEX_INVALID
-    size: FukuOperandSize = FukuOperandSize.FUKU_OPERAND_SIZE_0
+    size: FukuOperandSize = FukuOperandSize.SIZE_0
 
     arch64: bool = False
     is_ext64: bool = False
@@ -278,17 +278,17 @@ class FukuRegister(BaseModel):
 
     def get_flag_complex(self, size: FukuOperandSize) -> int:
         match size:
-            case FukuOperandSize.FUKU_OPERAND_SIZE_8:
-                return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.FUKU_OPERAND_SIZE_64.value if self.is_ext64 else FukuOperandSize.FUKU_OPERAND_SIZE_0.value)] & 0xFFFF
+            case FukuOperandSize.SIZE_8:
+                return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.SIZE_64.value if self.is_ext64 else FukuOperandSize.SIZE_0.value)] & 0xFFFF
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_16:
-                return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.FUKU_OPERAND_SIZE_64.value if self.is_ext64 else FukuOperandSize.FUKU_OPERAND_SIZE_0.value)] & 0xFFFFFFFF
+            case FukuOperandSize.SIZE_16:
+                return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.SIZE_64.value if self.is_ext64 else FukuOperandSize.SIZE_0.value)] & 0xFFFFFFFF
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_32:
-                return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.FUKU_OPERAND_SIZE_64.value if self.is_ext64 else FukuOperandSize.FUKU_OPERAND_SIZE_0.value)] & 0xFFFFFFFFFFFF
+            case FukuOperandSize.SIZE_32:
+                return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.SIZE_64.value if self.is_ext64 else FukuOperandSize.SIZE_0.value)] & 0xFFFFFFFFFFFF
 
-            case FukuOperandSize.FUKU_OPERAND_SIZE_64:
-                return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.FUKU_OPERAND_SIZE_64.value if self.is_ext64 else FukuOperandSize.FUKU_OPERAND_SIZE_0.value)]
+            case FukuOperandSize.SIZE_64:
+                return FULL_INCLUDE_FLAGS_TABLE[self.index.value + (FukuOperandSize.SIZE_64.value if self.is_ext64 else FukuOperandSize.SIZE_0.value)]
 
     @staticmethod
     def from_capstone(op: X86Op) -> FukuRegister:
@@ -325,91 +325,91 @@ class FukuExtRegisterInfo(BaseModel):
         )
 
 FUKU_EXT_REGISTER_INFO = [
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterIndex(-1), FukuOperandSize.FUKU_OPERAND_SIZE_0, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_NONE, FukuRegisterIndex(-1), FukuOperandSize.SIZE_0, False, False),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RAX, FukuRegisterIndex.FUKU_REG_INDEX_AX, FukuOperandSize.FUKU_OPERAND_SIZE_64, True , False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_EAX, FukuRegisterIndex.FUKU_REG_INDEX_AX, FukuOperandSize.FUKU_OPERAND_SIZE_32, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_AX,  FukuRegisterIndex.FUKU_REG_INDEX_AX, FukuOperandSize.FUKU_OPERAND_SIZE_16, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_AH,  FukuRegisterIndex.FUKU_REG_INDEX_AX, FukuOperandSize.FUKU_OPERAND_SIZE_8,	False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_AL,  FukuRegisterIndex.FUKU_REG_INDEX_AX, FukuOperandSize.FUKU_OPERAND_SIZE_8,	False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RAX, FukuRegisterIndex.FUKU_REG_INDEX_AX, FukuOperandSize.SIZE_64, True , False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_EAX, FukuRegisterIndex.FUKU_REG_INDEX_AX, FukuOperandSize.SIZE_32, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_AX,  FukuRegisterIndex.FUKU_REG_INDEX_AX, FukuOperandSize.SIZE_16, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_AH,  FukuRegisterIndex.FUKU_REG_INDEX_AX, FukuOperandSize.SIZE_8,	False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_AL,  FukuRegisterIndex.FUKU_REG_INDEX_AX, FukuOperandSize.SIZE_8,	False, False),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RCX, FukuRegisterIndex.FUKU_REG_INDEX_CX, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_ECX, FukuRegisterIndex.FUKU_REG_INDEX_CX, FukuOperandSize.FUKU_OPERAND_SIZE_32, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_CX,  FukuRegisterIndex.FUKU_REG_INDEX_CX, FukuOperandSize.FUKU_OPERAND_SIZE_16, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_CH,  FukuRegisterIndex.FUKU_REG_INDEX_CX, FukuOperandSize.FUKU_OPERAND_SIZE_8,	False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_CL,  FukuRegisterIndex.FUKU_REG_INDEX_CX, FukuOperandSize.FUKU_OPERAND_SIZE_8,	False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RCX, FukuRegisterIndex.FUKU_REG_INDEX_CX, FukuOperandSize.SIZE_64, True, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_ECX, FukuRegisterIndex.FUKU_REG_INDEX_CX, FukuOperandSize.SIZE_32, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_CX,  FukuRegisterIndex.FUKU_REG_INDEX_CX, FukuOperandSize.SIZE_16, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_CH,  FukuRegisterIndex.FUKU_REG_INDEX_CX, FukuOperandSize.SIZE_8,	False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_CL,  FukuRegisterIndex.FUKU_REG_INDEX_CX, FukuOperandSize.SIZE_8,	False, False),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RDX, FukuRegisterIndex.FUKU_REG_INDEX_DX, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_EDX, FukuRegisterIndex.FUKU_REG_INDEX_DX, FukuOperandSize.FUKU_OPERAND_SIZE_32, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_DX,  FukuRegisterIndex.FUKU_REG_INDEX_DX, FukuOperandSize.FUKU_OPERAND_SIZE_16, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_DH,  FukuRegisterIndex.FUKU_REG_INDEX_DX, FukuOperandSize.FUKU_OPERAND_SIZE_8,	False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_DL,  FukuRegisterIndex.FUKU_REG_INDEX_DX, FukuOperandSize.FUKU_OPERAND_SIZE_8,	False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RDX, FukuRegisterIndex.FUKU_REG_INDEX_DX, FukuOperandSize.SIZE_64, True, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_EDX, FukuRegisterIndex.FUKU_REG_INDEX_DX, FukuOperandSize.SIZE_32, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_DX,  FukuRegisterIndex.FUKU_REG_INDEX_DX, FukuOperandSize.SIZE_16, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_DH,  FukuRegisterIndex.FUKU_REG_INDEX_DX, FukuOperandSize.SIZE_8,	False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_DL,  FukuRegisterIndex.FUKU_REG_INDEX_DX, FukuOperandSize.SIZE_8,	False, False),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RBX, FukuRegisterIndex.FUKU_REG_INDEX_BX, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_EBX, FukuRegisterIndex.FUKU_REG_INDEX_BX, FukuOperandSize.FUKU_OPERAND_SIZE_32, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_BX,  FukuRegisterIndex.FUKU_REG_INDEX_BX, FukuOperandSize.FUKU_OPERAND_SIZE_16, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_BH,  FukuRegisterIndex.FUKU_REG_INDEX_BX, FukuOperandSize.FUKU_OPERAND_SIZE_8,	False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_BL,  FukuRegisterIndex.FUKU_REG_INDEX_BX, FukuOperandSize.FUKU_OPERAND_SIZE_8,	False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RBX, FukuRegisterIndex.FUKU_REG_INDEX_BX, FukuOperandSize.SIZE_64, True, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_EBX, FukuRegisterIndex.FUKU_REG_INDEX_BX, FukuOperandSize.SIZE_32, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_BX,  FukuRegisterIndex.FUKU_REG_INDEX_BX, FukuOperandSize.SIZE_16, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_BH,  FukuRegisterIndex.FUKU_REG_INDEX_BX, FukuOperandSize.SIZE_8,	False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_BL,  FukuRegisterIndex.FUKU_REG_INDEX_BX, FukuOperandSize.SIZE_8,	False, False),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RSP, FukuRegisterIndex.FUKU_REG_INDEX_SP, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_ESP, FukuRegisterIndex.FUKU_REG_INDEX_SP, FukuOperandSize.FUKU_OPERAND_SIZE_32, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_SP,  FukuRegisterIndex.FUKU_REG_INDEX_SP, FukuOperandSize.FUKU_OPERAND_SIZE_16, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_SPL, FukuRegisterIndex.FUKU_REG_INDEX_SP, FukuOperandSize.FUKU_OPERAND_SIZE_8,	True, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RSP, FukuRegisterIndex.FUKU_REG_INDEX_SP, FukuOperandSize.SIZE_64, True, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_ESP, FukuRegisterIndex.FUKU_REG_INDEX_SP, FukuOperandSize.SIZE_32, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_SP,  FukuRegisterIndex.FUKU_REG_INDEX_SP, FukuOperandSize.SIZE_16, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_SPL, FukuRegisterIndex.FUKU_REG_INDEX_SP, FukuOperandSize.SIZE_8,	True, False),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RBP, FukuRegisterIndex.FUKU_REG_INDEX_BP, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_EBP, FukuRegisterIndex.FUKU_REG_INDEX_BP, FukuOperandSize.FUKU_OPERAND_SIZE_32, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_BP,  FukuRegisterIndex.FUKU_REG_INDEX_BP, FukuOperandSize.FUKU_OPERAND_SIZE_16, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_BPL, FukuRegisterIndex.FUKU_REG_INDEX_BP, FukuOperandSize.FUKU_OPERAND_SIZE_8,	True, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RBP, FukuRegisterIndex.FUKU_REG_INDEX_BP, FukuOperandSize.SIZE_64, True, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_EBP, FukuRegisterIndex.FUKU_REG_INDEX_BP, FukuOperandSize.SIZE_32, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_BP,  FukuRegisterIndex.FUKU_REG_INDEX_BP, FukuOperandSize.SIZE_16, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_BPL, FukuRegisterIndex.FUKU_REG_INDEX_BP, FukuOperandSize.SIZE_8,	True, False),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RSI, FukuRegisterIndex.FUKU_REG_INDEX_SI, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_ESI, FukuRegisterIndex.FUKU_REG_INDEX_SI, FukuOperandSize.FUKU_OPERAND_SIZE_32, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_SI,  FukuRegisterIndex.FUKU_REG_INDEX_SI, FukuOperandSize.FUKU_OPERAND_SIZE_16, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_SIL, FukuRegisterIndex.FUKU_REG_INDEX_SI, FukuOperandSize.FUKU_OPERAND_SIZE_8,	True, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RSI, FukuRegisterIndex.FUKU_REG_INDEX_SI, FukuOperandSize.SIZE_64, True, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_ESI, FukuRegisterIndex.FUKU_REG_INDEX_SI, FukuOperandSize.SIZE_32, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_SI,  FukuRegisterIndex.FUKU_REG_INDEX_SI, FukuOperandSize.SIZE_16, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_SIL, FukuRegisterIndex.FUKU_REG_INDEX_SI, FukuOperandSize.SIZE_8,	True, False),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RDI, FukuRegisterIndex.FUKU_REG_INDEX_DI, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_EDI, FukuRegisterIndex.FUKU_REG_INDEX_DI, FukuOperandSize.FUKU_OPERAND_SIZE_32, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_DI,  FukuRegisterIndex.FUKU_REG_INDEX_DI, FukuOperandSize.FUKU_OPERAND_SIZE_16, False, False),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_DIL, FukuRegisterIndex.FUKU_REG_INDEX_DI, FukuOperandSize.FUKU_OPERAND_SIZE_8,	True, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_RDI, FukuRegisterIndex.FUKU_REG_INDEX_DI, FukuOperandSize.SIZE_64, True, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_EDI, FukuRegisterIndex.FUKU_REG_INDEX_DI, FukuOperandSize.SIZE_32, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_DI,  FukuRegisterIndex.FUKU_REG_INDEX_DI, FukuOperandSize.SIZE_16, False, False),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_DIL, FukuRegisterIndex.FUKU_REG_INDEX_DI, FukuOperandSize.SIZE_8,	True, False),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R8,  FukuRegisterIndex.FUKU_REG_INDEX_R8, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R8D, FukuRegisterIndex.FUKU_REG_INDEX_R8, FukuOperandSize.FUKU_OPERAND_SIZE_32, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R8W, FukuRegisterIndex.FUKU_REG_INDEX_R8, FukuOperandSize.FUKU_OPERAND_SIZE_16, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R8B, FukuRegisterIndex.FUKU_REG_INDEX_R8, FukuOperandSize.FUKU_OPERAND_SIZE_8,	True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R8,  FukuRegisterIndex.FUKU_REG_INDEX_R8, FukuOperandSize.SIZE_64, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R8D, FukuRegisterIndex.FUKU_REG_INDEX_R8, FukuOperandSize.SIZE_32, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R8W, FukuRegisterIndex.FUKU_REG_INDEX_R8, FukuOperandSize.SIZE_16, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R8B, FukuRegisterIndex.FUKU_REG_INDEX_R8, FukuOperandSize.SIZE_8,	True, True),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R9,  FukuRegisterIndex.FUKU_REG_INDEX_R9, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R9D, FukuRegisterIndex.FUKU_REG_INDEX_R9, FukuOperandSize.FUKU_OPERAND_SIZE_32, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R9W, FukuRegisterIndex.FUKU_REG_INDEX_R9, FukuOperandSize.FUKU_OPERAND_SIZE_16, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R9B, FukuRegisterIndex.FUKU_REG_INDEX_R9, FukuOperandSize.FUKU_OPERAND_SIZE_8,	True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R9,  FukuRegisterIndex.FUKU_REG_INDEX_R9, FukuOperandSize.SIZE_64, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R9D, FukuRegisterIndex.FUKU_REG_INDEX_R9, FukuOperandSize.SIZE_32, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R9W, FukuRegisterIndex.FUKU_REG_INDEX_R9, FukuOperandSize.SIZE_16, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R9B, FukuRegisterIndex.FUKU_REG_INDEX_R9, FukuOperandSize.SIZE_8,	True, True),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R10,  FukuRegisterIndex.FUKU_REG_INDEX_R10, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R10D, FukuRegisterIndex.FUKU_REG_INDEX_R10, FukuOperandSize.FUKU_OPERAND_SIZE_32, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R10W, FukuRegisterIndex.FUKU_REG_INDEX_R10, FukuOperandSize.FUKU_OPERAND_SIZE_16, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R10B, FukuRegisterIndex.FUKU_REG_INDEX_R10, FukuOperandSize.FUKU_OPERAND_SIZE_8,  True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R10,  FukuRegisterIndex.FUKU_REG_INDEX_R10, FukuOperandSize.SIZE_64, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R10D, FukuRegisterIndex.FUKU_REG_INDEX_R10, FukuOperandSize.SIZE_32, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R10W, FukuRegisterIndex.FUKU_REG_INDEX_R10, FukuOperandSize.SIZE_16, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R10B, FukuRegisterIndex.FUKU_REG_INDEX_R10, FukuOperandSize.SIZE_8,  True, True),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R11,  FukuRegisterIndex.FUKU_REG_INDEX_R11, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R11D, FukuRegisterIndex.FUKU_REG_INDEX_R11, FukuOperandSize.FUKU_OPERAND_SIZE_32, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R11W, FukuRegisterIndex.FUKU_REG_INDEX_R11, FukuOperandSize.FUKU_OPERAND_SIZE_16, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R11B, FukuRegisterIndex.FUKU_REG_INDEX_R11, FukuOperandSize.FUKU_OPERAND_SIZE_8,  True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R11,  FukuRegisterIndex.FUKU_REG_INDEX_R11, FukuOperandSize.SIZE_64, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R11D, FukuRegisterIndex.FUKU_REG_INDEX_R11, FukuOperandSize.SIZE_32, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R11W, FukuRegisterIndex.FUKU_REG_INDEX_R11, FukuOperandSize.SIZE_16, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R11B, FukuRegisterIndex.FUKU_REG_INDEX_R11, FukuOperandSize.SIZE_8,  True, True),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R12,  FukuRegisterIndex.FUKU_REG_INDEX_R12, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R12D, FukuRegisterIndex.FUKU_REG_INDEX_R12, FukuOperandSize.FUKU_OPERAND_SIZE_32, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R12W, FukuRegisterIndex.FUKU_REG_INDEX_R12, FukuOperandSize.FUKU_OPERAND_SIZE_16, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R12B, FukuRegisterIndex.FUKU_REG_INDEX_R12, FukuOperandSize.FUKU_OPERAND_SIZE_8,  True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R12,  FukuRegisterIndex.FUKU_REG_INDEX_R12, FukuOperandSize.SIZE_64, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R12D, FukuRegisterIndex.FUKU_REG_INDEX_R12, FukuOperandSize.SIZE_32, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R12W, FukuRegisterIndex.FUKU_REG_INDEX_R12, FukuOperandSize.SIZE_16, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R12B, FukuRegisterIndex.FUKU_REG_INDEX_R12, FukuOperandSize.SIZE_8,  True, True),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R13,  FukuRegisterIndex.FUKU_REG_INDEX_R13, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R13D, FukuRegisterIndex.FUKU_REG_INDEX_R13, FukuOperandSize.FUKU_OPERAND_SIZE_32, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R13W, FukuRegisterIndex.FUKU_REG_INDEX_R13, FukuOperandSize.FUKU_OPERAND_SIZE_16, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R13B, FukuRegisterIndex.FUKU_REG_INDEX_R13, FukuOperandSize.FUKU_OPERAND_SIZE_8,  True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R13,  FukuRegisterIndex.FUKU_REG_INDEX_R13, FukuOperandSize.SIZE_64, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R13D, FukuRegisterIndex.FUKU_REG_INDEX_R13, FukuOperandSize.SIZE_32, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R13W, FukuRegisterIndex.FUKU_REG_INDEX_R13, FukuOperandSize.SIZE_16, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R13B, FukuRegisterIndex.FUKU_REG_INDEX_R13, FukuOperandSize.SIZE_8,  True, True),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R14,  FukuRegisterIndex.FUKU_REG_INDEX_R14, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R14D, FukuRegisterIndex.FUKU_REG_INDEX_R14, FukuOperandSize.FUKU_OPERAND_SIZE_32, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R14W, FukuRegisterIndex.FUKU_REG_INDEX_R14, FukuOperandSize.FUKU_OPERAND_SIZE_16, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R14B, FukuRegisterIndex.FUKU_REG_INDEX_R14, FukuOperandSize.FUKU_OPERAND_SIZE_8,  True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R14,  FukuRegisterIndex.FUKU_REG_INDEX_R14, FukuOperandSize.SIZE_64, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R14D, FukuRegisterIndex.FUKU_REG_INDEX_R14, FukuOperandSize.SIZE_32, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R14W, FukuRegisterIndex.FUKU_REG_INDEX_R14, FukuOperandSize.SIZE_16, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R14B, FukuRegisterIndex.FUKU_REG_INDEX_R14, FukuOperandSize.SIZE_8,  True, True),
 
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R15,  FukuRegisterIndex.FUKU_REG_INDEX_R15, FukuOperandSize.FUKU_OPERAND_SIZE_64, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R15D, FukuRegisterIndex.FUKU_REG_INDEX_R15, FukuOperandSize.FUKU_OPERAND_SIZE_32, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R15W, FukuRegisterIndex.FUKU_REG_INDEX_R15, FukuOperandSize.FUKU_OPERAND_SIZE_16, True, True),
-    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R15B, FukuRegisterIndex.FUKU_REG_INDEX_R15, FukuOperandSize.FUKU_OPERAND_SIZE_8,  True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R15,  FukuRegisterIndex.FUKU_REG_INDEX_R15, FukuOperandSize.SIZE_64, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R15D, FukuRegisterIndex.FUKU_REG_INDEX_R15, FukuOperandSize.SIZE_32, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R15W, FukuRegisterIndex.FUKU_REG_INDEX_R15, FukuOperandSize.SIZE_16, True, True),
+    FukuExtRegisterInfo(FukuRegisterEnum.FUKU_REG_R15B, FukuRegisterIndex.FUKU_REG_INDEX_R15, FukuOperandSize.SIZE_8,  True, True),
 ]
 
 CAP_TO_FUKU_TABLE = [

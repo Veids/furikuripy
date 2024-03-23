@@ -57,15 +57,15 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
 
     @property
     def is_used_short_eax(self) -> bool:
-        return self.short_cfg & FukuAsmShortCfg.FUKU_ASM_SHORT_CFG_USE_EAX_SHORT.value
+        return self.short_cfg & FukuAsmShortCfg.USE_EAX_SHORT.value
 
     @property
     def is_used_short_imm(self) -> bool:
-        return self.short_cfg & FukuAsmShortCfg.FUKU_ASM_SHORT_CFG_USE_IMM_SHORT.value
+        return self.short_cfg & FukuAsmShortCfg.USE_IMM_SHORT.value
 
     @property
     def is_used_short_disp(self) -> bool:
-        return self.short_cfg & FukuAsmShortCfg.FUKU_ASM_SHORT_CFG_USE_DISP_SHORT.value
+        return self.short_cfg & FukuAsmShortCfg.USE_DISP_SHORT.value
 
     def gen_func_return(self, id, cap_eflags):
         inst = FukuInst()

@@ -96,7 +96,7 @@ class FukuMutationCtx(BaseModel):
 
     def restore_imm_relocate(self, op: FukuType, imm_reloc, inst_size: int) -> bool:
         if (
-            inst_size == FukuOperandSize.FUKU_OPERAND_SIZE_64.value and
+            inst_size == FukuOperandSize.SIZE_64.value and
             op.type == FukuT0Types.FUKU_T0_IMMEDIATE and imm_reloc
         ):
             self.f_asm.context.inst.imm_reloc = imm_reloc
@@ -121,7 +121,7 @@ class FukuMutationCtx(BaseModel):
 
     def restore_rip_relocate_in_imm(self, op: FukuType, rip_reloc, used_disp_reloc: bool, inst_size: int) -> bool:
         if (
-            inst_size == FukuOperandSize.FUKU_OPERAND_SIZE_64.value and
+            inst_size == FukuOperandSize.SIZE_64.value and
             op.type == FukuT0Types.FUKU_T0_IMMEDIATE and
             rip_reloc and not used_disp_reloc
         ):

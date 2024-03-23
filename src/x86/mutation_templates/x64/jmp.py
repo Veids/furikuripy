@@ -91,7 +91,7 @@ def _jmp_64_multi_tmpl_3(ctx: FukuMutationCtx, src: FukuType) -> bool:
     rand_reg: FukuRegister = FukuRegister(
         FukuRegisterEnum.get_random_free_register(
             ctx.cpu_registers,
-            FukuOperandSize.FUKU_OPERAND_SIZE_64,
+            FukuOperandSize.SIZE_64,
             True
         )
     )

@@ -48,7 +48,7 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
         case 1:
             dst = FukuType.get_random_operand_dst_x64(
                 AllowInstruction.REGISTER.value | AllowInstruction.OPERAND.value,
-                FukuOperandSize.FUKU_OPERAND_SIZE_8,
+                FukuOperandSize.SIZE_8,
                 ctx.cpu_registers,
                 FlagRegister.SPL.value | FlagRegister.SP.value |
                 FlagRegister.ESP.value | FlagRegister.RSP.value
@@ -122,10 +122,10 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
             if not dst:
                 return False
 
-            if reg_size != FukuOperandSize.FUKU_OPERAND_SIZE_16:
+            if reg_size != FukuOperandSize.SIZE_16:
                 reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(0, 1)])
             else:
-                reg_size = FukuOperandSize.FUKU_OPERAND_SIZE_8
+                reg_size = FukuOperandSize.SIZE_8
 
 
             src = FukuType.get_random_operand_src_x64(
@@ -433,7 +433,7 @@ def junk_64_low_pattern_6(ctx: FukuMutationCtx) -> bool:
 
     src = FukuType.get_random_operand_src_x64(
         AllowInstruction.REGISTER.value | AllowInstruction.IMMEDIATE.value,
-        FukuOperandSize.FUKU_OPERAND_SIZE_8,
+        FukuOperandSize.SIZE_8,
         0
     )
 

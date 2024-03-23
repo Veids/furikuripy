@@ -49,7 +49,7 @@ class FukuType(BaseModel):
     def get_mask_register(self):
         match self.type:
             case FukuT0Types.FUKU_T0_REGISTER:
-                return self.register.get_flag_complex(FukuOperandSize.FUKU_OPERAND_SIZE_64)
+                return self.register.get_flag_complex(FukuOperandSize.SIZE_64)
 
             case FukuT0Types.FUKU_T0_OPERAND:
                 op = self.operand
@@ -58,10 +58,10 @@ class FukuType(BaseModel):
                 result = 0
 
                 if op.base.reg != FukuRegisterEnum.FUKU_REG_NONE:
-                    result &= op.base.get_flag_complex(FukuOperandSize.FUKU_OPERAND_SIZE_64)
+                    result &= op.base.get_flag_complex(FukuOperandSize.SIZE_64)
 
                 if op.index.reg != FukuRegisterEnum.FUKU_REG_NONE:
-                    result &= op.index.get_flag_complex(FukuOperandSize.FUKU_OPERAND_SIZE_64)
+                    result &= op.index.get_flag_complex(FukuOperandSize.SIZE_64)
 
                 return result
 
@@ -126,7 +126,7 @@ def immediate_to_fuku_type(imm: FukuImmediate) -> FukuType:
         index = FukuRegister(FukuRegisterEnum.FUKU_REG_NONE),
         scale = FukuOperandScale.FUKU_OPERAND_SCALE_1,
         disp = imm,
-        size = FukuOperandSize.FUKU_OPERAND_SIZE_0,
+        size = FukuOperandSize.SIZE_0,
         type = FukuT0Types.FUKU_T0_IMMEDIATE
     )
 
