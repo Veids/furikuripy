@@ -62,8 +62,8 @@ class FukuMemOperandType(Enum):
 
 
 class FukuOperand(BaseModel):
-    base: FukuRegister = FukuRegister(FukuRegisterEnum.FUKU_REG_NONE)
-    index: FukuRegister = FukuRegister(FukuRegisterEnum.FUKU_REG_NONE)
+    base: FukuRegister = FukuRegister(FukuRegisterEnum.REG_NONE)
+    index: FukuRegister = FukuRegister(FukuRegisterEnum.REG_NONE)
     scale: FukuOperandScale = FukuOperandScale.FUKU_OPERAND_SCALE_1
     disp: FukuImmediate = FukuImmediate(0)
     size: FukuOperandSize
@@ -71,8 +71,8 @@ class FukuOperand(BaseModel):
 
     @property
     def type(self) -> FukuMemOperandType:
-        if self.base.reg != FukuRegisterEnum.FUKU_REG_NONE:
-            if self.index.reg != FukuRegisterEnum.FUKU_REG_NONE:
+        if self.base.reg != FukuRegisterEnum.REG_NONE:
+            if self.index.reg != FukuRegisterEnum.REG_NONE:
                 if self.disp.immediate64:
                     return FukuMemOperandType.FUKU_MEM_OPERAND_BASE_INDEX_DISP
                 else:
@@ -83,7 +83,7 @@ class FukuOperand(BaseModel):
                 else:
                     return FukuMemOperandType.FUKU_MEM_OPERAND_BASE_ONLY
         else:
-            if self.index.reg != FukuRegisterEnum.FUKU_REG_NONE:
+            if self.index.reg != FukuRegisterEnum.REG_NONE:
                 return FukuMemOperandType.FUKU_MEM_OPERAND_INDEX_DISP
             else:
                 return FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
@@ -94,8 +94,8 @@ class FukuOperand(BaseModel):
 
     @staticmethod
     def from_capstone(op: X86Op) -> FukuOperand:
-        base = FukuRegisterEnum.FUKU_REG_NONE
-        index = FukuRegisterEnum.FUKU_REG_NONE
+        base = FukuRegisterEnum.REG_NONE
+        index = FukuRegisterEnum.REG_NONE
         scale = FukuOperandScale.FUKU_OPERAND_SCALE_1
         imm = FukuImmediate()
         size = FukuOperandSize.SIZE_0

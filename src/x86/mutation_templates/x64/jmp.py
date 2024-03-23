@@ -96,7 +96,7 @@ def _jmp_64_multi_tmpl_3(ctx: FukuMutationCtx, src: FukuType) -> bool:
         )
     )
 
-    if rand_reg.reg == FukuRegisterEnum.FUKU_REG_NONE:
+    if rand_reg.reg == FukuRegisterEnum.REG_NONE:
         return False
 
     opcodes = []

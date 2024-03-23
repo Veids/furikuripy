@@ -196,7 +196,7 @@ class FukuAsmBody:
         elif isinstance(dst, FukuRegister) and isinstance(src, FukuOperand):
             if (
                 ctx.is_used_short_eax and
-                dst.reg == FukuRegisterEnum.FUKU_REG_AL and
+                dst.reg == FukuRegisterEnum.REG_AL and
                 src.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
             ):
                 ctx.emit_optional_rex_32(src, dst)
@@ -210,7 +210,7 @@ class FukuAsmBody:
         elif isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
             if (
                 ctx.is_used_short_eax and
-                src.reg == FukuRegisterEnum.FUKU_REG_AL and
+                src.reg == FukuRegisterEnum.REG_AL and
                 dst.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
             ):
                 ctx.emit_optional_rex_32(dst, src)
@@ -237,7 +237,7 @@ class FukuAsmBody:
         elif isinstance(dst, FukuRegister) and isinstance(src, FukuOperand):
             if (
                 ctx.is_used_short_eax and
-                dst.reg == FukuRegisterEnum.FUKU_REG_AX and
+                dst.reg == FukuRegisterEnum.REG_AX and
                 src.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
             ):
                 ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
@@ -252,7 +252,7 @@ class FukuAsmBody:
         elif isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
             if (
                 ctx.is_used_short_eax and
-                src.reg == FukuRegisterEnum.FUKU_REG_AX and
+                src.reg == FukuRegisterEnum.REG_AX and
                 dst.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
             ):
                 ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
@@ -279,7 +279,7 @@ class FukuAsmBody:
         elif isinstance(dst, FukuRegister) and isinstance(src, FukuOperand):
             if (
                 ctx.is_used_short_eax and
-                dst.reg == FukuRegisterEnum.FUKU_REG_EAX and
+                dst.reg == FukuRegisterEnum.REG_EAX and
                 src.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
             ):
                 ctx.emit_optional_rex_32(dst)
@@ -293,7 +293,7 @@ class FukuAsmBody:
         elif isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
             if (
                 ctx.is_used_short_eax and
-                src.reg == FukuRegisterEnum.FUKU_REG_EAX and
+                src.reg == FukuRegisterEnum.REG_EAX and
                 dst.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
             ):
                 ctx.emit_optional_rex_32(dst, src)
@@ -319,7 +319,7 @@ class FukuAsmBody:
         elif isinstance(dst, FukuRegister) and isinstance(src, FukuOperand):
             if (
                 ctx.is_used_short_eax and
-                dst.reg == FukuRegisterEnum.FUKU_REG_RAX and
+                dst.reg == FukuRegisterEnum.REG_RAX and
                 src.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
             ):
                 ctx.emit_rex_64(dst)
@@ -333,7 +333,7 @@ class FukuAsmBody:
         elif isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
             if (
                 ctx.is_used_short_eax and
-                src.reg == FukuRegisterEnum.FUKU_REG_RAX and
+                src.reg == FukuRegisterEnum.REG_RAX and
                 dst.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
             ):
                 ctx.emit_rex_64(dst, src)
@@ -590,9 +590,9 @@ class FukuAsmBody:
 
         if isinstance(src, FukuImmediate):
             if ctx.is_used_short_imm and src.is_8:
-                ctx.gen_pattern32_1em_immb(0x6A, FukuRegister(FukuRegisterEnum.FUKU_REG_NONE), src)
+                ctx.gen_pattern32_1em_immb(0x6A, FukuRegister(FukuRegisterEnum.REG_NONE), src)
             else:
-                ctx.gen_pattern32_1em_immdw(0x68, FukuRegister(FukuRegisterEnum.FUKU_REG_NONE), src)
+                ctx.gen_pattern32_1em_immdw(0x68, FukuRegister(FukuRegisterEnum.REG_NONE), src)
         elif isinstance(src, FukuRegister):
             ctx.emit_optional_rex_32(src)
             ctx.emit_b(0x50 | src.index.value)
@@ -744,7 +744,7 @@ class FukuAsmBody:
     # Decimal Arithmetic Instructions
     def aam(self, ctx: FukuAsmCtx, imm: FukuImmediate):
         ctx.clear()
-        ctx.gen_pattern32_1em_immb(0xD4, FukuRegister(FukuRegisterEnum.FUKU_REG_NONE), imm)
+        ctx.gen_pattern32_1em_immb(0xD4, FukuRegister(FukuRegisterEnum.REG_NONE), imm)
         ctx.gen_func_return(
             x86_const.X86_INS_AAM,
             x86_const.X86_EFLAGS_UNDEFINED_OF | x86_const.X86_EFLAGS_MODIFY_SF |
@@ -754,7 +754,7 @@ class FukuAsmBody:
 
     def aad(self, ctx: FukuAsmCtx, imm: FukuImmediate):
         ctx.clear()
-        ctx.gen_pattern32_1em_immb(0xD5, FukuRegister(FukuRegisterEnum.FUKU_REG_NONE), imm)
+        ctx.gen_pattern32_1em_immb(0xD5, FukuRegister(FukuRegisterEnum.REG_NONE), imm)
         ctx.gen_func_return(
             x86_const.X86_INS_AAD,
             x86_const.X86_EFLAGS_UNDEFINED_OF | x86_const.X86_EFLAGS_MODIFY_SF |
@@ -784,7 +784,7 @@ class FukuAsmBody:
         if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
             ctx.gen_pattern32_1em_rm_r(0x84, dst, src)
         elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.FUKU_REG_AL:
+            if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.REG_AL:
                 ctx.gen_pattern32_1em_immb(0xA8, dst, src)
             else:
                 ctx.gen_pattern32_1em_rm_idx_immb(0xF6, dst, 0, src)
@@ -806,7 +806,7 @@ class FukuAsmBody:
         if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
             ctx.gen_pattern32_1em_rm_r_word(0x85, dst, src)
         elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.FUKU_REG_AX:
+            if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.REG_AX:
                 ctx.gen_pattern32_1em_immw_word(0xA9, dst, src)
             else:
                 ctx.gen_pattern32_1em_rm_idx_immw_word(0xF7, dst, 0, src)
@@ -828,7 +828,7 @@ class FukuAsmBody:
         if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
             ctx.gen_pattern32_1em_rm_r(0x85, dst, src)
         elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.FUKU_REG_EAX:
+            if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.REG_EAX:
                 ctx.gen_pattern32_1em_immdw(0xA9, dst, src)
             else:
                 ctx.gen_pattern32_1em_rm_idx_immdw(0xF7, dst, 0, src)
@@ -850,7 +850,7 @@ class FukuAsmBody:
         if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
             ctx.gen_pattern64_1em_rm_r(0x85, dst, src)
         elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.FUKU_REG_RAX:
+            if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.REG_RAX:
                 ctx.emit_rex_64(dst)
                 ctx.gen_pattern64_1em_immdw(0xA9, dst, src)
             else:
@@ -947,7 +947,7 @@ class FukuAsmBody:
         elif isinstance(src, FukuOperand):
             ctx.gen_pattern32_1em_op_idx(0xFF, src, 4)
         else:
-            ctx.gen_pattern32_1em_immdw(0xE9, FukuRegister(FukuRegisterEnum.FUKU_REG_NONE), src)
+            ctx.gen_pattern32_1em_immdw(0xE9, FukuRegister(FukuRegisterEnum.REG_NONE), src)
 
         ctx.gen_func_return(x86_const.X86_INS_JMP, 0)
 
@@ -956,7 +956,7 @@ class FukuAsmBody:
 
         assert cond not in [FukuCondition.NO_CONDITION, FukuCondition.CONDITION_MAX]
 
-        ctx.gen_pattern32_2em_immdw(0x0F, 0x80 | cond.value, FukuRegister(FukuRegisterEnum.FUKU_REG_NONE), imm)
+        ctx.gen_pattern32_2em_immdw(0x0F, 0x80 | cond.value, FukuRegister(FukuRegisterEnum.REG_NONE), imm)
 
         ctx.gen_func_return(
             cond.to_capstone_cc(FukuToCapConvertType.JCC),
@@ -971,7 +971,7 @@ class FukuAsmBody:
         elif isinstance(src, FukuOperand):
             ctx.gen_pattern32_1em_op_idx(0xFF, src, 2)
         else:
-            ctx.gen_pattern32_1em_immdw(0xE8, FukuRegister(FukuRegisterEnum.FUKU_REG_NONE), src)
+            ctx.gen_pattern32_1em_immdw(0xE8, FukuRegister(FukuRegisterEnum.REG_NONE), src)
 
         ctx.gen_func_return(x86_const.X86_INS_CALL, 0)
 
@@ -979,7 +979,7 @@ class FukuAsmBody:
         ctx.clear()
 
         if imm is not None:
-            ctx.gen_pattern32_1em_immw(0xC2, FukuRegister(FukuRegisterEnum.FUKU_REG_NONE), imm)
+            ctx.gen_pattern32_1em_immw(0xC2, FukuRegister(FukuRegisterEnum.REG_NONE), imm)
         else:
             ctx.emit_b(0xC3)
 
@@ -987,7 +987,7 @@ class FukuAsmBody:
 
     def enter(self, ctx: FukuAsmCtx, size: FukuImmediate, nesting_level: int):
         ctx.clear()
-        ctx.gen_pattern32_1em_immw(0xC8, FukuRegister(FukuRegisterEnum.FUKU_REG_NONE), size)
+        ctx.gen_pattern32_1em_immw(0xC8, FukuRegister(FukuRegisterEnum.REG_NONE), size)
         ctx.emit_b(nesting_level)
         ctx.gen_func_return(x86_const.X86_INS_ENTER, 0)
 
@@ -1175,7 +1175,7 @@ class FukuAsmBody:
     def _gen_func_body_ff_offset(self, name, type: int, id, cap_eflags):
         def func_body_ff_offset(self, ctx: FukuAsmCtx, src: FukuImmediate):
             ctx.clear()
-            ctx.gen_pattern32_1em_immdw(type, FukuRegister(FukuRegisterEnum.FUKU_REG_NONE),  src)
+            ctx.gen_pattern32_1em_immdw(type, FukuRegister(FukuRegisterEnum.REG_NONE),  src)
             ctx.gen_func_return(id, cap_eflags)
 
         setattr(self.__class__, name, func_body_ff_offset)
@@ -1193,7 +1193,7 @@ class FukuAsmBody:
             ctx.clear() # gencleanerdata
 
             def ri():
-                if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.FUKU_REG_AL:
+                if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.REG_AL:
                     ctx.gen_pattern32_1em_immb(0x04 + 8 * type, dst, src)
                 else:
                     ctx.gen_pattern32_1em_rm_idx_immb(0x80, dst, type, src)
@@ -1212,7 +1212,7 @@ class FukuAsmBody:
             ctx.clear() # gencleanerdata
 
             def ri():
-                if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.FUKU_REG_AX:
+                if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.REG_AX:
                     ctx.gen_pattern32_1em_immw_word(0x05 + 8 * type, dst, src)
                 else:
                     if ctx.is_used_short_imm and src.is_8:
@@ -1240,7 +1240,7 @@ class FukuAsmBody:
             ctx.clear()
 
             def ri():
-                if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.FUKU_REG_EAX:
+                if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.REG_EAX:
                     ctx.gen_pattern32_1em_immdw(0x05 + 8 * type, dst, src)
                 else:
                     if ctx.is_used_short_imm and src.is_8:
@@ -1268,7 +1268,7 @@ class FukuAsmBody:
             ctx.clear()
 
             def ri():
-                if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.FUKU_REG_EAX:
+                if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.REG_EAX:
                     ctx.gen_pattern64_1em_immdw(0x05 + 8 * type, dst, src)
                 else:
                     if ctx.is_used_short_imm and src.is_8:

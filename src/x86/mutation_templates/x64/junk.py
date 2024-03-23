@@ -336,7 +336,7 @@ def junk_64_low_pattern_4(ctx: FukuMutationCtx) -> bool:
         return False
 
     if rng.randint(0, 1):
-        src = FukuRegister(FukuRegisterEnum.FUKU_REG_CL).ftype
+        src = FukuRegister(FukuRegisterEnum.REG_CL).ftype
     else:
         src = FukuImmediate(rng.randint(1, reg_size.value * 16 - 1)).ftype
 
@@ -386,7 +386,7 @@ def junk_64_low_pattern_5(ctx: FukuMutationCtx) -> bool:
         return False
 
     if rng.randint(0, 1):
-        src = FukuRegister(FukuRegisterEnum.FUKU_REG_CL).ftype
+        src = FukuRegister(FukuRegisterEnum.REG_CL).ftype
     else:
         src = FukuImmediate(rng.randint(1, reg_size.value * 16 - 1)).ftype
 
@@ -484,33 +484,33 @@ def junk_64_low_pattern_7(ctx: FukuMutationCtx) -> bool:
 
 
     match dst.register.reg:
-        case FukuRegisterEnum.FUKU_REG_AX:
+        case FukuRegisterEnum.REG_AX:
             ctx.f_asm.cbw()
             trace_inst("junk: cbw", [ctx.f_asm.context.inst.opcode])
 
-        case FukuRegisterEnum.FUKU_REG_EAX:
+        case FukuRegisterEnum.REG_EAX:
             ctx.f_asm.cwde()
             trace_inst("junk: cwde", [ctx.f_asm.context.inst.opcode])
 
-        case FukuRegisterEnum.FUKU_REG_RAX:
+        case FukuRegisterEnum.REG_RAX:
             ctx.f_asm.cdqe()
             trace_inst("junk: cdqe", [ctx.f_asm.context.inst.opcode])
 
-        case FukuRegisterEnum.FUKU_REG_DX:
+        case FukuRegisterEnum.REG_DX:
             if not has_flag_free_register(ctx.cpu_registers, FlagRegister.AX.value):
                 return False
 
             ctx.f_asm.cwd()
             trace_inst("junk: cwd", [ctx.f_asm.context.inst.opcode])
 
-        case FukuRegisterEnum.FUKU_REG_EDX:
+        case FukuRegisterEnum.REG_EDX:
             if not has_flag_free_register(ctx.cpu_registers, FlagRegister.EAX.value):
                 return False
 
             ctx.f_asm.cdq()
             trace_inst("junk: cdq", [ctx.f_asm.context.inst.opcode])
 
-        case FukuRegisterEnum.FUKU_REG_RDX:
+        case FukuRegisterEnum.REG_RDX:
             if not has_flag_free_register(ctx.cpu_registers, FlagRegister.RAX.value):
                 return False
 

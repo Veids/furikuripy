@@ -11,9 +11,9 @@ def _ret_64_multi_tmpl_1(ctx: FukuMutationCtx, ret_stack: int) -> bool:
     opcodes = []
 
     ctx.f_asm.lea(
-        FukuRegister(FukuRegisterEnum.FUKU_REG_RSP).ftype,
+        FukuRegister(FukuRegisterEnum.REG_RSP).ftype,
         qword_ptr(
-            base = FukuRegister(FukuRegisterEnum.FUKU_REG_RSP),
+            base = FukuRegister(FukuRegisterEnum.REG_RSP),
             disp = FukuImmediate(8 + ret_stack)
         ).ftype
     )
@@ -23,7 +23,7 @@ def _ret_64_multi_tmpl_1(ctx: FukuMutationCtx, ret_stack: int) -> bool:
 
     ctx.f_asm.jmp(
         qword_ptr(
-            base = FukuRegister(FukuRegisterEnum.FUKU_REG_RSP),
+            base = FukuRegister(FukuRegisterEnum.REG_RSP),
             disp = FukuImmediate(-8 - ret_stack)
         ).ftype
     )

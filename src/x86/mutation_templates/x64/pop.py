@@ -30,14 +30,14 @@ def _pop_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
         x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_AF |
         x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_PF
     ):
-        ctx.f_asm.add(FukuRegister(FukuRegisterEnum.FUKU_REG_RSP).ftype, FukuImmediate(inst_size).ftype)
+        ctx.f_asm.add(FukuRegister(FukuRegisterEnum.REG_RSP).ftype, FukuImmediate(inst_size).ftype)
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     else:
         ctx.f_asm.lea(
-            FukuRegister(FukuRegisterEnum.FUKU_REG_RSP).ftype,
+            FukuRegister(FukuRegisterEnum.REG_RSP).ftype,
             qword_ptr(
-                base = FukuRegister(FukuRegisterEnum.FUKU_REG_RSP),
+                base = FukuRegister(FukuRegisterEnum.REG_RSP),
                 disp = FukuImmediate(inst_size))
             .ftype
         )
@@ -50,7 +50,7 @@ def _pop_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
     ctx.f_asm.mov(
         dst,
         FukuOperand(
-            base = FukuRegister(FukuRegisterEnum.FUKU_REG_RSP),
+            base = FukuRegister(FukuRegisterEnum.REG_RSP),
             disp = FukuImmediate(-inst_size),
             size = FukuOperandSize(inst_size)
         ).ftype
@@ -78,7 +78,7 @@ def _pop_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
     ctx.f_asm.mov(
         dst, 
         FukuOperand(
-            base = FukuRegister(FukuRegisterEnum.FUKU_REG_RSP),
+            base = FukuRegister(FukuRegisterEnum.REG_RSP),
             size = FukuOperandSize(inst_size)
         ).ftype,
     )
@@ -95,14 +95,14 @@ def _pop_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
         x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_AF |
         x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_PF
     ):
-        ctx.f_asm.add(FukuRegister(FukuRegisterEnum.FUKU_REG_RSP).ftype, FukuImmediate(inst_size).ftype)
+        ctx.f_asm.add(FukuRegister(FukuRegisterEnum.REG_RSP).ftype, FukuImmediate(inst_size).ftype)
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = out_regflags
     else:
         ctx.f_asm.lea(
-            FukuRegister(FukuRegisterEnum.FUKU_REG_RSP).ftype,
+            FukuRegister(FukuRegisterEnum.REG_RSP).ftype,
             qword_ptr(
-                base = FukuRegister(FukuRegisterEnum.FUKU_REG_RSP),
+                base = FukuRegister(FukuRegisterEnum.REG_RSP),
                 disp = FukuImmediate(inst_size))
             .ftype
         )

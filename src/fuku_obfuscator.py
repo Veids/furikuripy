@@ -98,11 +98,11 @@ class FukuObfuscator(BaseModel):
                     reg = None
 
                     if line.id == x86_const.X86_INS_JRCXZ: # or rcx, rcx
-                        reg = FukuRegister(FukuRegisterEnum.FUKU_REG_RCX).ftype
+                        reg = FukuRegister(FukuRegisterEnum.REG_RCX).ftype
                     if line.id == x86_const.X86_INS_JECXZ: # or ecx, ecx
-                        reg = FukuRegister(FukuRegisterEnum.FUKU_REG_ECX).ftype
+                        reg = FukuRegister(FukuRegisterEnum.REG_ECX).ftype
                     else: # or cx, cx
-                        reg = FukuRegister(FukuRegisterEnum.FUKU_REG_CX).ftype
+                        reg = FukuRegister(FukuRegisterEnum.REG_CX).ftype
 
                     fuku_asm.or_(reg, reg)
                     fuku_asm.context.inst.label = label
@@ -119,7 +119,7 @@ class FukuObfuscator(BaseModel):
                     label = line.label
                     rip_reloc = line.rip_reloc
 
-                    fuku_asm.dec(FukuRegister(FukuRegisterEnum.FUKU_REG_ECX).ftype)
+                    fuku_asm.dec(FukuRegister(FukuRegisterEnum.REG_ECX).ftype)
                     fuku_asm.context.inst.label = label
 
                     fuku_asm.jcc(FukuCondition.NOT_EQUAL, FukuImmediate().ftype) # jnz
@@ -134,7 +134,7 @@ class FukuObfuscator(BaseModel):
                     label = line.label
                     rip_reloc = line.rip_reloc
 
-                    fuku_asm.dec(FukuRegister(FukuRegisterEnum.FUKU_REG_ECX).ftype)
+                    fuku_asm.dec(FukuRegister(FukuRegisterEnum.REG_ECX).ftype)
                     fuku_asm.context.inst.label = label
 
                     fuku_asm.jcc(FukuCondition.EQUAL, FukuImmediate().ftype) # jz
@@ -149,7 +149,7 @@ class FukuObfuscator(BaseModel):
                     label = line.label
                     rip_reloc = line.rip_reloc
 
-                    fuku_asm.dec(FukuRegister(FukuRegisterEnum.FUKU_REG_ECX))
+                    fuku_asm.dec(FukuRegister(FukuRegisterEnum.REG_ECX))
                     fuku_asm.context.inst.label = label
 
                     fuku_asm.jcc(FukuCondition.NOT_EQUAL, FukuImmediate().ftype) # jne

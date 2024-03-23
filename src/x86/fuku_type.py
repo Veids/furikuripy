@@ -57,10 +57,10 @@ class FukuType(BaseModel):
                 # TODO: fix computation
                 result = 0
 
-                if op.base.reg != FukuRegisterEnum.FUKU_REG_NONE:
+                if op.base.reg != FukuRegisterEnum.REG_NONE:
                     result &= op.base.get_flag_complex(FukuOperandSize.SIZE_64)
 
-                if op.index.reg != FukuRegisterEnum.FUKU_REG_NONE:
+                if op.index.reg != FukuRegisterEnum.REG_NONE:
                     result &= op.index.get_flag_complex(FukuOperandSize.SIZE_64)
 
                 return result
@@ -75,7 +75,7 @@ class FukuType(BaseModel):
         match get_random_bit_by_mask(allow_inst, 0, 2):
             case 0:
                 op = FukuRegisterEnum.get_random_free_register_x64(allow_regs, size, disallow_regs)
-                if op != FukuRegisterEnum.FUKU_REG_NONE:
+                if op != FukuRegisterEnum.REG_NONE:
                     return FukuRegister(op).ftype
 
         return None
@@ -88,7 +88,7 @@ class FukuType(BaseModel):
         match get_random_bit_by_mask(allow_inst, 0, 2):
             case 0:
                 op = FukuRegisterEnum.get_random_register(size, False, disallow_regs)
-                if op != FukuRegisterEnum.FUKU_REG_NONE:
+                if op != FukuRegisterEnum.REG_NONE:
                     return FukuRegister(op).ftype
 
             case 2:
@@ -101,7 +101,7 @@ def reg_to_fuku_type(reg: FukuRegister) -> FukuType:
     return FukuType(
         segment = FukuPrefix.FUKU_PREFIX_NONE,
         base = reg,
-        index = FukuRegister(FukuRegisterEnum.FUKU_REG_NONE),
+        index = FukuRegister(FukuRegisterEnum.REG_NONE),
         scale = FukuOperandScale.FUKU_OPERAND_SCALE_1,
         disp = FukuImmediate(),
         size = reg.size,
@@ -122,8 +122,8 @@ def operand_to_fuku_type(op: FukuOperand) -> FukuType:
 def immediate_to_fuku_type(imm: FukuImmediate) -> FukuType:
     return FukuType(
         segment = FukuPrefix.FUKU_PREFIX_NONE,
-        base = FukuRegister(FukuRegisterEnum.FUKU_REG_NONE),
-        index = FukuRegister(FukuRegisterEnum.FUKU_REG_NONE),
+        base = FukuRegister(FukuRegisterEnum.REG_NONE),
+        index = FukuRegister(FukuRegisterEnum.REG_NONE),
         scale = FukuOperandScale.FUKU_OPERAND_SCALE_1,
         disp = imm,
         size = FukuOperandSize.SIZE_0,
