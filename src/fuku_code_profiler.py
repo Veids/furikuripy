@@ -84,7 +84,8 @@ class FukuCodeProfiler(BaseModel):
                     x86_const.X86_INS_JG | x86_const.X86_INS_JLE | x86_const.X86_INS_JL |
                     x86_const.X86_INS_JNE | x86_const.X86_INS_JNO | x86_const.X86_INS_JNP |
                     x86_const.X86_INS_JNS | x86_const.X86_INS_JO | x86_const.X86_INS_JP |
-                    x86_const.X86_INS_JS
+                    x86_const.X86_INS_JS | x86_const.X86_INS_JCXZ | x86_const.X86_INS_JECXZ | 
+                    x86_const.X86_INS_JRCXZ
                 ):
                     return included_registers
 

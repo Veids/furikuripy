@@ -50,13 +50,13 @@ def _xchg_64_multi_tmpl_2(ctx: FukuMutationCtx, dst_1: FukuType, dst_2: FukuType
     additation_inst_flag = 0
 
     if dst_1.type == FukuT0Types.FUKU_T0_OPERAND:
-        if dst_1.operand.base.index == FukuRegisterIndex.SP or dst_1.operand.index.index == FukuRegisterIndex.SP:
+        if dst_1.operand.base.index == FukuRegisterIndex.INDEX_SP or dst_1.operand.index.index == FukuRegisterIndex.INDEX_SP:
             additation_inst_flag = FukuInstFlags.FUKU_INST_BAD_STACK
     else:
-        if dst_1.register.index == FukuRegisterIndex.SP:
+        if dst_1.register.index == FukuRegisterIndex.INDEX_SP:
             additation_inst_flag = FukuInstFlags.FUKU_INST_BAD_STACK
 
-    if dst_2.operand.base.index == FukuRegisterIndex.SP:
+    if dst_2.operand.base.index == FukuRegisterIndex.INDEX_SP:
         additation_inst_flag = FukuInstFlags.FUKU_INST_BAD_STACK
 
     out_regflags = ctx.cpu_registers & ~(dst_1.get_mask_register() | dst_2.get_mask_register())

@@ -17,7 +17,7 @@ def _pop_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
     if ctx.settings.is_not_allowed_unstable_stack:
         return False
 
-    if dst.type == FukuT0Types.FUKU_T0_REGISTER and dst.register.index == FukuRegisterIndex.FUKU_REG_INDEX_SP:
+    if dst.type == FukuT0Types.FUKU_T0_REGISTER and dst.register.index == FukuRegisterIndex.INDEX_SP:
         return False
 
     opcodes = []
@@ -68,7 +68,7 @@ def _pop_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
 # mov reg, [rsp]
 # add rsp, 8 or lea rsp, [rsp + 8]
 def _pop_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) -> bool:
-    if dst.type == FukuT0Types.FUKU_T0_REGISTER and dst.register.index == FukuRegisterIndex.FUKU_REG_INDEX_SP:
+    if dst.type == FukuT0Types.FUKU_T0_REGISTER and dst.register.index == FukuRegisterIndex.INDEX_SP:
         return False
 
     opcodes = []

@@ -174,24 +174,24 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
 
         match rm_reg.type:
             case FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY:
-                raw_operand.set_modrm(0, reg, FukuRegisterIndex.FUKU_REG_INDEX_BP)
+                raw_operand.set_modrm(0, reg, FukuRegisterIndex.INDEX_BP)
                 raw_operand.set_dispr(rm_reg.disp.immediate32)
 
             case (
                 FukuMemOperandType.FUKU_MEM_OPERAND_BASE_ONLY |
                 FukuMemOperandType.FUKU_MEM_OPERAND_BASE_DISP
             ):
-                if base_idx == FukuRegisterIndex.FUKU_REG_INDEX_SP:
+                if base_idx == FukuRegisterIndex.INDEX_SP:
                     raw_operand.set_sib(
                         FukuOperandScale.FUKU_OPERAND_SCALE_1,
-                        FukuRegisterIndex.FUKU_REG_INDEX_SP,
+                        FukuRegisterIndex.INDEX_SP,
                         base_idx
                     )
 
                 disp = rm_reg.disp
 
                 # [base + disp/r]
-                if disp.immediate32 == 0 and base_idx != FukuRegisterIndex.FUKU_REG_INDEX_BP:
+                if disp.immediate32 == 0 and base_idx != FukuRegisterIndex.INDEX_BP:
                     raw_operand.set_modrm(1, reg, base_idx)
                 elif self.is_used_short_disp and disp.is_8:
                     # [base + disp8]
@@ -209,23 +209,23 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
                 raw_operand.set_sib(rm_reg.scale, index_idx, base_idx)
 
                 # [base + index*scale + disp/r]
-                if rm_reg.disp.immediate32 == 0 and base_idx != FukuRegisterIndex.FUKU_REG_INDEX_BP:
+                if rm_reg.disp.immediate32 == 0 and base_idx != FukuRegisterIndex.INDEX_BP:
                     # [base + index*scale]
-                    raw_operand.set_modrm(0, reg, FukuRegisterIndex.FUKU_REG_INDEX_SP)
+                    raw_operand.set_modrm(0, reg, FukuRegisterIndex.INDEX_SP)
                 elif self.is_used_short_disp and rm_reg.disp.is_8:
                     # [base + index*scale + disp8]
-                    raw_operand.set_modrm(1, reg, FukuRegisterIndex.FUKU_REG_INDEX_SP)
+                    raw_operand.set_modrm(1, reg, FukuRegisterIndex.INDEX_SP)
                     raw_operand.set_disp8(rm_reg.disp.immediate8)
                 else:
                     # [base + index*scale + disp/r]
-                    raw_operand.set_modrm(2, reg, FukuRegisterIndex.FUKU_REG_INDEX_SP)
+                    raw_operand.set_modrm(2, reg, FukuRegisterIndex.INDEX_SP)
                     raw_operand.set_dispr(rm_reg.disp.immediate32)
 
             case FukuMemOperandType.FUKU_MEM_OPERAND_INDEX_DISP:
-                assert index_idx != FukuRegisterIndex.FUKU_REG_INDEX_SP
+                assert index_idx != FukuRegisterIndex.INDEX_SP
 
-                raw_operand.set_modrm(0, reg, FukuRegisterIndex.FUKU_REG_INDEX_SP)
-                raw_operand.set_sib(rm_reg.scale, index_idx, FukuRegisterIndex.FUKU_REG_INDEX_BP)
+                raw_operand.set_modrm(0, reg, FukuRegisterIndex.INDEX_SP)
+                raw_operand.set_sib(rm_reg.scale, index_idx, FukuRegisterIndex.INDEX_BP)
                 raw_operand.set_dispr(rm_reg.disp.immediate32)
 
             case _:
@@ -243,24 +243,24 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
 
         match rm_reg.type:
             case FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY:
-                raw_operand.set_modrm(0, reg, FukuRegisterIndex.FUKU_REG_INDEX_BP)
+                raw_operand.set_modrm(0, reg, FukuRegisterIndex.INDEX_BP)
                 raw_operand.set_dispr(rm_reg.disp.immediate32)
 
             case (
                 FukuMemOperandType.FUKU_MEM_OPERAND_BASE_ONLY |
                 FukuMemOperandType.FUKU_MEM_OPERAND_BASE_DISP
             ):
-                if base_idx == FukuRegisterIndex.FUKU_REG_INDEX_SP:
+                if base_idx == FukuRegisterIndex.INDEX_SP:
                     raw_operand.set_sib(
                         FukuOperandScale.FUKU_OPERAND_SCALE_1,
-                        FukuRegisterIndex.FUKU_REG_INDEX_SP,
+                        FukuRegisterIndex.INDEX_SP,
                         base_idx
                     )
 
                 disp = rm_reg.disp
 
                 # [base + disp/r]
-                if disp.immediate32 == 0 and base_idx != FukuRegisterIndex.FUKU_REG_INDEX_BP:
+                if disp.immediate32 == 0 and base_idx != FukuRegisterIndex.INDEX_BP:
                     # [base]
                     raw_operand.set_modrm(0, reg, base_idx)
                 elif self.is_used_short_disp and disp.is_8:
@@ -276,27 +276,27 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
                 FukuMemOperandType.FUKU_MEM_OPERAND_BASE_INDEX |
                 FukuMemOperandType.FUKU_MEM_OPERAND_BASE_INDEX_DISP
             ):
-                assert index_idx != FukuRegisterIndex.FUKU_REG_INDEX_SP
+                assert index_idx != FukuRegisterIndex.INDEX_SP
 
                 raw_operand.set_sib(rm_reg.scale, index_idx, base_idx)
                 # [base + index*scale + disp/r]
-                if rm_reg.disp.immediate32 == 0 and base_idx != FukuRegisterIndex.FUKU_REG_INDEX_BP:
-                    raw_operand.set_modrm(0, reg, FukuRegisterIndex.FUKU_REG_INDEX_SP)
+                if rm_reg.disp.immediate32 == 0 and base_idx != FukuRegisterIndex.INDEX_BP:
+                    raw_operand.set_modrm(0, reg, FukuRegisterIndex.INDEX_SP)
                 elif self.is_used_short_disp and rm_reg.disp.is_8:
                     # [base + index*scale + disp8]
-                    raw_operand.set_modrm(1, reg, FukuRegisterIndex.FUKU_REG_INDEX_BP)
+                    raw_operand.set_modrm(1, reg, FukuRegisterIndex.INDEX_BP)
                     raw_operand.set_disp8(rm_reg.disp.immediate8)
                 else:
                     # [base + index*scale + disp/r]
-                    raw_operand.set_modrm(2, reg, FukuRegisterIndex.FUKU_REG_INDEX_SP)
+                    raw_operand.set_modrm(2, reg, FukuRegisterIndex.INDEX_SP)
                     raw_operand.set_dispr(rm_reg.disp.immediate32)
 
             case FukuMemOperandType.FUKU_MEM_OPERAND_INDEX_DISP:
-                assert index_idx != FukuRegisterIndex.FUKU_REG_INDEX_SP
+                assert index_idx != FukuRegisterIndex.INDEX_SP
 
                 # [index*scale + disp/r]
-                raw_operand.set_modrm(0, reg, FukuRegisterIndex.FUKU_REG_INDEX_SP)
-                raw_operand.set_sib(rm_reg.scale, index_idx, FukuRegisterIndex.FUKU_REG_INDEX_BP)
+                raw_operand.set_modrm(0, reg, FukuRegisterIndex.INDEX_SP)
+                raw_operand.set_sib(rm_reg.scale, index_idx, FukuRegisterIndex.INDEX_BP)
                 raw_operand.set_dispr(rm_reg.disp.immediate32)
 
             case _:

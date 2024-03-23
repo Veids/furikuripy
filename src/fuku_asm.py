@@ -1302,7 +1302,7 @@ class FukuAsm(BaseModel):
 
     # Shift and Rotate Instructions
     def sar(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(
@@ -1335,7 +1335,7 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def shr(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(
@@ -1368,7 +1368,7 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def shl(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(
@@ -1402,7 +1402,7 @@ class FukuAsm(BaseModel):
 
     def shrd(self, dst: FukuType, src: FukuType, shift: FukuType) -> FukuAsmCtx:
         if (
-            (shift.type == FukuT0Types.FUKU_T0_REGISTER and shift.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX) or
+            (shift.type == FukuT0Types.FUKU_T0_REGISTER and shift.register.index != FukuRegisterIndex.INDEX_CX) or
             not (shift.type == FukuT0Types.FUKU_T0_REGISTER or shift.type == FukuT0Types.FUKU_T0_IMMEDIATE)
         ):
             UNUSUAL_DATASET()
@@ -1446,7 +1446,7 @@ class FukuAsm(BaseModel):
 
     def shld(self, dst: FukuType, src: FukuType, shift: FukuType) -> FukuAsmCtx:
         if (
-            (shift.type == FukuT0Types.FUKU_T0_REGISTER and shift.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX) or
+            (shift.type == FukuT0Types.FUKU_T0_REGISTER and shift.register.index != FukuRegisterIndex.INDEX_CX) or
             not (shift.type == FukuT0Types.FUKU_T0_REGISTER or shift.type == FukuT0Types.FUKU_T0_IMMEDIATE)
         ):
             UNUSUAL_DATASET()
@@ -1489,7 +1489,7 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def ror(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(
@@ -1522,7 +1522,7 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def rol(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(
@@ -1555,7 +1555,7 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def rcr(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(
@@ -1588,7 +1588,7 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def rcl(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.FUKU_REG_INDEX_CX:
+        if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index != FukuRegisterIndex.INDEX_CX:
             UNUSUAL_DATASET()
 
         self._fuku_assembler_command_2op_graph(

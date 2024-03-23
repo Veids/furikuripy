@@ -14,7 +14,7 @@ from x86.fuku_register_math import has_free_eflags
 # (sub esp,4) or (lea esp,[esp - 4])
 # mov [esp],reg
 def _push_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -> bool:
-    if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index == FukuRegisterIndex.FUKU_REG_INDEX_SP:
+    if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index == FukuRegisterIndex.INDEX_SP:
         return False
 
     opcodes = []
@@ -65,7 +65,7 @@ def _push_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
     if ctx.settings.is_not_allowed_unstable_stack:
         return False
 
-    if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index == FukuRegisterIndex.FUKU_REG_INDEX_SP:
+    if src.type == FukuT0Types.FUKU_T0_REGISTER and src.register.index == FukuRegisterIndex.INDEX_SP:
         return False
 
     opcodes = []
