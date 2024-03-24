@@ -119,7 +119,7 @@ class FukuMutationX64(BaseModel):
             self.fukutuation(ctx, inst, next_inst)
 
     def fukutuation(self, ctx: FukuMutationCtx, inst: FukuInst, next_inst: Optional[FukuInst]):
-        if inst.flags & FukuInstFlags.FUKU_INST_JUNK_CODE.value:
+        if inst.flags & FukuInstFlags.FUKU_INST_JUNK_CODE:
             return
 
         is_chanced_junk = self.settings.roll_junk_chance()
@@ -173,7 +173,7 @@ class FukuMutationX64(BaseModel):
 
             if (
                 ctx.has_source_address or
-                (not ctx.settings.is_not_allowed_unstable_stack and ctx.inst_flags & FukuInstFlags.FUKU_INST_BAD_STACK.value)
+                (not ctx.settings.is_not_allowed_unstable_stack and ctx.inst_flags & FukuInstFlags.FUKU_INST_BAD_STACK)
             ):
                 idx = ctx.code_holder.instructions.index(ctx.calc_original_inst())
                 end_idx = len(ctx.code_holder.instructions)
@@ -181,12 +181,11 @@ class FukuMutationX64(BaseModel):
                     end_idx = ctx.code_holder.instructions.index(ctx.next_inst)
 
                 for i, inst in enumerate(ctx.code_holder.instructions[idx:end_idx]):
-                    if ctx.inst_flags & FukuInstFlags.FUKU_INST_BAD_STACK.value:
-                        inst.flags |= FukuInstFlags.FUKU_INST_BAD_STACK.value
+                    if ctx.inst_flags & FukuInstFlags.FUKU_INST_BAD_STACK:
+                        inst.flags |= FukuInstFlags.FUKU_INST_BAD_STACK
 
                     if ctx.has_source_address:
                         if i != 0:
-                            print(inst.source_address)
                             inst.source_address = None
                         else:
                             inst.source_address = ctx.source_address

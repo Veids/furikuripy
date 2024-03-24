@@ -30,7 +30,7 @@ class FukuMutationCtx(BaseModel):
     is_next_last_inst: bool = False # is next inst iter on end
     has_source_address: bool = False # is inst has source address
 
-    inst_flags: int = 0
+    inst_flags: FukuInstFlags = 0
     cpu_flags: int = 0
     cpu_registers: int = 0
     source_address: int = 0
@@ -84,7 +84,7 @@ class FukuMutationCtx(BaseModel):
 
     @property
     def is_allowed_stack_operations(self) -> bool:
-        return not (self.inst_flags & FukuInstFlags.FUKU_INST_BAD_STACK.value)
+        return not (self.inst_flags & FukuInstFlags.FUKU_INST_BAD_STACK)
 
     def restore_disp_relocate(self, op: FukuType, disp_reloc) -> bool:
         if op.type == FukuT0Types.FUKU_T0_OPERAND and disp_reloc:

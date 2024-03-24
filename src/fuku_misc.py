@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, Flag
 from typing import Annotated
 from annotated_types import Gt
 from pydantic import BaseModel
@@ -12,7 +12,7 @@ class FUKU_ASSEMBLER_ARCH(Enum):
     X64 = "X64"
 
 
-class FukuInstFlags(Enum):
+class FukuInstFlags(Flag):
     FUKU_INST_JUNK_CODE = 1 << 0
     FUKU_INST_BAD_STACK = 1 << 1
     FUKU_INST_NO_MUTATE = 1 << 2

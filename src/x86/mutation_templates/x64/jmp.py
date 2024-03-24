@@ -59,7 +59,7 @@ def _jmp_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType) -> bool:
             offset = ctx.f_asm.context.immediate_offset
         )
     )
-    ctx.f_asm.context.inst.flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE.value
+    ctx.f_asm.context.inst.flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     rev_cond = FukuCondition(cond ^ 1)
@@ -72,7 +72,7 @@ def _jmp_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType) -> bool:
             offset = ctx.f_asm.context.immediate_offset
         )
     )
-    ctx.f_asm.context.inst.flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE.value
+    ctx.f_asm.context.inst.flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     rip_reloc.label = None

@@ -722,7 +722,7 @@ def junk_64_high_pattern_5(ctx: FukuMutationCtx) -> bool:
 
     ctx.f_asm.nop()
     ctx.f_asm.context.inst.opcode = trash
-    ctx.f_asm.context.inst.flags = FukuInstFlags.FUKU_INST_JUNK_CODE.value
+    ctx.f_asm.context.inst.flags = FukuInstFlags.FUKU_INST_JUNK_CODE
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     trace_inst("junk: jcc next_inst; some code trash", opcodes)

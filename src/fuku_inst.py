@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fuku_misc import FukuInstFlags
 from typing import Optional, Self
 from pydantic import BaseModel, StrictBytes
 
@@ -49,7 +50,8 @@ class FukuInst(BaseModel):
     cpu_flags: int = 0
     cpu_registers: int = 0
 
-    flags: int = 0
+    offset: int = 0
+    flags: FukuInstFlags = FukuInstFlags(0)
 
     @property
     def inst_has_address(self):
@@ -109,6 +111,7 @@ class FukuInst(BaseModel):
         self.cpu_flags = src.cpu_flags
         self.cpu_registers = src.cpu_registers
         self.flags = src.flags
+        self.offset = src.offset
 
     def __eq__(self, other: Self) -> bool:
         return hash(self) == hash(other)

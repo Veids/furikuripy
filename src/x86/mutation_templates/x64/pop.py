@@ -56,7 +56,7 @@ def _pop_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
     )
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
-    ctx.f_asm.context.inst.flags = FukuInstFlags.FUKU_INST_BAD_STACK.value
+    ctx.f_asm.context.inst.flags = FukuInstFlags.FUKU_INST_BAD_STACK
     ctx.restore_disp_relocate(dst, disp_reloc)
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
