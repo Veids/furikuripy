@@ -119,7 +119,7 @@ class FukuMutationX64(BaseModel):
             self.fukutuation(ctx, inst, next_inst)
 
     def fukutuation(self, ctx: FukuMutationCtx, inst: FukuInst, next_inst: Optional[FukuInst]):
-        if inst.flags.inst_flags & FukuInstFlags.FUKU_INST_JUNK_CODE.value:
+        if inst.flags & FukuInstFlags.FUKU_INST_JUNK_CODE.value:
             return
 
         is_chanced_junk = self.settings.roll_junk_chance()
@@ -182,11 +182,12 @@ class FukuMutationX64(BaseModel):
 
                 for i, inst in enumerate(ctx.code_holder.instructions[idx:end_idx]):
                     if ctx.inst_flags & FukuInstFlags.FUKU_INST_BAD_STACK.value:
-                        inst.flags.inst_flags |= FukuInstFlags.FUKU_INST_BAD_STACK.value
+                        inst.flags |= FukuInstFlags.FUKU_INST_BAD_STACK.value
 
                     if ctx.has_source_address:
                         if i != 0:
-                            inst.flags.inst_has_address = False
+                            print(inst.source_address)
+                            inst.source_address = None
                         else:
                             inst.source_address = ctx.source_address
 

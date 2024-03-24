@@ -93,7 +93,7 @@ def _push_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
         ctx.f_asm.sub(FukuRegister(FukuRegisterEnum.REG_RSP).ftype, FukuImmediate(inst_size).ftype)
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = out_regflags
-        ctx.f_asm.context.inst.flags.inst_flags = FukuInstFlags.FUKU_INST_BAD_STACK.value
+        ctx.f_asm.context.inst.flags = FukuInstFlags.FUKU_INST_BAD_STACK.value
     else:
         ctx.f_asm.lea(
             FukuRegister(FukuRegisterEnum.REG_RSP).ftype,
@@ -104,7 +104,7 @@ def _push_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
         )
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = out_regflags
-        ctx.f_asm.context.inst.flags.inst_flags = FukuInstFlags.FUKU_INST_BAD_STACK.value
+        ctx.f_asm.context.inst.flags = FukuInstFlags.FUKU_INST_BAD_STACK.value
 
     opcodes.append(ctx.f_asm.context.inst.opcode)
 

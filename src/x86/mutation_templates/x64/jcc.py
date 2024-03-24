@@ -29,13 +29,13 @@ def _jcc_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
             offset = ctx.f_asm.context.immediate_offset
         )
     )
-    ctx.f_asm.context.inst.flags.inst_flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE.value
+    ctx.f_asm.context.inst.flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE.value
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.jmp(FukuImmediate(0xFFFFFFFF).ftype)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
-    ctx.f_asm.context.inst.flags.inst_flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE.value
+    ctx.f_asm.context.inst.flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE.value
     ctx.restore_rip_relocate_in_imm(dst, rip_reloc, inst_size)
     opcodes.append(ctx.f_asm.context.inst.opcode)
 

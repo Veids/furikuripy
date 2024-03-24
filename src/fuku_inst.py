@@ -29,11 +29,6 @@ class FukuRipRelocation(BaseModel):
     label: Optional[FukuCodeLabel] = None
 
 
-class Flags(BaseModel):
-    inst_has_address: int = 0
-    inst_flags: int = 0
-
-
 class FukuInst(BaseModel):
     __hash__ = object.__hash__
 
@@ -54,7 +49,7 @@ class FukuInst(BaseModel):
     cpu_flags: int = 0
     cpu_registers: int = 0
 
-    flags: Flags = Flags()
+    flags: int = 0
 
     @property
     def inst_has_address(self):
@@ -113,8 +108,7 @@ class FukuInst(BaseModel):
         self.rip_reloc = src.rip_reloc
         self.cpu_flags = src.cpu_flags
         self.cpu_registers = src.cpu_registers
-        self.flags.inst_flags = src.flags.inst_flags
-        self.flags.inst_has_address = src.flags.inst_has_address
+        self.flags = src.flags
 
     def __eq__(self, other: Self) -> bool:
         return hash(self) == hash(other)

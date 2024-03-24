@@ -56,7 +56,7 @@ class FukuMutationCtx(BaseModel):
 
         self.cpu_flags = inst.cpu_flags
         self.cpu_registers = inst.cpu_registers
-        self.inst_flags = inst.flags.inst_flags
+        self.inst_flags = inst.flags
         self.has_source_address = inst.has_source_address
 
         if self.has_source_address:

@@ -25,7 +25,7 @@ class FukuCodeAnalyzer(BaseModel):
             line.opcode = bytearray(src[current_inst.address:current_inst.address + current_inst.size])
             line.cpu_flags = current_inst.eflags
             line.id = current_inst.id
-            line.flags.inst_flags = current_inst.encoding.disp_offset << 8 | current_inst.encoding.imm_offset
+            line.flags = current_inst.encoding.disp_offset << 8 | current_inst.encoding.imm_offset
 
             for operand in current_inst.operands:
                 if operand.type == x86_const.X86_OP_MEM and operand.mem.base == x86_const.X86_REG_RIP:
@@ -81,7 +81,7 @@ class FukuCodeAnalyzer(BaseModel):
                 else:
                     reloc_dst = struct.unpack("<Q", line.opcode[reloc_offset:reloc_offset + 8])
 
-                if reloc_offset == (line.flags.inst_flags & 0xFF):
+                if reloc_offset == (line.flags & 0xFF):
                     code_label = FukuCodeLabel(address = reloc_dst)
 
                     reloc = FukuRelocation(
@@ -91,7 +91,7 @@ class FukuCodeAnalyzer(BaseModel):
                     )
 
                     line.disp_reloc = analyzed_code.create_relocation(reloc)
-                elif reloc_offset == ((line.flags.inst_flags >> 8) & 0xFF):
+                elif reloc_offset == ((line.flags >> 8) & 0xFF):
                     code_label = FukuCodeLabel(address = reloc_dst)
 
                     reloc = FukuRelocation(

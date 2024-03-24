@@ -29,7 +29,7 @@ def _ret_64_multi_tmpl_1(ctx: FukuMutationCtx, ret_stack: int) -> bool:
     )
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
-    ctx.f_asm.context.inst.flags.inst_flags = FukuInstFlags.FUKU_INST_BAD_STACK.value
+    ctx.f_asm.context.inst.flags = FukuInstFlags.FUKU_INST_BAD_STACK.value
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     trace_inst("ret -> lea rsp, [rsp + (8 + stack_offset)]; jmp [rsp - 8 - stack_offset]", opcodes)
