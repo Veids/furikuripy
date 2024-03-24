@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, Flag
 from capstone import x86_const
 
 class EflagsGroup(Enum):
@@ -109,7 +109,7 @@ FlagRegisterIndex = Enum('FlagRegisterIndex', [
 ], start = 0)
 
 
-class FlagRegister(Enum):
+class FlagRegister(Flag):
     # byte
     AL = 1 << FlagRegisterIndex.AL.value
     CL = 1 << FlagRegisterIndex.CL.value
@@ -179,7 +179,7 @@ class FlagRegister(Enum):
     R14 = 1 << FlagRegisterIndex.R14.value
     R15 = 1 << FlagRegisterIndex.R15.value
 
-class RegisterAccess(Enum):
+class RegisterAccess(Flag):
     READ = 1 << 0
     WRITE = 1 << 1
 
