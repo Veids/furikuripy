@@ -83,14 +83,13 @@ def _xchg_64_multi_tmpl_2(ctx: FukuMutationCtx, dst_1: FukuType, dst_2: FukuType
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
     out_regflags &= ~(somereg_2.get_mask_register())
 
     ctx.f_asm.mov(somereg_1, dst_1)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
     ctx.f_asm.context.inst.flags.inst_flags = additation_inst_flag
-    ctx.restore_disp_relocate(dst_1, disp_reloc, inst_used_disp)
+    ctx.restore_disp_relocate(dst_1, disp_reloc)
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.mov(somereg_2, dst_2)
@@ -103,7 +102,7 @@ def _xchg_64_multi_tmpl_2(ctx: FukuMutationCtx, dst_1: FukuType, dst_2: FukuType
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
     ctx.f_asm.context.inst.flags.inst_flags = additation_inst_flag
-    ctx.restore_disp_relocate(dst_1, disp_reloc, inst_used_disp)
+    ctx.restore_disp_relocate(dst_1, disp_reloc)
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.mov(dst_2, somereg_1)

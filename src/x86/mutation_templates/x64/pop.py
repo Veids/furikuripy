@@ -22,7 +22,6 @@ def _pop_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
 
     if has_free_eflags(
         ctx.cpu_flags,
@@ -58,7 +57,7 @@ def _pop_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
     ctx.f_asm.context.inst.flags.inst_flags = FukuInstFlags.FUKU_INST_BAD_STACK.value
-    ctx.restore_disp_relocate(dst, disp_reloc, inst_used_disp)
+    ctx.restore_disp_relocate(dst, disp_reloc)
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     trace_inst("pop dst -> add rsp, 8 or lea rsp, [rsp + 8]; mov reg, [rsp - 8]", opcodes)
@@ -73,7 +72,6 @@ def _pop_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
 
     ctx.f_asm.mov(
         dst, 
@@ -84,7 +82,7 @@ def _pop_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
     )
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
-    ctx.restore_disp_relocate(dst, disp_reloc, inst_used_disp)
+    ctx.restore_disp_relocate(dst, disp_reloc)
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     out_regflags = ctx.cpu_registers & ~(dst.get_mask_register())

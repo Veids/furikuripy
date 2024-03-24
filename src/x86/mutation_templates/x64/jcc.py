@@ -14,7 +14,6 @@ def _jcc_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
 
     opcodes = []
     rip_reloc = ctx.payload_inst.rip_reloc
-    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
     cond: FukuCondition = FukuCondition.from_capstone(ctx.instruction.id)
 
     ctx.f_asm.jcc(FukuCondition(cond.value ^ 1), FukuImmediate(0xFFFFFFFF).ftype)
@@ -37,7 +36,7 @@ def _jcc_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     ctx.f_asm.context.inst.flags.inst_flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE.value
-    ctx.restore_rip_relocate_in_imm(dst, rip_reloc, inst_used_disp, inst_size)
+    ctx.restore_rip_relocate_in_imm(dst, rip_reloc, inst_size)
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     trace_inst("jcc dst -> ^jcc inst_after_real_jcc; jmp dst", opcodes)

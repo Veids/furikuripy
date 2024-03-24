@@ -86,8 +86,8 @@ class FukuMutationCtx(BaseModel):
     def is_allowed_stack_operations(self) -> bool:
         return not (self.inst_flags & FukuInstFlags.FUKU_INST_BAD_STACK.value)
 
-    def restore_disp_relocate(self, op: FukuType, disp_reloc, used_disp_reloc) -> bool:
-        if op.type == FukuT0Types.FUKU_T0_OPERAND and disp_reloc and used_disp_reloc:
+    def restore_disp_relocate(self, op: FukuType, disp_reloc) -> bool:
+        if op.type == FukuT0Types.FUKU_T0_OPERAND and disp_reloc:
             self.f_asm.context.inst.disp_reloc = disp_reloc
             disp_reloc.offset = self.f_asm.context.displacment_offset
             return True
@@ -105,8 +105,8 @@ class FukuMutationCtx(BaseModel):
 
         return False
 
-    def restore_rip_to_imm_relocate(self, op: FukuType, rip_reloc, used_disp_reloc) -> bool:
-        if op.type == FukuT0Types.FUKU_T0_IMMEDIATE and rip_reloc and not used_disp_reloc:
+    def restore_rip_to_imm_relocate(self, op: FukuType, rip_reloc) -> bool:
+        if op.type == FukuT0Types.FUKU_T0_IMMEDIATE and rip_reloc:
             self.f_asm.context.inst.imm_reloc = self.code_holder.create_relocation(
                 FukuRelocation(
                     label = rip_reloc.label,
@@ -119,11 +119,11 @@ class FukuMutationCtx(BaseModel):
 
         return False
 
-    def restore_rip_relocate_in_imm(self, op: FukuType, rip_reloc, used_disp_reloc: bool, inst_size: int) -> bool:
+    def restore_rip_relocate_in_imm(self, op: FukuType, rip_reloc, inst_size: int) -> bool:
         if (
             inst_size == FukuOperandSize.SIZE_64.value and
             op.type == FukuT0Types.FUKU_T0_IMMEDIATE and
-            rip_reloc and not used_disp_reloc
+            rip_reloc
         ):
             self.f_asm.context.inst.rip_reloc = rip_reloc
             rip_reloc.offset = self.f_asm.context.immediate_offset
@@ -131,6 +131,6 @@ class FukuMutationCtx(BaseModel):
 
         return False
 
-    def restore_imm_or_disp(self, op: FukuType, disp_reloc, used_disp_reloc, imm_reloc, inst_size):
-        if not self.restore_disp_relocate(op, disp_reloc, used_disp_reloc):
+    def restore_imm_or_disp(self, op: FukuType, disp_reloc, imm_reloc, inst_size):
+        if not self.restore_disp_relocate(op, disp_reloc):
             self.restore_imm_relocate(op, imm_reloc, inst_size)

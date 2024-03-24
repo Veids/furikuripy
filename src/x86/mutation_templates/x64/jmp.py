@@ -25,10 +25,9 @@ def _jmp_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType) -> bool:
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
 
     ctx.f_asm.push(src)
-    ctx.restore_disp_relocate(src, disp_reloc, inst_used_disp)
+    ctx.restore_disp_relocate(src, disp_reloc)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     opcodes.append(ctx.f_asm.context.inst.opcode)
@@ -102,15 +101,14 @@ def _jmp_64_multi_tmpl_3(ctx: FukuMutationCtx, src: FukuType) -> bool:
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
     rip_reloc = ctx.payload_inst.rip_reloc
-    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
     out_regflags = ctx.cpu_registers & ~(rand_reg.ftype.get_mask_register() | src.get_mask_register())
 
     if src.type == FukuT0Types.FUKU_T0_IMMEDIATE:
         ctx.f_asm.mov(rand_reg.ftype, FukuImmediate(0xFFFFFFFFFFFFFFFF).ftype)
-        ctx.restore_rip_to_imm_relocate(src, rip_reloc, inst_used_disp)
+        ctx.restore_rip_to_imm_relocate(src, rip_reloc)
     else:
         ctx.f_asm.mov(rand_reg.ftype, src)
-        ctx.restore_disp_relocate(src, disp_reloc, inst_used_disp)
+        ctx.restore_disp_relocate(src, disp_reloc)
 
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags

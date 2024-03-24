@@ -30,7 +30,6 @@ class FukuRipRelocation(BaseModel):
 
 
 class Flags(BaseModel):
-    inst_used_disp: int = 0
     inst_has_address: int = 0
     inst_flags: int = 0
 
@@ -83,7 +82,6 @@ class FukuInst(BaseModel):
     @rip_reloc.setter
     def rip_reloc(self, value):
         self._rip_reloc = value
-        self.flags.inst_used_disp = False
 
     def prefix_count(self) -> int:
         i = 0
@@ -116,7 +114,6 @@ class FukuInst(BaseModel):
         self.cpu_flags = src.cpu_flags
         self.cpu_registers = src.cpu_registers
         self.flags.inst_flags = src.flags.inst_flags
-        self.flags.inst_used_disp = src.flags.inst_used_disp
         self.flags.inst_has_address = src.flags.inst_has_address
 
     def __eq__(self, other: Self) -> bool:

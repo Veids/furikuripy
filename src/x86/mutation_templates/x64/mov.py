@@ -27,20 +27,19 @@ def _mov_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
     imm_reloc = ctx.payload_inst.imm_reloc
     out_regflags = changes_regflags & ~(somereg.register.get_flag_complex(FukuOperandSize.SIZE_64))
 
     ctx.f_asm.mov(somereg, src)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
-    ctx.restore_imm_or_disp(src, disp_reloc, inst_used_disp, imm_reloc, inst_size)
+    ctx.restore_imm_or_disp(src, disp_reloc, imm_reloc, inst_size)
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     ctx.f_asm.xchg(dst, somereg)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
-    ctx.restore_disp_relocate(src, disp_reloc, inst_used_disp)
+    ctx.restore_disp_relocate(src, disp_reloc)
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     trace_inst("mov dst, src -> mov somereg, src; xchg dst, somereg", opcodes)
@@ -103,7 +102,6 @@ def _mov_64_multi_tmpl_3(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
     imm_reloc = ctx.payload_inst.imm_reloc
     out_regflags = ctx.cpu_registers & ~(dst.get_mask_register() | src.get_mask_register())
 
@@ -123,7 +121,7 @@ def _mov_64_multi_tmpl_3(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
         ctx.f_asm.push(src)
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = out_regflags
-        ctx.restore_imm_or_disp(src, disp_reloc, inst_used_disp, imm_reloc, inst_size)
+        ctx.restore_imm_or_disp(src, disp_reloc, imm_reloc, inst_size)
         opcodes.append(ctx.f_asm.context.inst.opcode)
 
         ctx.f_asm.pop(randreg)
@@ -134,20 +132,20 @@ def _mov_64_multi_tmpl_3(ctx: FukuMutationCtx, dst: FukuType, src: FukuType, ins
         ctx.f_asm.mov(dst, randreg)
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = out_regflags
-        ctx.restore_disp_relocate(dst, disp_reloc, inst_used_disp)
+        ctx.restore_disp_relocate(dst, disp_reloc)
         opcodes.append(ctx.f_asm.context.inst.opcode)
         trace_inst("mov dst, src -> push src; pop rand_reg; mov dst, rand_reg", opcodes)
     else:
         ctx.f_asm.push(src)
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = out_regflags
-        ctx.restore_imm_or_disp(src, disp_reloc, inst_used_disp, imm_reloc, inst_size)
+        ctx.restore_imm_or_disp(src, disp_reloc, imm_reloc, inst_size)
         opcodes.append(ctx.f_asm.context.inst.opcode)
 
         ctx.f_asm.pop(dst)
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = out_regflags
-        ctx.restore_disp_relocate(dst, disp_reloc, inst_used_disp)
+        ctx.restore_disp_relocate(dst, disp_reloc)
         opcodes.append(ctx.f_asm.context.inst.opcode)
         trace_inst("mov dst, src -> push src; pop dst", opcodes)
 

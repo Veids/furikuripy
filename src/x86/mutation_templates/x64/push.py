@@ -19,7 +19,6 @@ def _push_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
     out_regflags = ctx.cpu_registers & ~(src.get_mask_register())
 
     if has_free_eflags(
@@ -53,7 +52,7 @@ def _push_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
     )
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
-    ctx.restore_disp_relocate(src, disp_reloc, inst_used_disp)
+    ctx.restore_disp_relocate(src, disp_reloc)
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     trace_inst("push src -> sub rsp, 8 or lea rsp, [rsp, 8]; mov [rsp], reg", opcodes)
@@ -70,7 +69,6 @@ def _push_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
-    inst_used_disp = ctx.payload_inst.flags.inst_used_disp
 
     ctx.f_asm.mov(
         FukuOperand(
@@ -83,7 +81,7 @@ def _push_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType, inst_size: int) -
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     out_regflags = ctx.cpu_registers & ~(src.get_mask_register())
-    ctx.restore_disp_relocate(src, disp_reloc, inst_used_disp)
+    ctx.restore_disp_relocate(src, disp_reloc)
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     if has_free_eflags(
