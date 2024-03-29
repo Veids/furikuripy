@@ -67,7 +67,7 @@ class RangesProcessor:
             if t.lower() not in ["c", "d"]:
                 raise Exception(f"'{t}' is not a correct type of range, use 'c' for a code and 'd' for a data")
 
-            start, end = parse_start_end(data_size, start, end)
+            start, end = self.parse_start_end(start, end)
             blocks.append((t, start, end))
 
         self.post_process_ranges(blocks)
