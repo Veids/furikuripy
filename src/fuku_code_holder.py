@@ -182,7 +182,7 @@ class FukuCodeHolder(BaseModel):
                 else:
                     left = mid + 1
 
-        return 0
+        return None
 
     def resolve_labels(self):
         delete_labels = list()

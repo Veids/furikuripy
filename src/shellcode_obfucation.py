@@ -4,9 +4,10 @@ import sys
 import time
 
 from datetime import datetime
-from typing import Annotated, Optional
+from binascii import unhexlify
+from typing import Annotated, Optional, List
 
-from common import log, rng
+from common import log, rng, parse_ranges_from_args, parse_definitions
 from fuku_obfuscator import FukuObfuscator
 from fuku_code_holder import FukuCodeHolder
 from fuku_code_analyzer import FukuCodeAnalyzer
@@ -20,17 +21,20 @@ app = typer.Typer(pretty_exceptions_show_locals=False)
 def get_rand_seed() -> int:
     return random.randrange(sys.maxsize)
 
-
 @app.command()
 def main(
     arch: FUKU_ASSEMBLER_ARCH,
     input: Annotated[typer.FileBinaryRead, typer.Argument()],
     output: Annotated[typer.FileBinaryRead, typer.Argument(mode="wb+")],
     seed: Annotated[int, typer.Option(default_factory=get_rand_seed)],
+    patches: Annotated[
+        Optional[List[str]],
+        typer.Option(help="specify patches to apply (ex. start:PATCHINHEX - 0:665f)", default_factory=list),
+    ],
     ranges: Annotated[
-        Optional[int],
-        typer.Option(help="specify ranges to skip data (ex. 1-100,120-500)"),
-    ] = None,
+        Optional[List[str]],
+        typer.Option(help="specify ranges for code/data blocks (ex. c:0:10 or d:10:e)"),
+    ] = ("c:0:e",),
     relocations_allowed: Annotated[
         bool, typer.Option(help="allow relocations")
     ] = False,
@@ -42,28 +46,46 @@ def main(
     block_chance: Annotated[int, typer.Option(min=0, max=100)] = 30,
     mutate_chance: Annotated[int, typer.Option(min=0, max=100)] = 30,
     forbid_stack_operations: bool = False,
+    virtual_address: int = 0,
+    definitions: Annotated[
+        typer.FileText,
+        typer.Option('--definitions', '--defs', help="yaml file that contains ranges and patches")
+    ] = None,
 ):
     log.info(f"Seed: {seed}")
 
     rng.seed(seed)
-    data = input.read()
-    if not ranges:
-        ranges = len(data)
+    data = bytearray(input.read())
 
-    virtual_address = 0
+    if definitions:
+        ranges, patches = parse_definitions(len(data), definitions.read())
+    else:
+        ranges = parse_ranges_from_args(len(data), ranges)
+
+    for patch in patches:
+        start, bts = patch.split(':')
+        start = int(start)
+        bts = unhexlify(bts)
+
+        if start < 0:
+            start %= len(data)
+
+        for i, b in enumerate(bts):
+            data[start + i] = b
+
     code_holder = FukuCodeHolder(arch=arch)
     code_analyzer = FukuCodeAnalyzer(arch=arch)
 
-    code_analyzer.analyze_code(code_holder, data[:ranges], virtual_address, None)
-
-    # debug
-    inst = code_holder.add_inst()
-    inst.source_address = virtual_address + data.index(data[ranges])
-    inst.opcode = bytearray(data[ranges:])
-    inst.id = -1
-    code_holder.update_source_insts()
-    code_holder.resolve_labels()
-    # debug_end
+    for (t, start, end) in ranges:
+        if t.lower() == "c":
+            code_analyzer.analyze_code(code_holder, data[start:end], virtual_address + start, None)
+        else:
+            inst = code_holder.add_inst()
+            inst.source_address = virtual_address + start
+            inst.opcode = bytearray(data[start:end])
+            inst.id = -1
+            code_holder.update_source_insts()
+            code_holder.resolve_labels()
 
     code_profiler = FukuCodeProfiler(arch=arch)
     code_profiler.profile_code(code_holder)
@@ -94,8 +116,6 @@ def main(
     res, associations, relocations = obfuscation_code_analyzer.code.finalize_code()
     code = obfuscation_code_analyzer.code.dump_code()
     end_time = time.time()
-
-    # code += data[ranges:]
 
     log.info(
         f"Finished in {datetime.fromtimestamp(end_time) - datetime.fromtimestamp(start_time)}"

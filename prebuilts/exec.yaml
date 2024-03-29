@@ -1,0 +1,11 @@
+# https://github.com/rapid7/metasploit-framework/blob/master/modules/payloads/singles/windows/x64/exec.rb
+ranges:
+  - id: c
+    start: 0
+    end: 267
+  - id: d
+    start: 267
+    end: e
+patches:
+  - start: 213
+    bytes: 488D0D2F000000
