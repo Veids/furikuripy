@@ -104,19 +104,35 @@ class FukuMutationX64(BaseModel):
             settings = self.settings
         )
 
+        trace.info("Iterating...")
         self.obfuscate_lines(ctx, code.instructions[:], -1)
 
-    def obfuscate_lines(self, ctx: FukuMutationCtx, instruction: List[FukuInst], recurse_idx: int):
-        trace.info("Iterating...")
-        for inst in instruction:
-            line_idx = instruction.index(inst)
+    def obfuscate_lines(self, ctx: FukuMutationCtx, instructions: List[FukuInst], recurse_idx: int):
+        for inst in instructions:
+            line_idx = instructions.index(inst)
 
             next_idx = line_idx + 1
             next_inst = None
-            if next_idx != len(instruction):
-                next_inst = instruction[next_idx]
+            if next_idx != len(instructions):
+                next_inst = instructions[next_idx]
 
+            original_inst_idx = ctx.code_holder.instructions.index(inst)
             self.fukutuation(ctx, inst, next_inst)
+
+            recurse_idx_up = 0
+            if recurse_idx == -1:
+                recurse_idx_up = rng.randint(0, self.settings.complexity + 1)
+            else:
+                recurse_idx_up = recurse_idx - 1
+
+            if recurse_idx_up:
+                if next_inst:
+                    next_idx = ctx.code_holder.instructions.index(next_inst)
+                else:
+                    next_idx = len(ctx.code_holder.instructions)
+
+                self.obfuscate_lines(ctx, instructions[original_inst_idx:next_idx], recurse_idx_up)
+
 
     def fukutuation(self, ctx: FukuMutationCtx, inst: FukuInst, next_inst: Optional[FukuInst]):
         if inst.flags & FukuInstFlags.FUKU_INST_JUNK_CODE:
