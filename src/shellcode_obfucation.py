@@ -21,6 +21,7 @@ app = typer.Typer(pretty_exceptions_show_locals=False)
 def get_rand_seed() -> int:
     return random.randrange(sys.maxsize)
 
+
 @app.command()
 def main(
     arch: FUKU_ASSEMBLER_ARCH,
@@ -29,7 +30,10 @@ def main(
     seed: Annotated[int, typer.Option(default_factory=get_rand_seed)],
     patches: Annotated[
         Optional[List[str]],
-        typer.Option(help="specify patches to apply (ex. start:PATCHINHEX - 0:665f)", default_factory=list),
+        typer.Option(
+            help="specify patches to apply (ex. start:PATCHINHEX - 0:665f)",
+            default_factory=list,
+        ),
     ],
     ranges: Annotated[
         Optional[List[str]],
@@ -49,7 +53,9 @@ def main(
     virtual_address: int = 0,
     definitions: Annotated[
         typer.FileText,
-        typer.Option('--definitions', '--defs', help="yaml file that contains ranges and patches")
+        typer.Option(
+            "--definitions", "--defs", help="yaml file that contains ranges and patches"
+        ),
     ] = None,
 ):
     log.info(f"Seed: {seed}")
@@ -63,7 +69,7 @@ def main(
         ranges = parse_ranges_from_args(len(data), ranges)
 
     for patch in patches:
-        start, bts = patch.split(':')
+        start, bts = patch.split(":")
         start = int(start)
         bts = unhexlify(bts)
 
@@ -76,9 +82,11 @@ def main(
     code_holder = FukuCodeHolder(arch=arch)
     code_analyzer = FukuCodeAnalyzer(arch=arch)
 
-    for (t, start, end) in ranges:
+    for t, start, end in ranges:
         if t.lower() == "c":
-            code_analyzer.analyze_code(code_holder, data[start:end], virtual_address + start, None)
+            code_analyzer.analyze_code(
+                code_holder, data[start:end], virtual_address + start, None
+            )
         else:
             inst = code_holder.add_inst()
             inst.source_address = virtual_address + start

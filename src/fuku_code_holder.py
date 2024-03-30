@@ -42,7 +42,7 @@ class FukuCodeHolder(BaseModel):
             if inst.has_source_address:
                 self.source_intructions.append(inst)
 
-        self.source_intructions.sort(key = lambda x: x.source_address)
+        self.source_intructions.sort(key=lambda x: x.source_address)
 
     def create_label(self, label):
         if label.inst is not None and label.inst.label:
@@ -95,35 +95,65 @@ class FukuCodeHolder(BaseModel):
 
             if inst.disp_reloc:
                 if inst.disp_reloc.label.has_linked_instruction:
-                    inst.opcode[inst.disp_reloc.offset:inst.disp_reloc.offset + size] = struct.pack(format, converter(inst.disp_reloc.label.inst.current_address).value)
+                    inst.opcode[
+                        inst.disp_reloc.offset : inst.disp_reloc.offset + size
+                    ] = struct.pack(
+                        format,
+                        converter(inst.disp_reloc.label.inst.current_address).value,
+                    )
                 else:
-                    inst.opcode[inst.disp_reloc.offset:inst.disp_reloc.offset + size] = struct.pack(format, converter(inst.disp_reloc.label.address).value)
+                    inst.opcode[
+                        inst.disp_reloc.offset : inst.disp_reloc.offset + size
+                    ] = struct.pack(
+                        format, converter(inst.disp_reloc.label.address).value
+                    )
 
                 relocations.append(
                     FukuImageRelocation(
-                        relocation_id = inst.disp_reloc.reloc_id,
-                        virtual_address = inst.current_address + inst.disp_reloc.offset
+                        relocation_id=inst.disp_reloc.reloc_id,
+                        virtual_address=inst.current_address + inst.disp_reloc.offset,
                     )
                 )
 
             if inst.rip_reloc:
                 if inst.rip_reloc.label.has_linked_instruction:
-                    value = ctypes.c_uint32(inst.rip_reloc.label.inst.current_address - inst.current_address - len(inst.opcode)).value
-                    inst.opcode[inst.rip_reloc.offset:inst.rip_reloc.offset + 4] = struct.pack("<I", value)
+                    value = ctypes.c_uint32(
+                        inst.rip_reloc.label.inst.current_address
+                        - inst.current_address
+                        - len(inst.opcode)
+                    ).value
+                    inst.opcode[inst.rip_reloc.offset : inst.rip_reloc.offset + 4] = (
+                        struct.pack("<I", value)
+                    )
                 else:
-                    value = ctypes.c_uint32(inst.rip_reloc.label.address - inst.current_address - len(inst.opcode)).value
-                    inst.opcode[inst.rip_reloc.offset:inst.rip_reloc.offset + 4] = struct.pack("<I", value)
+                    value = ctypes.c_uint32(
+                        inst.rip_reloc.label.address
+                        - inst.current_address
+                        - len(inst.opcode)
+                    ).value
+                    inst.opcode[inst.rip_reloc.offset : inst.rip_reloc.offset + 4] = (
+                        struct.pack("<I", value)
+                    )
 
             if inst.imm_reloc:
                 if inst.imm_reloc.label.has_linked_instruction:
-                    inst.opcode[inst.imm_reloc.offset:inst.imm_reloc.offset + size] = struct.pack(format, converter(inst.imm_reloc.label.inst.current_address).value)
+                    inst.opcode[
+                        inst.imm_reloc.offset : inst.imm_reloc.offset + size
+                    ] = struct.pack(
+                        format,
+                        converter(inst.imm_reloc.label.inst.current_address).value,
+                    )
                 else:
-                    inst.opcode[inst.imm_reloc.offset:inst.imm_reloc.offset + size] = struct.pack(format, converter(inst.imm_reloc.label.address).value)
+                    inst.opcode[
+                        inst.imm_reloc.offset : inst.imm_reloc.offset + size
+                    ] = struct.pack(
+                        format, converter(inst.imm_reloc.label.address).value
+                    )
 
                 relocations.append(
                     FukuImageRelocation(
-                        relocation_id = inst.imm_reloc.reloc_id,
-                        virtual_address = inst.current_address + inst.imm_reloc.offset
+                        relocation_id=inst.imm_reloc.reloc_id,
+                        virtual_address=inst.current_address + inst.imm_reloc.offset,
                     )
                 )
 
@@ -137,9 +167,13 @@ class FukuCodeHolder(BaseModel):
 
     def get_source_inst_range(self, virtual_address: int) -> Optional[FukuInst]:
         if (
-            len(self.source_intructions) and
-            self.source_intructions[0].source_address <= virtual_address and
-            (self.source_intructions[-1].source_address + len(self.source_intructions[-1].opcode)) >= virtual_address
+            len(self.source_intructions)
+            and self.source_intructions[0].source_address <= virtual_address
+            and (
+                self.source_intructions[-1].source_address
+                + len(self.source_intructions[-1].opcode)
+            )
+            >= virtual_address
         ):
             left = 0
             right = len(self.source_intructions)
@@ -150,8 +184,8 @@ class FukuCodeHolder(BaseModel):
 
                 inst = self.source_intructions[mid]
                 if (
-                    inst.source_address <= virtual_address and
-                    (inst.source_address + len(inst.opcode)) > virtual_address
+                    inst.source_address <= virtual_address
+                    and (inst.source_address + len(inst.opcode)) > virtual_address
                 ):
                     return inst
                 elif inst.source_address > virtual_address:
@@ -161,12 +195,11 @@ class FukuCodeHolder(BaseModel):
 
         return None
 
-
     def get_source_inst_direct(self, virtual_address):
         if (
-            len(self.source_intructions) and
-            self.source_intructions[0].source_address <= virtual_address and
-            self.source_intructions[-1].source_address >= virtual_address
+            len(self.source_intructions)
+            and self.source_intructions[0].source_address <= virtual_address
+            and self.source_intructions[-1].source_address >= virtual_address
         ):
             left = 0
             right = len(self.source_intructions)

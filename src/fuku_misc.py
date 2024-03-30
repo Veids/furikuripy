@@ -22,16 +22,20 @@ UnsignedInt = Annotated[int, Gt(0)]
 
 
 class FukuObfuscationSettings(BaseModel):
-    complexity: UnsignedInt # number of passes for single line
-    number_of_passes: UnsignedInt # number of passes for full code
+    complexity: UnsignedInt  # number of passes for single line
+    number_of_passes: UnsignedInt  # number of passes for full code
 
-    junk_chance: float # 0.f - 100.f chance of adding junk
+    junk_chance: float  # 0.f - 100.f chance of adding junk
     block_chance: float  # 0.f - 100.f chance of generation new code graph
-    mutate_chance: float # 0.f - 100.f chance of mutation line
-    asm_cfg: int # assembler builder flags
+    mutate_chance: float  # 0.f - 100.f chance of mutation line
+    asm_cfg: int  # assembler builder flags
 
-    is_not_allowed_unstable_stack: bool # if true then obfuscator don't use stack above esp
-    is_not_allowed_relocations: bool # if true then obfuscator don't create new relocations in code
+    is_not_allowed_unstable_stack: (
+        bool  # if true then obfuscator don't use stack above esp
+    )
+    is_not_allowed_relocations: (
+        bool  # if true then obfuscator don't create new relocations in code
+    )
 
     def roll_junk_chance(self) -> bool:
         return rng.random() * 100 <= self.junk_chance
@@ -48,6 +52,7 @@ def X86_REL_ADDR(inst):
         return inst.operands[0].imm
     else:
         return inst.address + inst.size + inst.disp
+
 
 def UNUSUAL_DATASET():
     raise Exception("UNUSUAL_DATASET triggered")

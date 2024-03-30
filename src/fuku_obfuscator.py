@@ -22,9 +22,9 @@ class FukuObfuscator(BaseModel):
 
         mutator = None
         if self.code.arch == FUKU_ASSEMBLER_ARCH.X86:
-            mutator = FukuMutationX86(settings = self.settings)
+            mutator = FukuMutationX86(settings=self.settings)
         elif self.code.arch == FUKU_ASSEMBLER_ARCH.X64:
-            mutator = FukuMutationX64(settings = self.settings)
+            mutator = FukuMutationX64(settings=self.settings)
 
         self.handle_jumps()
 
@@ -38,7 +38,9 @@ class FukuObfuscator(BaseModel):
         self.code.update_current_address(self.destination_virtual_address)
 
         after_size = len(self.code.instructions)
-        log.info(f"Instructions count before/after obfuscation: {before_size}/{after_size}")
+        log.info(
+            f"Instructions count before/after obfuscation: {before_size}/{after_size}"
+        )
 
     def spagetty_code(self):
         pass
@@ -47,47 +49,49 @@ class FukuObfuscator(BaseModel):
         fuku_asm = FukuAsm()
 
         fuku_asm.set_holder(
-            code_holder = self.code,
-            hold_type = FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_FIRST_OVERWRITE
+            code_holder=self.code,
+            hold_type=FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_FIRST_OVERWRITE,
         )
 
         for line in self.code.instructions[:]:
             match line.id:
                 case x86_const.X86_INS_JMP:
-                    if line.opcode[line.prefix_count()] == 0xEB: # near jump
+                    if line.opcode[line.prefix_count()] == 0xEB:  # near jump
                         line.opcode[line.prefix_count()] = 0xE9
                         line.opcode.extend([0, 0, 0])
 
                 case (
-                    x86_const.X86_INS_JO |
-                    x86_const.X86_INS_JNO |
-                    x86_const.X86_INS_JB |
-                    x86_const.X86_INS_JAE |
-                    x86_const.X86_INS_JE |
-                    x86_const.X86_INS_JNE |
-                    x86_const.X86_INS_JBE |
-                    x86_const.X86_INS_JA |
-                    x86_const.X86_INS_JS |
-                    x86_const.X86_INS_JNS |
-                    x86_const.X86_INS_JP |
-                    x86_const.X86_INS_JNP |
-                    x86_const.X86_INS_JL |
-                    x86_const.X86_INS_JGE |
-                    x86_const.X86_INS_JLE |
-                    x86_const.X86_INS_JG
+                    x86_const.X86_INS_JO
+                    | x86_const.X86_INS_JNO
+                    | x86_const.X86_INS_JB
+                    | x86_const.X86_INS_JAE
+                    | x86_const.X86_INS_JE
+                    | x86_const.X86_INS_JNE
+                    | x86_const.X86_INS_JBE
+                    | x86_const.X86_INS_JA
+                    | x86_const.X86_INS_JS
+                    | x86_const.X86_INS_JNS
+                    | x86_const.X86_INS_JP
+                    | x86_const.X86_INS_JNP
+                    | x86_const.X86_INS_JL
+                    | x86_const.X86_INS_JGE
+                    | x86_const.X86_INS_JLE
+                    | x86_const.X86_INS_JG
                 ):
-                    if (line.opcode[line.prefix_count()] & 0xF0) == 0x70: # near jump
+                    if (line.opcode[line.prefix_count()] & 0xF0) == 0x70:  # near jump
                         opcode = line.opcode.copy()
                         opcode[line.prefix_count()] = 0x0F
-                        opcode[line.prefix_count() + 1] = (0x80 | line.opcode[line.prefix_count()] & 0x0F)
+                        opcode[line.prefix_count() + 1] = (
+                            0x80 | line.opcode[line.prefix_count()] & 0x0F
+                        )
                         opcode.extend([0, 0, 0, 0])
                         line.opcode = opcode
                         line.rip_reloc.offset = 2
 
                 case (
-                    x86_const.X86_INS_JCXZ |
-                    x86_const.X86_INS_JECXZ |
-                    x86_const.X86_INS_JRCXZ
+                    x86_const.X86_INS_JCXZ
+                    | x86_const.X86_INS_JECXZ
+                    | x86_const.X86_INS_JRCXZ
                 ):
                     fuku_asm.first_emit = True
                     fuku_asm.position = self.code.instructions.index(line)
@@ -97,11 +101,11 @@ class FukuObfuscator(BaseModel):
 
                     reg = None
 
-                    if line.id == x86_const.X86_INS_JRCXZ: # or rcx, rcx
+                    if line.id == x86_const.X86_INS_JRCXZ:  # or rcx, rcx
                         reg = FukuRegister(FukuRegisterEnum.REG_RCX).ftype
-                    if line.id == x86_const.X86_INS_JECXZ: # or ecx, ecx
+                    if line.id == x86_const.X86_INS_JECXZ:  # or ecx, ecx
                         reg = FukuRegister(FukuRegisterEnum.REG_ECX).ftype
-                    else: # or cx, cx
+                    else:  # or cx, cx
                         reg = FukuRegister(FukuRegisterEnum.REG_CX).ftype
 
                     fuku_asm.or_(reg, reg)
@@ -122,7 +126,7 @@ class FukuObfuscator(BaseModel):
                     fuku_asm.dec(FukuRegister(FukuRegisterEnum.REG_ECX).ftype)
                     fuku_asm.context.inst.label = label
 
-                    fuku_asm.jcc(FukuCondition.NOT_EQUAL, FukuImmediate().ftype) # jnz
+                    fuku_asm.jcc(FukuCondition.NOT_EQUAL, FukuImmediate().ftype)  # jnz
                     fuku_asm.context.inst.rip_reloc = rip_reloc
 
                     rip_reloc.offset = fuku_asm.context.immediate_offset
@@ -137,7 +141,7 @@ class FukuObfuscator(BaseModel):
                     fuku_asm.dec(FukuRegister(FukuRegisterEnum.REG_ECX).ftype)
                     fuku_asm.context.inst.label = label
 
-                    fuku_asm.jcc(FukuCondition.EQUAL, FukuImmediate().ftype) # jz
+                    fuku_asm.jcc(FukuCondition.EQUAL, FukuImmediate().ftype)  # jz
                     fuku_asm.context.inst.rip_reloc = rip_reloc
 
                     rip_reloc.offset = fuku_asm.context.immediate_offset
@@ -152,7 +156,7 @@ class FukuObfuscator(BaseModel):
                     fuku_asm.dec(FukuRegister(FukuRegisterEnum.REG_ECX))
                     fuku_asm.context.inst.label = label
 
-                    fuku_asm.jcc(FukuCondition.NOT_EQUAL, FukuImmediate().ftype) # jne
+                    fuku_asm.jcc(FukuCondition.NOT_EQUAL, FukuImmediate().ftype)  # jne
                     fuku_asm.context.inst.rip_reloc = rip_reloc
 
                     rip_reloc.offset = fuku_asm.context.immediate_offset

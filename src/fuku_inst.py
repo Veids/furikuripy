@@ -85,14 +85,14 @@ class FukuInst(BaseModel):
 
         for i, byte in enumerate(self.opcode):
             if byte not in [
-                0xF0, # lock
-                0xF3, # repe
-                0x2E, # repne
-                0x36, # ss
-                0x3E, # ds
-                0x26, # es
-                0x64, # fs
-                0x65, # gs
+                0xF0,  # lock
+                0xF3,  # repe
+                0x2E,  # repne
+                0x36,  # ss
+                0x3E,  # ds
+                0x26,  # es
+                0x64,  # fs
+                0x65,  # gs
             ]:
                 return i
 
