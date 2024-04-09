@@ -5,4 +5,4 @@ Partitial impl
 
 # Credits
 
-* [https://github.com/jnastarot/furikuri](furikuri)
+* [furikuri](https://github.com/jnastarot/furikuri)
