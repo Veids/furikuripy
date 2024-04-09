@@ -2,6 +2,7 @@ import typer
 import random
 import sys
 import time
+import importlib.metadata
 
 from datetime import datetime
 from binascii import unhexlify
@@ -38,7 +39,7 @@ def main(
     ranges: Annotated[
         Optional[List[str]],
         typer.Option(help="specify ranges for code/data blocks (ex. c:0:10 or d:10:e)"),
-    ] = ("c:0:e",),
+    ] = ["c:0:e"],
     relocations_allowed: Annotated[
         bool, typer.Option(help="allow relocations")
     ] = False,
@@ -52,13 +53,18 @@ def main(
     forbid_stack_operations: bool = False,
     virtual_address: int = 0,
     definitions: Annotated[
-        typer.FileText,
+        Optional[typer.FileText],
         typer.Option(
             "--definitions", "--defs", help="yaml file that contains ranges and patches"
         ),
     ] = None,
 ):
-    log.info(f"Seed: {seed}")
+    if arch != FUKU_ASSEMBLER_ARCH.X64:
+        raise Exception("Unimplemented")
+
+
+    log.info("Version: %s", importlib.metadata.version("furikuripy"))
+    log.info("Seed: %d", seed)
 
     rng.seed(seed)
     data = bytearray(input.read())

@@ -1,10 +1,16 @@
-from common import log
+from copy import copy
+from typing import List, Optional
+
+from common import log, rng
 from pydantic import BaseModel
 
 from fuku_asm import FukuAsm, FukuAsmHoldType
 from capstone import x86_const
+from fuku_inst import FukuCodeLabel, FukuInst, FukuRipRelocation
 from fuku_misc import FUKU_ASSEMBLER_ARCH, FukuObfuscationSettings
 from fuku_code_holder import FukuCodeHolder
+from x86.fuku_asm_body import FukuAsmBody
+from x86.fuku_asm_ctx import FukuAsmCtx
 from x86.misc import FukuCondition
 from x86.fuku_register import FukuRegister, FukuRegisterEnum
 from x86.fuku_immediate import FukuImmediate
@@ -20,7 +26,7 @@ class FukuObfuscator(BaseModel):
     def obfuscate_code(self):
         before_size = len(self.code.instructions)
 
-        mutator = None
+        mutator: Optional[FukuMutationX86 | FukuMutationX64] = None
         if self.code.arch == FUKU_ASSEMBLER_ARCH.X86:
             mutator = FukuMutationX86(settings=self.settings)
         elif self.code.arch == FUKU_ASSEMBLER_ARCH.X64:
@@ -42,8 +48,93 @@ class FukuObfuscator(BaseModel):
             f"Instructions count before/after obfuscation: {before_size}/{after_size}"
         )
 
+    def _get_block_lens(self) -> List[int]:
+        block_lens: List[int] = []
+
+        lines_total = len(self.code.instructions)
+        lines_in_blocks = 0
+        current_block_size = 0
+
+        while lines_in_blocks < lines_total:
+            if current_block_size and self.settings.roll_block_chance():
+                block_lens.append(current_block_size)
+                current_block_size = 0
+            else:
+                lines_in_blocks += 1
+                current_block_size += 1
+
+        if current_block_size:
+            block_lens.append(current_block_size)
+
+        return block_lens
+
+    def _generate_line_blocks(self, block_lens: List[int], inst: FukuInst):
+        line_blocks = [[] for _ in range(len(block_lens))]
+
+        for block_idx, block_len in enumerate(block_lens):
+            inst_flags = 0
+            inst_eflags = 0
+            inst_customflags = 0
+
+            if block_len:
+                start = 0
+                end = min(block_len, len(self.code.instructions))
+                line_blocks[block_idx][0:0] = self.code.instructions[start:end]
+                self.code.instructions = self.code.instructions[end:]
+
+            if len(self.code.instructions):
+                fi = self.code.instructions[0]
+                inst_flags = fi.flags
+                inst_eflags = fi.cpu_flags
+                inst_customflags = fi.cpu_registers
+
+            if block_idx + 1 != len(block_lens): # insert jmp to the next block
+                inst.flags = copy(inst_flags)
+                inst.cpu_flags = inst_eflags
+                inst.cpu_registers = inst_customflags
+                line_blocks[block_idx].append(inst.model_copy(deep=True))
+
+            if block_idx and len(line_blocks[block_idx]):
+                prev_block_jmp = line_blocks[block_idx - 1][-1]
+                first_item_of_current_block = line_blocks[block_idx][0]
+
+                code_label = FukuCodeLabel(
+                    inst = first_item_of_current_block
+                )
+
+                rip_reloc = FukuRipRelocation()
+                rip_reloc.offset = 1
+                rip_reloc.label = self.code.create_label(code_label)
+
+                prev_block_jmp.rip_reloc = self.code.create_rip_relocation(rip_reloc)
+                prev_block_jmp.cpu_flags = first_item_of_current_block.cpu_flags
+
+        return line_blocks
+
+    def _randomize_blocks(self, line_blocks):
+        block_idxs = [i for i in range(len(line_blocks))]
+
+        if len(line_blocks) > 2:
+            block_idxs[1:] = rng.sample(block_idxs[1:], len(block_idxs) - 1)
+            log.info("Blocks now have the following order: %s", block_idxs)
+
+        return block_idxs
+
     def spagetty_code(self):
-        pass
+        inst = FukuInst()
+        asm = FukuAsmBody()
+        context = FukuAsmCtx(
+            arch = self.code.arch,
+            inst = inst,
+        )
+
+        asm.jmp(context, FukuImmediate(0))
+        block_lens = self._get_block_lens()
+        line_blocks = self._generate_line_blocks(block_lens, inst)
+        block_idxs = self._randomize_blocks(line_blocks)
+
+        for block_idx in block_idxs:
+            self.code.instructions.extend(line_blocks[block_idx])
 
     def handle_jumps(self):
         fuku_asm = FukuAsm()

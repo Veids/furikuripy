@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import struct
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Strict, StrictBytes
 
 from fuku_inst import FukuInst
 from fuku_misc import FUKU_ASSEMBLER_ARCH
@@ -15,7 +15,7 @@ from x86.fuku_asm_ctx_pattern import FukuAsmCtxPattern
 
 class RawOperand(BaseModel):
     ctx: FukuAsmCtx
-    data: bytes = bytearray(8)
+    data: StrictBytes = bytearray(8)
     operand_size: int = 0
 
     def set_modrm(self, mod, reg: FukuRegisterIndex, rm: FukuRegisterIndex):
@@ -44,28 +44,28 @@ class RawOperand(BaseModel):
 
 class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
     arch: FUKU_ASSEMBLER_ARCH
-    bytecode: bytes = bytearray()
+    bytecode: StrictBytes = bytearray()
 
     displacment_offset: int = 0
     immediate_offset: int = 0
     disp_reloc: bool = False
     imm_reloc: bool = False
 
-    short_cfg: int
+    short_cfg: int = 0
 
     inst: FukuInst
 
     @property
     def is_used_short_eax(self) -> bool:
-        return self.short_cfg & FukuAsmShortCfg.USE_EAX_SHORT.value
+        return bool(self.short_cfg & FukuAsmShortCfg.USE_EAX_SHORT.value)
 
     @property
     def is_used_short_imm(self) -> bool:
-        return self.short_cfg & FukuAsmShortCfg.USE_IMM_SHORT.value
+        return bool(self.short_cfg & FukuAsmShortCfg.USE_IMM_SHORT.value)
 
     @property
     def is_used_short_disp(self) -> bool:
-        return self.short_cfg & FukuAsmShortCfg.USE_DISP_SHORT.value
+        return bool(self.short_cfg & FukuAsmShortCfg.USE_DISP_SHORT.value)
 
     def gen_func_return(self, id, cap_eflags):
         inst = FukuInst()

@@ -682,13 +682,15 @@ def junk_64_high_pattern_4(ctx: FukuMutationCtx) -> bool:
         return False
 
     cond = FukuCondition(rng.randint(0, 15))
+    label = ctx.generate_payload_label()
+    label.inst = ctx.next_inst
 
     ctx.f_asm.jcc(cond, FukuImmediate(-1).ftype)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     ctx.f_asm.context.inst.rip_reloc = ctx.code_holder.create_rip_relocation(
         FukuRipRelocation(
-            label = ctx.generate_payload_label(),
+            label = label,
             offset = ctx.f_asm.context.immediate_offset
         )
     )
