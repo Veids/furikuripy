@@ -5,11 +5,11 @@ description = ""
 authors = ["Veids <veidsme@gmail.com>"]
 readme = "README.md"
 packages = [
-  {include = "*", from="src"}
+  {include = "furikuripy", from = "src"}
 ]
 
 [tool.poetry.scripts]
-shellcode_obfuscation="shellcode_obfuscation:app"
+shellcode_obfuscation="furikuripy.shellcode_obfuscation:app"
 
 [tool.poetry.dependencies]
 python = "^3.11"
