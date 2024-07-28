@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from furikuripy.fuku_inst import FukuCodeLabel, FukuRipRelocation, FukuRelocation
 from furikuripy.fuku_misc import FUKU_ASSEMBLER_ARCH, X86_REL_ADDR
-from furikuripy.fuku_code_holder import FukuCodeHolder
+from furikuripy.fuku_code_holder import FukuCodeHolder, FukuImageRelocation
 
 
 class FukuCodeAnalyzer(BaseModel):
@@ -13,7 +13,7 @@ class FukuCodeAnalyzer(BaseModel):
     code: Optional[FukuCodeHolder] = None
 
     def analyze_code(
-        self, analyzed_code, src: bytes, virtual_address: int, relocations
+        self, analyzed_code: FukuCodeHolder, src: bytes, virtual_address: int, relocations: list[FukuImageRelocation]
     ):
         md = Cs(
             CS_ARCH_X86,
@@ -105,7 +105,7 @@ class FukuCodeAnalyzer(BaseModel):
 
                 reloc_offset = (reloc.virtual_address - line.current_address) & 0xFF
                 reloc_dst = None
-                if self.code.arch == FUKU_ASSEMBLER_ARCH.X86:
+                if self.arch == FUKU_ASSEMBLER_ARCH.X86:
                     reloc_dst = struct.unpack(
                         "<I", line.opcode[reloc_offset : reloc_offset + 4]
                     )
