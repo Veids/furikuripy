@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from typing import Optional, Self
+
+from abc import ABC
+from typing import Any, Optional, Self
 from pydantic import BaseModel, StrictBytes
 
 from furikuripy.fuku_misc import FukuInstFlags
+from furikuripy.fuku_relocation import FukuRelocationX64Type
+
 
 class FukuCodeLabel(BaseModel):
     __hash__ = object.__hash__
@@ -19,10 +23,21 @@ class FukuCodeLabel(BaseModel):
         return self.inst is not None
 
 
-class FukuRelocation(BaseModel):
+class FukuRelocationBase(BaseModel, ABC):
+    type: Any
+
+    def get_reloc_dst(self, line: FukuInst, reloc_offset: int) -> int:
+        return self.type.get_reloc_dst(line, reloc_offset)
+
+    def set_reloc_dst(self, line: FukuInst, reloc_offset: int, address: int):
+        self.type.set_reloc_dst(line, reloc_offset, address)
+
+
+class FukuRelocation(FukuRelocationBase):
     reloc_id: int = 0
     offset: int = 0
     label: Optional[FukuCodeLabel] = None
+    type: FukuRelocationX64Type
 
 
 class FukuRipRelocation(BaseModel):

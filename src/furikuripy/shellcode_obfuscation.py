@@ -10,7 +10,7 @@ from typing import Annotated, Optional, List
 
 from .common import log, rng, parse_ranges_from_args, parse_definitions
 from .fuku_obfuscator import FukuObfuscator
-from .fuku_code_holder import FukuCodeHolder
+from .fuku_code_holder import FukuCodeHolder, FukuImageRelocationX64
 from .fuku_code_analyzer import FukuCodeAnalyzer
 from .fuku_code_profiler import FukuCodeProfiler
 from .fuku_misc import FUKU_ASSEMBLER_ARCH, FukuObfuscationSettings
@@ -58,10 +58,13 @@ def main(
             "--definitions", "--defs", help="yaml file that contains ranges and patches"
         ),
     ] = None,
+    relocations: Annotated[
+        Optional[List[str]],
+        typer.Option(help="specify relocations in format <vaddress>:<type> (e.g. 2:4)"),
+    ] = None,
 ):
     if arch != FUKU_ASSEMBLER_ARCH.X64:
         raise Exception("Unimplemented")
-
 
     log.info("Version: %s", importlib.metadata.version("furikuripy"))
     log.info("Seed: %d", seed)
@@ -88,10 +91,19 @@ def main(
     code_holder = FukuCodeHolder(arch=arch)
     code_analyzer = FukuCodeAnalyzer(arch=arch)
 
+    relocs = []
+    for i, reloc in enumerate(relocations):
+        va, ty = reloc.split(":")
+
+        if arch == FUKU_ASSEMBLER_ARCH.X64:
+            relocations.append(
+                FukuImageRelocationX64(relocation_id=i, virtual_address=va, type=ty)
+            )
+
     for t, start, end in ranges:
         if t.lower() == "c":
             code_analyzer.analyze_code(
-                code_holder, data[start:end], virtual_address + start, None
+                code_holder, data[start:end], virtual_address + start, relocs
             )
         else:
             inst = code_holder.add_inst()
@@ -127,7 +139,9 @@ def main(
 
     obfuscator.obfuscate_code()
 
-    res, associations, relocations = obfuscation_code_analyzer.code.finalize_code()
+    res, associations, relocationsObfuscated = (
+        obfuscation_code_analyzer.code.finalize_code()
+    )
     code = obfuscation_code_analyzer.code.dump_code()
     end_time = time.time()
 

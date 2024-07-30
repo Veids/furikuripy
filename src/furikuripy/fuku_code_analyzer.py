@@ -1,4 +1,3 @@
-import struct
 from typing import Optional
 from capstone import x86_const, Cs, CS_ARCH_X86, CS_MODE_32, CS_MODE_64
 from pydantic import BaseModel
@@ -13,7 +12,11 @@ class FukuCodeAnalyzer(BaseModel):
     code: Optional[FukuCodeHolder] = None
 
     def analyze_code(
-        self, analyzed_code: FukuCodeHolder, src: bytes, virtual_address: int, relocations: list[FukuImageRelocation]
+        self,
+        analyzed_code: FukuCodeHolder,
+        src: bytes,
+        virtual_address: int,
+        relocations: list[FukuImageRelocation],
     ):
         md = Cs(
             CS_ARCH_X86,
@@ -104,15 +107,7 @@ class FukuCodeAnalyzer(BaseModel):
                     raise Exception("Relocation is not found")
 
                 reloc_offset = (reloc.virtual_address - line.current_address) & 0xFF
-                reloc_dst = None
-                if self.arch == FUKU_ASSEMBLER_ARCH.X86:
-                    reloc_dst = struct.unpack(
-                        "<I", line.opcode[reloc_offset : reloc_offset + 4]
-                    )
-                else:
-                    reloc_dst = struct.unpack(
-                        "<Q", line.opcode[reloc_offset : reloc_offset + 8]
-                    )
+                reloc_dst = reloc.get_reloc_dst(line, reloc_offset)
 
                 if reloc_offset == (line.offset & 0xFF):
                     code_label = FukuCodeLabel(address=reloc_dst)
@@ -120,7 +115,8 @@ class FukuCodeAnalyzer(BaseModel):
                     reloc = FukuRelocation(
                         label=analyzed_code.create_label(code_label),
                         offset=reloc_offset,
-                        reloc_id=reloc.reloc_id,
+                        reloc_id=reloc.relocation_id,
+                        type=reloc.type,
                     )
 
                     line.disp_reloc = analyzed_code.create_relocation(reloc)
@@ -130,8 +126,11 @@ class FukuCodeAnalyzer(BaseModel):
                     reloc = FukuRelocation(
                         label=analyzed_code.create_label(code_label),
                         offset=reloc_offset,
-                        reloc_id=reloc.reloc_id,
+                        reloc_id=reloc.relocation_id,
+                        type=reloc.type,
                     )
+
+                    line.disp_reloc = analyzed_code.create_relocation(reloc)
                 else:
                     raise Exception("Unhandled case")
 

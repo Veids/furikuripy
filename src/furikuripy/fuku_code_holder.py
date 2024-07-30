@@ -5,12 +5,24 @@ import itertools
 from typing import List, Tuple, Dict, Optional
 from pydantic import BaseModel
 
-from furikuripy.fuku_inst import FukuInst, FukuRipRelocation, FukuCodeLabel, FukuRelocation
+from furikuripy.fuku_inst import (
+    FukuInst,
+    FukuRipRelocation,
+    FukuCodeLabel,
+    FukuRelocation,
+    FukuRelocationBase,
+)
 from furikuripy.fuku_misc import FUKU_ASSEMBLER_ARCH
+from furikuripy.fuku_relocation import FukuRelocationX64Type
 
-class FukuImageRelocation(BaseModel):
+
+class FukuImageRelocation(FukuRelocationBase):
     relocation_id: int = 0
     virtual_address: int = 0
+
+
+class FukuImageRelocationX64(FukuImageRelocation):
+    type: FukuRelocationX64Type
 
 
 class FukuCodeHolder(BaseModel):
@@ -95,23 +107,21 @@ class FukuCodeHolder(BaseModel):
 
             if inst.disp_reloc:
                 if inst.disp_reloc.label.has_linked_instruction:
-                    inst.opcode[
-                        inst.disp_reloc.offset : inst.disp_reloc.offset + size
-                    ] = struct.pack(
-                        format,
-                        converter(inst.disp_reloc.label.inst.current_address).value,
+                    inst.disp_reloc.set_reloc_dst(
+                        inst,
+                        inst.disp_reloc.offset,
+                        inst.disp_reloc.label.inst.current_address,
                     )
                 else:
-                    inst.opcode[
-                        inst.disp_reloc.offset : inst.disp_reloc.offset + size
-                    ] = struct.pack(
-                        format, converter(inst.disp_reloc.label.address).value
+                    inst.disp_reloc.set_reloc_dst(
+                        inst, inst.disp_reloc.offset, inst.disp_reloc.label.address
                     )
 
                 relocations.append(
                     FukuImageRelocation(
                         relocation_id=inst.disp_reloc.reloc_id,
                         virtual_address=inst.current_address + inst.disp_reloc.offset,
+                        type=inst.disp_reloc.type,
                     )
                 )
 
