@@ -1,8 +1,7 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 import ctypes
-from enum import Enum
 import struct
-from typing import Annotated, Any
+from typing import Annotated, Callable
 
 from pydantic import (
     InstanceOf,
@@ -12,21 +11,10 @@ from pydantic import (
 )
 
 
-class R_AMD64(ABC):
-    @classmethod
-    @abstractmethod
-    def get_reloc_dst(cls, line: "FukuInst", reloc_offset: int) -> int:
-        pass
-
-    @classmethod
-    @abstractmethod
-    def set_reloc_dst(cls, line: "FukuInst", reloc_offset: int, address: int):
-        pass
-
-
-class R_AMD64_PLT32(R_AMD64):
-    struct_format = "<I"
-    field_size = 4
+class RelocationBase(ABC):
+    struct_format: str
+    field_size: int
+    converter: Callable
 
     @classmethod
     def get_reloc_dst(cls, line: "FukuInst", reloc_offset: int) -> int:
@@ -37,11 +25,23 @@ class R_AMD64_PLT32(R_AMD64):
     @classmethod
     def set_reloc_dst(cls, line: "FukuInst", reloc_offset: int, address: int):
         line.opcode[reloc_offset : reloc_offset + cls.field_size] = struct.pack(
-            cls.struct_format, ctypes.c_uint32(address).value
+            cls.struct_format, cls.converter(address).value
         )
 
 
-relocation_types_map = {4: R_AMD64_PLT32}
+class IMAGE_R_AMD64_REL32(RelocationBase):
+    struct_format = "<I"
+    field_size = 4
+    converter = ctypes.c_uint32
+
+
+class R_X86_64_PC32(RelocationBase):
+    struct_format = "<I"
+    field_size = 4
+    converter = ctypes.c_uint32
+
+
+image_relocation_types_map = {4: IMAGE_R_AMD64_REL32}
 
 
 class UnandledRelocationTypeException(Exception):
@@ -49,21 +49,21 @@ class UnandledRelocationTypeException(Exception):
 
 
 def get_relocation_type(
-    v: int | InstanceOf[R_AMD64],
+    v: int | InstanceOf[RelocationBase],
     handler: ValidatorFunctionWrapHandler,
     info: ValidationInfo,
-) -> InstanceOf[R_AMD64]:
+) -> InstanceOf[RelocationBase]:
     if isinstance(v, int):
-        if r := relocation_types_map.get(v):
+        if r := image_relocation_types_map.get(v):
             return r
         else:
             raise UnandledRelocationTypeException(f"Relocation type {v} is not handled")
-    elif issubclass(v, R_AMD64):
+    elif issubclass(v, RelocationBase):
         return v
 
     raise UnandledRelocationTypeException(f"Invalid relocation type: {v}")
 
 
-FukuRelocationX64Type = Annotated[
-    InstanceOf[R_AMD64], WrapValidator(get_relocation_type)
+FukuImageRelocationX64Type = Annotated[
+    InstanceOf[RelocationBase], WrapValidator(get_relocation_type)
 ]

@@ -117,6 +117,7 @@ class FukuCodeAnalyzer(BaseModel):
                         offset=reloc_offset,
                         reloc_id=reloc.relocation_id,
                         type=reloc.type,
+                        symbol=reloc.symbol,
                     )
 
                     line.disp_reloc = analyzed_code.create_relocation(reloc)
@@ -128,6 +129,7 @@ class FukuCodeAnalyzer(BaseModel):
                         offset=reloc_offset,
                         reloc_id=reloc.relocation_id,
                         type=reloc.type,
+                        symbol=reloc.symbol,
                     )
 
                     line.disp_reloc = analyzed_code.create_relocation(reloc)

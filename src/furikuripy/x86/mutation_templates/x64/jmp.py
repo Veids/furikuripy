@@ -105,7 +105,7 @@ def _jmp_64_multi_tmpl_3(ctx: FukuMutationCtx, src: FukuType) -> bool:
 
     if src.type == FukuT0Types.FUKU_T0_IMMEDIATE:
         ctx.f_asm.mov(rand_reg.ftype, FukuImmediate(0xFFFFFFFFFFFFFFFF).ftype)
-        ctx.restore_rip_to_imm_relocate(src, rip_reloc)
+        ctx.restore_rip_to_imm_relocate(src, rip_reloc, ctx.instruction.imm_size)
     else:
         ctx.f_asm.mov(rand_reg.ftype, src)
         ctx.restore_disp_relocate(src, disp_reloc)

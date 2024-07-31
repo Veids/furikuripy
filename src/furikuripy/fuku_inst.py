@@ -2,11 +2,11 @@ from __future__ import annotations
 
 
 from abc import ABC
-from typing import Any, Optional, Self
+from typing import Any, Optional, Self, Type
 from pydantic import BaseModel, StrictBytes
 
 from furikuripy.fuku_misc import FukuInstFlags
-from furikuripy.fuku_relocation import FukuRelocationX64Type
+from furikuripy.fuku_relocation import FukuImageRelocationX64Type, IMAGE_R_AMD64_REL32
 
 
 class FukuCodeLabel(BaseModel):
@@ -37,12 +37,14 @@ class FukuRelocation(FukuRelocationBase):
     reloc_id: int = 0
     offset: int = 0
     label: Optional[FukuCodeLabel] = None
-    type: FukuRelocationX64Type
+    type: FukuImageRelocationX64Type
+    symbol: str
 
 
-class FukuRipRelocation(BaseModel):
+class FukuRipRelocation(FukuRelocationBase):
     offset: int = 0
     label: Optional[FukuCodeLabel] = None
+    type: Type[IMAGE_R_AMD64_REL32] = IMAGE_R_AMD64_REL32
 
 
 class FukuInst(BaseModel):

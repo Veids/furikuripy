@@ -60,7 +60,9 @@ def main(
     ] = None,
     relocations: Annotated[
         Optional[List[str]],
-        typer.Option(help="specify relocations in format <vaddress>:<type> (e.g. 2:4)"),
+        typer.Option(
+            help="specify relocations in format <vaddress>:<type>:<symbol> (e.g. 2:4:.data)"
+        ),
     ] = None,
 ):
     if arch != FUKU_ASSEMBLER_ARCH.X64:
@@ -93,11 +95,15 @@ def main(
 
     relocs = []
     for i, reloc in enumerate(relocations):
-        va, ty = reloc.split(":")
+        va, ty, symbol = reloc.split(":")
+        va = int(va)
+        ty = int(ty)
 
         if arch == FUKU_ASSEMBLER_ARCH.X64:
-            relocations.append(
-                FukuImageRelocationX64(relocation_id=i, virtual_address=va, type=ty)
+            relocs.append(
+                FukuImageRelocationX64(
+                    relocation_id=i, virtual_address=va, type=ty, symbol=symbol
+                )
             )
 
     for t, start, end in ranges:

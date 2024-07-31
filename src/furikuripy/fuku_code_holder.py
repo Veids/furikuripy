@@ -1,5 +1,3 @@
-import ctypes
-import struct
 import itertools
 
 from typing import List, Tuple, Dict, Optional
@@ -13,16 +11,17 @@ from furikuripy.fuku_inst import (
     FukuRelocationBase,
 )
 from furikuripy.fuku_misc import FUKU_ASSEMBLER_ARCH
-from furikuripy.fuku_relocation import FukuRelocationX64Type
+from furikuripy.fuku_relocation import FukuImageRelocationX64Type
 
 
 class FukuImageRelocation(FukuRelocationBase):
     relocation_id: int = 0
     virtual_address: int = 0
+    symbol: str = ""
 
 
 class FukuImageRelocationX64(FukuImageRelocation):
-    type: FukuRelocationX64Type
+    type: FukuImageRelocationX64Type
 
 
 class FukuCodeHolder(BaseModel):
@@ -89,33 +88,26 @@ class FukuCodeHolder(BaseModel):
 
         return code
 
-    def finalize_code(self) -> Tuple[bool, Dict, List]:
+    def finalize_code(self, symbol="") -> Tuple[bool, Dict, List]:
         associations = {}
         relocations = []
-
-        size = 8
-        format = "<Q"
-        converter = ctypes.c_uint64
-        if self.arch == FUKU_ASSEMBLER_ARCH.X86:
-            size = 4
-            format = "<I"
-            converter = ctypes.c_uint32
 
         for inst in self.instructions:
             if inst.has_source_address:
                 associations[inst.source_address] = inst.current_address
 
             if inst.disp_reloc:
-                if inst.disp_reloc.label.has_linked_instruction:
-                    inst.disp_reloc.set_reloc_dst(
-                        inst,
-                        inst.disp_reloc.offset,
-                        inst.disp_reloc.label.inst.current_address,
-                    )
-                else:
-                    inst.disp_reloc.set_reloc_dst(
-                        inst, inst.disp_reloc.offset, inst.disp_reloc.label.address
-                    )
+                if inst.disp_reloc.symbol == symbol:
+                    if inst.disp_reloc.label.has_linked_instruction:
+                        inst.disp_reloc.set_reloc_dst(
+                            inst,
+                            inst.disp_reloc.offset,
+                            inst.disp_reloc.label.inst.current_address,
+                        )
+                    else:
+                        inst.disp_reloc.set_reloc_dst(
+                            inst, inst.disp_reloc.offset, inst.disp_reloc.label.address
+                        )
 
                 relocations.append(
                     FukuImageRelocation(
@@ -124,46 +116,39 @@ class FukuCodeHolder(BaseModel):
                         type=inst.disp_reloc.type,
                     )
                 )
-
-            if inst.rip_reloc:
+            elif inst.rip_reloc:
                 if inst.rip_reloc.label.has_linked_instruction:
-                    value = ctypes.c_uint32(
+                    value = (
                         inst.rip_reloc.label.inst.current_address
                         - inst.current_address
                         - len(inst.opcode)
-                    ).value
-                    inst.opcode[inst.rip_reloc.offset : inst.rip_reloc.offset + 4] = (
-                        struct.pack("<I", value)
                     )
                 else:
-                    value = ctypes.c_uint32(
+                    value = (
                         inst.rip_reloc.label.address
                         - inst.current_address
                         - len(inst.opcode)
-                    ).value
-                    inst.opcode[inst.rip_reloc.offset : inst.rip_reloc.offset + 4] = (
-                        struct.pack("<I", value)
                     )
+
+                inst.rip_reloc.set_reloc_dst(inst, inst.rip_reloc.offset, value)
 
             if inst.imm_reloc:
                 if inst.imm_reloc.label.has_linked_instruction:
-                    inst.opcode[
-                        inst.imm_reloc.offset : inst.imm_reloc.offset + size
-                    ] = struct.pack(
-                        format,
-                        converter(inst.imm_reloc.label.inst.current_address).value,
+                    inst.imm_reloc.set_reloc_dst(
+                        inst,
+                        inst.imm_reloc.offset,
+                        inst.imm_reloc.label.inst.current_address,
                     )
                 else:
-                    inst.opcode[
-                        inst.imm_reloc.offset : inst.imm_reloc.offset + size
-                    ] = struct.pack(
-                        format, converter(inst.imm_reloc.label.address).value
+                    inst.imm_reloc.set_reloc_dst(
+                        inst, inst.imm_reloc.offset, inst.imm_reloc.label.address
                     )
 
                 relocations.append(
                     FukuImageRelocation(
                         relocation_id=inst.imm_reloc.reloc_id,
                         virtual_address=inst.current_address + inst.imm_reloc.offset,
+                        type=inst.imm_reloc.type,
                     )
                 )
 

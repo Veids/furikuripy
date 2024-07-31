@@ -26,9 +26,9 @@ class FukuMutationCtx(BaseModel):
     original_start_label: Optional[FukuCodeLabel] = None
     payload_start_label: Optional[FukuCodeLabel] = None
 
-    is_first_inst: bool = False # is inst iter on begin
-    is_next_last_inst: bool = False # is next inst iter on end
-    has_source_address: bool = False # is inst has source address
+    is_first_inst: bool = False  # is inst iter on begin
+    is_next_last_inst: bool = False  # is next inst iter on end
+    has_source_address: bool = False  # is inst has source address
 
     inst_flags: FukuInstFlags = 0
     cpu_flags: int = 0
@@ -96,8 +96,9 @@ class FukuMutationCtx(BaseModel):
 
     def restore_imm_relocate(self, op: FukuType, imm_reloc, inst_size: int) -> bool:
         if (
-            inst_size == FukuOperandSize.SIZE_64.value and
-            op.type == FukuT0Types.FUKU_T0_IMMEDIATE and imm_reloc
+            inst_size == FukuOperandSize.SIZE_64.value
+            and op.type == FukuT0Types.FUKU_T0_IMMEDIATE
+            and imm_reloc
         ):
             self.f_asm.context.inst.imm_reloc = imm_reloc
             imm_reloc.offset = self.f_asm.context.immediate_offset
@@ -105,12 +106,16 @@ class FukuMutationCtx(BaseModel):
 
         return False
 
-    def restore_rip_to_imm_relocate(self, op: FukuType, rip_reloc) -> bool:
+    def restore_rip_to_imm_relocate(
+        self, op: FukuType, rip_reloc, op_size: int
+    ) -> bool:
         if op.type == FukuT0Types.FUKU_T0_IMMEDIATE and rip_reloc:
             self.f_asm.context.inst.imm_reloc = self.code_holder.create_relocation(
                 FukuRelocation(
-                    label = rip_reloc.label,
-                    offset = self.f_asm.context.immediate_offset
+                    label=rip_reloc.label,
+                    offset=self.f_asm.context.immediate_offset,
+                    type=op_size,
+                    symbol="",
                 )
             )
             rip_reloc.label = None
@@ -119,11 +124,13 @@ class FukuMutationCtx(BaseModel):
 
         return False
 
-    def restore_rip_relocate_in_imm(self, op: FukuType, rip_reloc, inst_size: int) -> bool:
+    def restore_rip_relocate_in_imm(
+        self, op: FukuType, rip_reloc, inst_size: int
+    ) -> bool:
         if (
-            inst_size == FukuOperandSize.SIZE_64.value and
-            op.type == FukuT0Types.FUKU_T0_IMMEDIATE and
-            rip_reloc
+            inst_size == FukuOperandSize.SIZE_64.value
+            and op.type == FukuT0Types.FUKU_T0_IMMEDIATE
+            and rip_reloc
         ):
             self.f_asm.context.inst.rip_reloc = rip_reloc
             rip_reloc.offset = self.f_asm.context.immediate_offset
