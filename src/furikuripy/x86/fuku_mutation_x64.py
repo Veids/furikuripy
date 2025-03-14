@@ -6,10 +6,23 @@ from capstone import x86_const, Cs, CS_ARCH_X86, CS_MODE_64
 from furikuripy.common import rng, trace
 from furikuripy.fuku_inst import FukuInst
 from furikuripy.fuku_code_holder import FukuCodeHolder
-from furikuripy.fuku_misc import FukuInstFlags, FukuObfuscationSettings, FUKU_ASSEMBLER_ARCH
+from furikuripy.fuku_misc import (
+    FukuInstFlags,
+    FukuObfuscationSettings,
+    FUKU_ASSEMBLER_ARCH,
+)
 from furikuripy.fuku_asm import FukuAsm, FukuAsmHoldType
 from furikuripy.x86.fuku_mutation_ctx import FukuMutationCtx
-from furikuripy.x86.mutation_templates.x64 import fukutate_64_jmp, fukutate_64_jcc, fukutate_64_ret, fukutate_64_mov, fukutate_64_xchg, fukutate_64_push, fukutate_64_pop, fuku_junk_64_generic
+from furikuripy.x86.mutation_templates.x64 import (
+    fukutate_64_jmp,
+    fukutate_64_jcc,
+    fukutate_64_ret,
+    fukutate_64_mov,
+    fukutate_64_xchg,
+    fukutate_64_push,
+    fukutate_64_pop,
+    fuku_junk_64_generic,
+)
 
 
 def gen_rules() -> Dict[int, Callable]:
@@ -99,15 +112,15 @@ class FukuMutationX64(BaseModel):
 
     def obfuscate(self, code: FukuCodeHolder):
         ctx = FukuMutationCtx(
-            f_asm = self.f_asm,
-            code_holder = code,
-            settings = self.settings
+            f_asm=self.f_asm, code_holder=code, settings=self.settings
         )
 
         trace.info("Iterating...")
         self.obfuscate_lines(ctx, code.instructions[:], -1)
 
-    def obfuscate_lines(self, ctx: FukuMutationCtx, instructions: List[FukuInst], recurse_idx: int):
+    def obfuscate_lines(
+        self, ctx: FukuMutationCtx, instructions: List[FukuInst], recurse_idx: int
+    ):
         for inst in instructions:
             line_idx = instructions.index(inst)
 
@@ -131,10 +144,13 @@ class FukuMutationX64(BaseModel):
                 else:
                     next_idx = len(ctx.code_holder.instructions)
 
-                self.obfuscate_lines(ctx, instructions[original_inst_idx:next_idx], recurse_idx_up)
+                self.obfuscate_lines(
+                    ctx, instructions[original_inst_idx:next_idx], recurse_idx_up
+                )
 
-
-    def fukutuation(self, ctx: FukuMutationCtx, inst: FukuInst, next_inst: Optional[FukuInst]):
+    def fukutuation(
+        self, ctx: FukuMutationCtx, inst: FukuInst, next_inst: Optional[FukuInst]
+    ):
         if inst.flags & FukuInstFlags.FUKU_INST_JUNK_CODE:
             return
 
@@ -148,10 +164,16 @@ class FukuMutationX64(BaseModel):
         try:
             ctx.instruction = next(self.cs.disasm(inst.opcode, 0))
         except Exception as e:
-            trace.error("Capstone failed to disassemble opcode: %s" % hexlify(inst.opcode))
+            trace.error(
+                "Capstone failed to disassemble opcode: %s" % hexlify(inst.opcode)
+            )
             raise e
 
-        self.f_asm.context.short_cfg = 0xFF & ~(self.settings.asm_cfg & rng.randint(0, 0xFF))
+        # print(ctx.instruction)
+
+        self.f_asm.context.short_cfg = 0xFF & ~(
+            self.settings.asm_cfg & rng.randint(0, 0xFF)
+        )
 
         was_junked = False
         was_mutated = False
@@ -165,8 +187,8 @@ class FukuMutationX64(BaseModel):
         if is_chanced_mutate:
             if fukutuate := self.rules.get(inst.id):
                 self.f_asm.set_holder(
-                    code_holder = ctx.code_holder,
-                    hold_type = FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_FIRST_OVERWRITE
+                    code_holder=ctx.code_holder,
+                    hold_type=FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_FIRST_OVERWRITE,
                 )
                 self.f_asm.position = ctx.code_holder.instructions.index(inst)
                 self.f_asm.first_emit = True
@@ -187,9 +209,9 @@ class FukuMutationX64(BaseModel):
 
             # reset source address and flags
 
-            if (
-                ctx.has_source_address or
-                (not ctx.settings.is_not_allowed_unstable_stack and ctx.inst_flags & FukuInstFlags.FUKU_INST_BAD_STACK)
+            if ctx.has_source_address or (
+                not ctx.settings.is_not_allowed_unstable_stack
+                and ctx.inst_flags & FukuInstFlags.FUKU_INST_BAD_STACK
             ):
                 idx = ctx.code_holder.instructions.index(ctx.calc_original_inst())
                 end_idx = len(ctx.code_holder.instructions)
@@ -208,8 +230,8 @@ class FukuMutationX64(BaseModel):
 
     def fuku_junk(self, ctx: FukuMutationCtx) -> bool:
         self.f_asm.set_holder(
-            code_holder = ctx.code_holder,
-            hold_type = FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_NOOVERWRITE
+            code_holder=ctx.code_holder,
+            hold_type=FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_NOOVERWRITE,
         )
         self.f_asm.position = ctx.code_holder.instructions.index(ctx.payload_inst)
         self.f_asm.first_emit = False

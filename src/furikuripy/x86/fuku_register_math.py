@@ -40,8 +40,10 @@ def get_random_bit_by_mask(mask: int, min_index: int, max_index: int):
 
     return index
 
+
 def has_flag_free_register(regs_flags: int, reg: int) -> bool:
     return (regs_flags & reg) == reg
+
 
 def has_free_eflags(inst_eflags: int, flags: int) -> bool:
     pairs = (

@@ -14,6 +14,7 @@ from furikuripy.x86.fuku_register_math_metadata import AllowInstruction, FlagReg
 REG_SIZES_64 = [1, 2, 4, 8]
 REG_SIZES_16_64 = [2, 8]
 
+
 # transfer reg1, reg2
 # transfer reg1, val
 def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
@@ -24,19 +25,28 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
             reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(0, 2)])
 
             dst = FukuType.get_random_operand_dst_x64(
-                AllowInstruction.REGISTER.value, reg_size, ctx.cpu_registers,
-                FlagRegister.SPL.value | FlagRegister.SP.value |
-                FlagRegister.ESP.value | FlagRegister.RSP.value
+                AllowInstruction.REGISTER.value,
+                reg_size,
+                ctx.cpu_registers,
+                FlagRegister.SPL.value
+                | FlagRegister.SP.value
+                | FlagRegister.ESP.value
+                | FlagRegister.RSP.value,
             )
 
             if not dst:
                 return False
 
             src = FukuType.get_random_operand_src_x64(
-                AllowInstruction.REGISTER.value | AllowInstruction.IMMEDIATE.value |
-                (0 if dst.type == FukuT0Types.FUKU_T0_OPERAND else AllowInstruction.OPERAND.value),
+                AllowInstruction.REGISTER.value
+                | AllowInstruction.IMMEDIATE.value
+                | (
+                    0
+                    if dst.type == FukuT0Types.FUKU_T0_OPERAND
+                    else AllowInstruction.OPERAND.value
+                ),
                 reg_size,
-                0
+                0,
             )
 
             if not src:
@@ -50,8 +60,10 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
                 AllowInstruction.REGISTER.value | AllowInstruction.OPERAND.value,
                 FukuOperandSize.SIZE_8,
                 ctx.cpu_registers,
-                FlagRegister.SPL.value | FlagRegister.SP.value |
-                FlagRegister.ESP.value | FlagRegister.RSP.value
+                FlagRegister.SPL.value
+                | FlagRegister.SP.value
+                | FlagRegister.ESP.value
+                | FlagRegister.RSP.value,
             )
 
             if not dst:
@@ -64,9 +76,13 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
             reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(1, 3)])
 
             dst = FukuType.get_random_operand_dst_x64(
-                AllowInstruction.REGISTER.value, reg_size, ctx.cpu_registers,
-                FlagRegister.SPL.value | FlagRegister.SP.value |
-                FlagRegister.ESP.value | FlagRegister.RSP.value
+                AllowInstruction.REGISTER.value,
+                reg_size,
+                ctx.cpu_registers,
+                FlagRegister.SPL.value
+                | FlagRegister.SP.value
+                | FlagRegister.ESP.value
+                | FlagRegister.RSP.value,
             )
 
             if not dst:
@@ -75,7 +91,7 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
             src = FukuType.get_random_operand_src_x64(
                 AllowInstruction.REGISTER.value | AllowInstruction.OPERAND.value,
                 reg_size,
-                0
+                0,
             )
 
             if not src:
@@ -88,24 +104,32 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
             reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(0, 3)])
 
             dst_1 = FukuType.get_random_operand_dst_x64(
-                AllowInstruction.REGISTER.value, reg_size, ctx.cpu_registers,
-                FlagRegister.SPL.value | FlagRegister.SP.value |
-                FlagRegister.ESP.value | FlagRegister.RSP.value
+                AllowInstruction.REGISTER.value,
+                reg_size,
+                ctx.cpu_registers,
+                FlagRegister.SPL.value
+                | FlagRegister.SP.value
+                | FlagRegister.ESP.value
+                | FlagRegister.RSP.value,
             )
 
             if not dst_1:
                 return False
 
             dst_2 = FukuType.get_random_operand_dst_x64(
-                AllowInstruction.REGISTER.value |
-                (0 if dst_1.type == FukuT0Types.FUKU_T0_OPERAND else AllowInstruction.OPERAND.value),
-                reg_size, ctx.cpu_registers,
-                0
+                AllowInstruction.REGISTER.value
+                | (
+                    0
+                    if dst_1.type == FukuT0Types.FUKU_T0_OPERAND
+                    else AllowInstruction.OPERAND.value
+                ),
+                reg_size,
+                ctx.cpu_registers,
+                0,
             )
 
             if not dst_2:
                 return False
-
 
             ctx.f_asm.xchg(dst_1, dst_2)
             trace_inst("junk: xchg dst1, dst2", [ctx.f_asm.context.inst.opcode])
@@ -114,9 +138,13 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
             reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(1, 3)])
 
             dst = FukuType.get_random_operand_dst_x64(
-                AllowInstruction.REGISTER.value, reg_size, ctx.cpu_registers,
-                FlagRegister.SPL.value | FlagRegister.SP.value |
-                FlagRegister.ESP.value | FlagRegister.RSP.value
+                AllowInstruction.REGISTER.value,
+                reg_size,
+                ctx.cpu_registers,
+                FlagRegister.SPL.value
+                | FlagRegister.SP.value
+                | FlagRegister.ESP.value
+                | FlagRegister.RSP.value,
             )
 
             if not dst:
@@ -127,11 +155,10 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
             else:
                 reg_size = FukuOperandSize.SIZE_8
 
-
             src = FukuType.get_random_operand_src_x64(
                 AllowInstruction.REGISTER.value | AllowInstruction.OPERAND.value,
                 reg_size,
-                0
+                0,
             )
 
             if not src:
@@ -150,19 +177,27 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
             reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(1, 3)])
 
             dst = FukuType.get_random_operand_dst_x64(
-                AllowInstruction.REGISTER.value, reg_size, ctx.cpu_registers,
-                FlagRegister.SPL.value | FlagRegister.SP.value |
-                FlagRegister.ESP.value | FlagRegister.RSP.value
+                AllowInstruction.REGISTER.value,
+                reg_size,
+                ctx.cpu_registers,
+                FlagRegister.SPL.value
+                | FlagRegister.SP.value
+                | FlagRegister.ESP.value
+                | FlagRegister.RSP.value,
             )
 
             if not dst:
                 return False
 
             src = FukuType.get_random_operand_src_x64(
-                AllowInstruction.REGISTER.value |
-                (0 if dst.type == FukuT0Types.FUKU_T0_OPERAND else AllowInstruction.OPERAND.value),
+                AllowInstruction.REGISTER.value
+                | (
+                    0
+                    if dst.type == FukuT0Types.FUKU_T0_OPERAND
+                    else AllowInstruction.OPERAND.value
+                ),
                 reg_size,
-                0
+                0,
             )
 
             if not src:
@@ -175,9 +210,13 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
             reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(1, 2)])
 
             dst = FukuType.get_random_operand_dst_x64(
-                AllowInstruction.REGISTER.value, reg_size, ctx.cpu_registers,
-                FlagRegister.SPL.value | FlagRegister.SP.value |
-                FlagRegister.ESP.value | FlagRegister.RSP.value
+                AllowInstruction.REGISTER.value,
+                reg_size,
+                ctx.cpu_registers,
+                FlagRegister.SPL.value
+                | FlagRegister.SP.value
+                | FlagRegister.ESP.value
+                | FlagRegister.RSP.value,
             )
 
             if not dst:
@@ -191,14 +230,18 @@ def junk_64_low_pattern_1(ctx: FukuMutationCtx) -> bool:
 
     return True
 
+
 # logical reg1,reg2
 # logical reg1,val
 def junk_64_low_pattern_2(ctx: FukuMutationCtx) -> bool:
     if not has_free_eflags(
         ctx.cpu_flags,
-        x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_SF |
-        x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_AF |
-        x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_PF
+        x86_const.X86_EFLAGS_MODIFY_OF
+        | x86_const.X86_EFLAGS_MODIFY_SF
+        | x86_const.X86_EFLAGS_MODIFY_ZF
+        | x86_const.X86_EFLAGS_MODIFY_AF
+        | x86_const.X86_EFLAGS_MODIFY_CF
+        | x86_const.X86_EFLAGS_MODIFY_PF,
     ):
         return False
 
@@ -206,19 +249,27 @@ def junk_64_low_pattern_2(ctx: FukuMutationCtx) -> bool:
 
     dst = FukuType.get_random_operand_dst_x64(
         AllowInstruction.REGISTER.value | AllowInstruction.OPERAND.value,
-        reg_size, ctx.cpu_registers,
-        FlagRegister.SPL.value | FlagRegister.SP.value |
-        FlagRegister.ESP.value | FlagRegister.RSP.value
+        reg_size,
+        ctx.cpu_registers,
+        FlagRegister.SPL.value
+        | FlagRegister.SP.value
+        | FlagRegister.ESP.value
+        | FlagRegister.RSP.value,
     )
 
     if not dst:
         return False
 
     src = FukuType.get_random_operand_src_x64(
-        AllowInstruction.REGISTER.value | AllowInstruction.IMMEDIATE.value |
-        (0 if dst.type == FukuT0Types.FUKU_T0_OPERAND else AllowInstruction.OPERAND.value),
+        AllowInstruction.REGISTER.value
+        | AllowInstruction.IMMEDIATE.value
+        | (
+            0
+            if dst.type == FukuT0Types.FUKU_T0_OPERAND
+            else AllowInstruction.OPERAND.value
+        ),
         reg_size,
-        0
+        0,
     )
 
     match rng.randint(0 if src else 4, 4):
@@ -247,14 +298,18 @@ def junk_64_low_pattern_2(ctx: FukuMutationCtx) -> bool:
 
     return True
 
+
 # arithmetic reg1,reg2
 # arithmetic reg1,val
 def junk_64_low_pattern_3(ctx: FukuMutationCtx) -> bool:
     if not has_free_eflags(
         ctx.cpu_flags,
-        x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_SF |
-        x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_AF |
-        x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_PF
+        x86_const.X86_EFLAGS_MODIFY_OF
+        | x86_const.X86_EFLAGS_MODIFY_SF
+        | x86_const.X86_EFLAGS_MODIFY_ZF
+        | x86_const.X86_EFLAGS_MODIFY_AF
+        | x86_const.X86_EFLAGS_MODIFY_CF
+        | x86_const.X86_EFLAGS_MODIFY_PF,
     ):
         return False
 
@@ -262,18 +317,24 @@ def junk_64_low_pattern_3(ctx: FukuMutationCtx) -> bool:
 
     dst = FukuType.get_random_operand_dst_x64(
         AllowInstruction.REGISTER.value | AllowInstruction.OPERAND.value,
-        reg_size, ctx.cpu_registers,
-        FlagRegister.SP.value | FlagRegister.ESP.value
+        reg_size,
+        ctx.cpu_registers,
+        FlagRegister.SP.value | FlagRegister.ESP.value,
     )
 
     if not dst:
         return False
 
     src = FukuType.get_random_operand_src_x64(
-        AllowInstruction.REGISTER.value | AllowInstruction.IMMEDIATE.value |
-        (0 if dst.type == FukuT0Types.FUKU_T0_OPERAND else AllowInstruction.OPERAND.value),
+        AllowInstruction.REGISTER.value
+        | AllowInstruction.IMMEDIATE.value
+        | (
+            0
+            if dst.type == FukuT0Types.FUKU_T0_OPERAND
+            else AllowInstruction.OPERAND.value
+        ),
         reg_size,
-        0
+        0,
     )
 
     match rng.randint(0 if src else 5, 7):
@@ -314,12 +375,12 @@ def junk_64_low_pattern_3(ctx: FukuMutationCtx) -> bool:
 
     return True
 
+
 # rotate reg1,val
 # rotate reg1,cl
 def junk_64_low_pattern_4(ctx: FukuMutationCtx) -> bool:
     if not has_free_eflags(
-        ctx.cpu_flags,
-        x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_CF
+        ctx.cpu_flags, x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_CF
     ):
         return False
 
@@ -327,9 +388,12 @@ def junk_64_low_pattern_4(ctx: FukuMutationCtx) -> bool:
 
     dst = FukuType.get_random_operand_dst_x64(
         AllowInstruction.REGISTER.value | AllowInstruction.OPERAND.value,
-        reg_size, ctx.cpu_registers,
-        FlagRegister.SPL.value | FlagRegister.SP.value |
-        FlagRegister.ESP.value | FlagRegister.RSP.value
+        reg_size,
+        ctx.cpu_registers,
+        FlagRegister.SPL.value
+        | FlagRegister.SP.value
+        | FlagRegister.ESP.value
+        | FlagRegister.RSP.value,
     )
 
     if not dst:
@@ -362,14 +426,18 @@ def junk_64_low_pattern_4(ctx: FukuMutationCtx) -> bool:
 
     return True
 
+
 # shift reg1,val
 # shift reg1,cl
 def junk_64_low_pattern_5(ctx: FukuMutationCtx) -> bool:
     if not has_free_eflags(
         ctx.cpu_flags,
-        x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_SF |
-        x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_AF |
-        x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_PF
+        x86_const.X86_EFLAGS_MODIFY_OF
+        | x86_const.X86_EFLAGS_MODIFY_SF
+        | x86_const.X86_EFLAGS_MODIFY_ZF
+        | x86_const.X86_EFLAGS_MODIFY_AF
+        | x86_const.X86_EFLAGS_MODIFY_CF
+        | x86_const.X86_EFLAGS_MODIFY_PF,
     ):
         return False
 
@@ -377,9 +445,12 @@ def junk_64_low_pattern_5(ctx: FukuMutationCtx) -> bool:
 
     dst = FukuType.get_random_operand_dst_x64(
         AllowInstruction.REGISTER.value | AllowInstruction.OPERAND.value,
-        reg_size, ctx.cpu_registers,
-        FlagRegister.SPL.value | FlagRegister.SP.value |
-        FlagRegister.ESP.value | FlagRegister.RSP.value
+        reg_size,
+        ctx.cpu_registers,
+        FlagRegister.SPL.value
+        | FlagRegister.SP.value
+        | FlagRegister.ESP.value
+        | FlagRegister.RSP.value,
     )
 
     if not dst:
@@ -408,14 +479,17 @@ def junk_64_low_pattern_5(ctx: FukuMutationCtx) -> bool:
 
     return True
 
+
 # bittest reg1,val
 # bittest reg1,reg
 def junk_64_low_pattern_6(ctx: FukuMutationCtx) -> bool:
     if not has_free_eflags(
         ctx.cpu_flags,
-        x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_SF |
-        x86_const.X86_EFLAGS_MODIFY_AF | x86_const.X86_EFLAGS_MODIFY_CF |
-        x86_const.X86_EFLAGS_MODIFY_PF
+        x86_const.X86_EFLAGS_MODIFY_OF
+        | x86_const.X86_EFLAGS_MODIFY_SF
+        | x86_const.X86_EFLAGS_MODIFY_AF
+        | x86_const.X86_EFLAGS_MODIFY_CF
+        | x86_const.X86_EFLAGS_MODIFY_PF,
     ):
         return False
 
@@ -423,9 +497,12 @@ def junk_64_low_pattern_6(ctx: FukuMutationCtx) -> bool:
 
     dst = FukuType.get_random_operand_dst_x64(
         AllowInstruction.REGISTER.value | AllowInstruction.OPERAND.value,
-        reg_size, ctx.cpu_registers,
-        FlagRegister.SPL.value | FlagRegister.SP.value |
-        FlagRegister.ESP.value | FlagRegister.RSP.value
+        reg_size,
+        ctx.cpu_registers,
+        FlagRegister.SPL.value
+        | FlagRegister.SP.value
+        | FlagRegister.ESP.value
+        | FlagRegister.RSP.value,
     )
 
     if not dst:
@@ -434,7 +511,7 @@ def junk_64_low_pattern_6(ctx: FukuMutationCtx) -> bool:
     src = FukuType.get_random_operand_src_x64(
         AllowInstruction.REGISTER.value | AllowInstruction.IMMEDIATE.value,
         FukuOperandSize.SIZE_8,
-        0
+        0,
     )
 
     if not src:
@@ -462,26 +539,45 @@ def junk_64_low_pattern_6(ctx: FukuMutationCtx) -> bool:
 
     return True
 
+
 # convert byte\word to word\dword
 def junk_64_low_pattern_7(ctx: FukuMutationCtx) -> bool:
     reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(1, 3)])
 
     dst = FukuType.get_random_operand_dst_x64(
         AllowInstruction.REGISTER.value,
-        reg_size, ctx.cpu_registers,
-        FlagRegister.AL.value |
-        FlagRegister.RCX.value | FlagRegister.ECX.value | FlagRegister.CX.value | FlagRegister.CL.value |
-        FlagRegister.DL.value |
-        FlagRegister.RBX.value | FlagRegister.EBX.value | FlagRegister.BX.value | FlagRegister.BL.value |
-        FlagRegister.RSP.value | FlagRegister.ESP.value | FlagRegister.SP.value | FlagRegister.SPL.value |
-        FlagRegister.RBP.value | FlagRegister.EBP.value | FlagRegister.BP.value | FlagRegister.BPL.value |
-        FlagRegister.RSI.value | FlagRegister.ESI.value | FlagRegister.SI.value | FlagRegister.SIL.value |
-        FlagRegister.RDI.value | FlagRegister.EDI.value | FlagRegister.DI.value | FlagRegister.DIL.value
+        reg_size,
+        ctx.cpu_registers,
+        FlagRegister.AL.value
+        | FlagRegister.RCX.value
+        | FlagRegister.ECX.value
+        | FlagRegister.CX.value
+        | FlagRegister.CL.value
+        | FlagRegister.DL.value
+        | FlagRegister.RBX.value
+        | FlagRegister.EBX.value
+        | FlagRegister.BX.value
+        | FlagRegister.BL.value
+        | FlagRegister.RSP.value
+        | FlagRegister.ESP.value
+        | FlagRegister.SP.value
+        | FlagRegister.SPL.value
+        | FlagRegister.RBP.value
+        | FlagRegister.EBP.value
+        | FlagRegister.BP.value
+        | FlagRegister.BPL.value
+        | FlagRegister.RSI.value
+        | FlagRegister.ESI.value
+        | FlagRegister.SI.value
+        | FlagRegister.SIL.value
+        | FlagRegister.RDI.value
+        | FlagRegister.EDI.value
+        | FlagRegister.DI.value
+        | FlagRegister.DIL.value,
     )
 
     if not dst:
         return False
-
 
     match dst.register.reg:
         case FukuRegisterEnum.REG_AX:
@@ -521,6 +617,7 @@ def junk_64_low_pattern_7(ctx: FukuMutationCtx) -> bool:
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
 
     return True
+
 
 # set / reset flag
 def junk_64_low_pattern_8(ctx: FukuMutationCtx) -> bool:
@@ -565,6 +662,7 @@ def junk_64_low_pattern_8(ctx: FukuMutationCtx) -> bool:
 
     return True
 
+
 # inc reg
 # neg reg
 # inc reg
@@ -572,9 +670,12 @@ def junk_64_low_pattern_8(ctx: FukuMutationCtx) -> bool:
 def junk_64_high_pattern_1(ctx: FukuMutationCtx) -> bool:
     if not has_free_eflags(
         ctx.cpu_flags,
-        x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_SF |
-        x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_AF |
-        x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_PF
+        x86_const.X86_EFLAGS_MODIFY_OF
+        | x86_const.X86_EFLAGS_MODIFY_SF
+        | x86_const.X86_EFLAGS_MODIFY_ZF
+        | x86_const.X86_EFLAGS_MODIFY_AF
+        | x86_const.X86_EFLAGS_MODIFY_CF
+        | x86_const.X86_EFLAGS_MODIFY_PF,
     ):
         return False
 
@@ -582,8 +683,12 @@ def junk_64_high_pattern_1(ctx: FukuMutationCtx) -> bool:
 
     dst = FukuType.get_random_operand_dst_x64(
         AllowInstruction.REGISTER.value | AllowInstruction.OPERAND.value,
-        reg_size, ctx.cpu_registers,
-        FlagRegister.SPL.value | FlagRegister.SP.value | FlagRegister.ESP.value | FlagRegister.RSP.value
+        reg_size,
+        ctx.cpu_registers,
+        FlagRegister.SPL.value
+        | FlagRegister.SP.value
+        | FlagRegister.ESP.value
+        | FlagRegister.RSP.value,
     )
 
     if not dst:
@@ -614,15 +719,22 @@ def junk_64_high_pattern_1(ctx: FukuMutationCtx) -> bool:
     trace_inst("junk: inc reg; neg reg; inc reg; neg reg", opcodes)
     return True
 
+
 # not reg1
 # not reg1
-def junk_64_high_pattern_2(ctx: FukuMutationCtx) -> bool: # what the hell rex64 "not" clear high 32 bits of 64 bits register all time
+def junk_64_high_pattern_2(
+    ctx: FukuMutationCtx,
+) -> bool:  # what the hell rex64 "not" clear high 32 bits of 64 bits register all time
     reg_size = FukuOperandSize(REG_SIZES_64[rng.randint(0, 3)])
 
     dst = FukuType.get_random_operand_dst_x64(
         AllowInstruction.REGISTER.value | AllowInstruction.OPERAND.value,
-        reg_size, ctx.cpu_registers,
-        FlagRegister.SPL.value | FlagRegister.SP.value | FlagRegister.ESP.value | FlagRegister.RSP.value
+        reg_size,
+        ctx.cpu_registers,
+        FlagRegister.SPL.value
+        | FlagRegister.SP.value
+        | FlagRegister.ESP.value
+        | FlagRegister.RSP.value,
     )
 
     if not dst:
@@ -643,6 +755,7 @@ def junk_64_high_pattern_2(ctx: FukuMutationCtx) -> bool: # what the hell rex64 
     trace_inst("junk: not dst; not dst", opcodes)
     return True
 
+
 # push reg1
 # pop reg1
 def junk_64_high_pattern_3(ctx: FukuMutationCtx) -> bool:
@@ -654,7 +767,10 @@ def junk_64_high_pattern_3(ctx: FukuMutationCtx) -> bool:
     src = FukuType.get_random_operand_src_x64(
         AllowInstruction.REGISTER.value,
         reg_size,
-        FlagRegister.SPL.value | FlagRegister.SP.value | FlagRegister.ESP.value | FlagRegister.RSP.value
+        FlagRegister.SPL.value
+        | FlagRegister.SP.value
+        | FlagRegister.ESP.value
+        | FlagRegister.RSP.value,
     )
 
     if not src:
@@ -676,6 +792,7 @@ def junk_64_high_pattern_3(ctx: FukuMutationCtx) -> bool:
     trace_inst("junk: push reg, pop reg", opcodes)
     return True
 
+
 # jcc next_inst
 def junk_64_high_pattern_4(ctx: FukuMutationCtx) -> bool:
     if ctx.is_next_last_inst:
@@ -685,14 +802,11 @@ def junk_64_high_pattern_4(ctx: FukuMutationCtx) -> bool:
     label = ctx.generate_payload_label()
     label.inst = ctx.next_inst
 
-    ctx.f_asm.jcc(cond, FukuImmediate(-1).ftype)
+    ctx.f_asm.jcc(cond, FukuImmediate(0xFFFFFFFFFFFFFFFF).ftype)
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     ctx.f_asm.context.inst.rip_reloc = ctx.code_holder.create_rip_relocation(
-        FukuRipRelocation(
-            label = label,
-            offset = ctx.f_asm.context.immediate_offset
-        )
+        FukuRipRelocation(label=label, offset=ctx.f_asm.context.immediate_offset)
     )
 
     trace_inst("junk: jcc next_inst", [ctx.f_asm.context.inst.opcode])
@@ -713,10 +827,7 @@ def junk_64_high_pattern_5(ctx: FukuMutationCtx) -> bool:
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     ctx.f_asm.context.inst.rip_reloc = ctx.code_holder.create_rip_relocation(
-        FukuRipRelocation(
-            label = label,
-            offset = ctx.f_asm.context.immediate_offset
-        )
+        FukuRipRelocation(label=label, offset=ctx.f_asm.context.immediate_offset)
     )
     opcodes.append(ctx.f_asm.context.inst.opcode)
 

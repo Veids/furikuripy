@@ -4,24 +4,29 @@ from enum import Enum
 from pydantic import BaseModel
 from capstone.x86 import X86Op
 from capstone import x86_const
+from iced_x86 import MemoryOperand
 
 from furikuripy.x86.misc import FukuOperandSize
-from furikuripy.x86.fuku_register import FukuRegister, FukuRegisterEnum, CAP_TO_FUKU_TABLE
+from furikuripy.x86.fuku_register import (
+    FukuRegister,
+    FukuRegisterEnum,
+    CAP_TO_FUKU_TABLE,
+)
 from furikuripy.x86.fuku_immediate import FukuImmediate
 
 
 class FukuPrefix(Enum):
-    FUKU_PREFIX_NONE             = 0
-    FUKU_PREFIX_LOCK             = 0xF0
-    FUKU_PREFIX_REPE             = 0xF3
-    FUKU_PREFIX_REPNE            = 0xF2
-    FUKU_PREFIX_CS               = 0x2E
-    FUKU_PREFIX_SS               = 0x36
-    FUKU_PREFIX_DS               = 0x3E
-    FUKU_PREFIX_ES               = 0x26
-    FUKU_PREFIX_FS               = 0x64
-    FUKU_PREFIX_GS               = 0x65
-    FUKU_PREFIX_OVERRIDE_DATA    = 0x66
+    FUKU_PREFIX_NONE = 0
+    FUKU_PREFIX_LOCK = 0xF0
+    FUKU_PREFIX_REPE = 0xF3
+    FUKU_PREFIX_REPNE = 0xF2
+    FUKU_PREFIX_CS = 0x2E
+    FUKU_PREFIX_SS = 0x36
+    FUKU_PREFIX_DS = 0x3E
+    FUKU_PREFIX_ES = 0x26
+    FUKU_PREFIX_FS = 0x64
+    FUKU_PREFIX_GS = 0x65
+    FUKU_PREFIX_OVERRIDE_DATA = 0x66
     FUKU_PREFIX_OVERRIDE_ADDRESS = 0x67
 
     @staticmethod
@@ -31,10 +36,10 @@ class FukuPrefix(Enum):
 
 
 class FukuOperandScale(Enum):
-    FUKU_OPERAND_SCALE_1 = 0 # [index * 1]
-    FUKU_OPERAND_SCALE_2 = 1 # [index * 2]
-    FUKU_OPERAND_SCALE_4 = 2 # [index * 4]
-    FUKU_OPERAND_SCALE_8 = 3 # [index * 8]
+    FUKU_OPERAND_SCALE_1 = 0  # [index * 1]
+    FUKU_OPERAND_SCALE_2 = 1  # [index * 2]
+    FUKU_OPERAND_SCALE_4 = 2  # [index * 4]
+    FUKU_OPERAND_SCALE_8 = 3  # [index * 8]
 
     @staticmethod
     def from_capstone(val: int) -> FukuOperandScale:
@@ -50,6 +55,9 @@ class FukuOperandScale(Enum):
 
             case 8:
                 return FukuOperandScale.FUKU_OPERAND_SCALE_8
+
+    def to_iced(self):
+        return pow(2, self.value)
 
 
 class FukuMemOperandType(Enum):
@@ -90,7 +98,9 @@ class FukuOperand(BaseModel):
 
     @property
     def low_rex(self) -> int:
-        return ((1 if self.index.is_ext64 else 0) << 1) | (1 if self.base.is_ext64 else 0)
+        return ((1 if self.index.is_ext64 else 0) << 1) | (
+            1 if self.base.is_ext64 else 0
+        )
 
     @staticmethod
     def from_capstone(op: X86Op) -> FukuOperand:
@@ -100,7 +110,7 @@ class FukuOperand(BaseModel):
         imm = FukuImmediate()
         size = FukuOperandSize.SIZE_0
         segment = FukuPrefix.FUKU_PREFIX_NONE
-        
+
         if op.type == x86_const.X86_OP_MEM:
             size = FukuOperandSize(op.size)
 
@@ -117,18 +127,24 @@ class FukuOperand(BaseModel):
             imm = FukuImmediate(op.mem.disp)
 
         return FukuOperand(
-            base = FukuRegister(base),
-            index = FukuRegister(index),
-            scale = scale,
-            disp = imm,
-            size = size,
-            segment = segment
+            base=FukuRegister(base),
+            index=FukuRegister(index),
+            scale=scale,
+            disp=imm,
+            size=size,
+            segment=segment,
         )
 
-def qword_ptr(
-        **kwargs
-    ) -> FukuOperand:
-    return FukuOperand(
-        size = FukuOperandSize.SIZE_64,
-        **kwargs
-    )
+    def to_iced(self):
+        base_r = self.base.to_iced()
+        index_r = self.index.to_iced()
+        scale = self.scale.to_iced()
+        displ = self.disp.immediate_value
+        return MemoryOperand(base=base_r, index=index_r, scale=scale, displ=displ)
+
+    def to_iced_name(self):
+        return "mem"
+
+
+def qword_ptr(**kwargs) -> FukuOperand:
+    return FukuOperand(size=FukuOperandSize.SIZE_64, **kwargs)

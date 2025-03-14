@@ -16,6 +16,5 @@ __all__ = [
     fukutate_64_xchg,
     fukutate_64_push,
     fukutate_64_pop,
-
-    fuku_junk_64_generic
+    fuku_junk_64_generic,
 ]

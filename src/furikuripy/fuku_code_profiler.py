@@ -109,7 +109,12 @@ class FukuCodeProfiler(BaseModel):
             handled = self.get_instruction_operand_access(instruction, op_access)
             if not handled:
                 log.warning(
-                    "not profiled %s %s" % (instruction.mnemonic, instruction.op_str)
+                    "not profiled 0x%x:  %s %s"
+                    % (
+                        current_inst.source_address,
+                        instruction.mnemonic,
+                        instruction.op_str,
+                    )
                 )
                 return included_registers
 

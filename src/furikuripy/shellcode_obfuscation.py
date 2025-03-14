@@ -89,7 +89,10 @@ def perform_analyis(
 
 @app.command()
 def obfuscate(
-    input: Annotated[typer.FileBinaryRead, typer.Option("-i", "--input", help="Input file", mode="rb")],
+    input: Annotated[
+        typer.FileBinaryRead,
+        typer.Option("-i", "--input", help="Input file", mode="rb"),
+    ],
     output: Annotated[typer.FileBinaryRead, typer.Option("-o", "--output", mode="wb+")],
     seed: Annotated[
         int,

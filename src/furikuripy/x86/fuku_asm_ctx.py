@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import struct
 from typing import Optional
-from pydantic import BaseModel, Strict, StrictBytes
+from pydantic import BaseModel, StrictBytes
 
 from furikuripy.fuku_inst import FukuInst
 from furikuripy.fuku_misc import FUKU_ASSEMBLER_ARCH
 from furikuripy.x86.fuku_immediate import FukuImmediate
 from furikuripy.x86.fuku_register import FukuRegister, FukuRegisterIndex
-from furikuripy.x86.fuku_operand import FukuOperand, FukuMemOperandType, FukuOperandScale
+from furikuripy.x86.fuku_operand import (
+    FukuOperand,
+    FukuMemOperandType,
+    FukuOperandScale,
+)
 from furikuripy.x86.misc import FukuAsmShortCfg
 from furikuripy.x86.fuku_asm_ctx_pattern import FukuAsmCtxPattern
 
@@ -24,10 +28,17 @@ class RawOperand(BaseModel):
         if self.operand_size < 1:
             self.operand_size = 1
 
-    def set_sib(self, scale: FukuOperandScale, reg_idx_index: FukuRegisterIndex, reg_idx_base: FukuRegisterIndex):
+    def set_sib(
+        self,
+        scale: FukuOperandScale,
+        reg_idx_index: FukuRegisterIndex,
+        reg_idx_base: FukuRegisterIndex,
+    ):
         assert self.operand_size < 1
         assert scale.value < 3
-        self.data[1] = (scale.value << 6) | (reg_idx_index.value << 3) | reg_idx_base.value
+        self.data[1] = (
+            (scale.value << 6) | (reg_idx_index.value << 3) | reg_idx_base.value
+        )
         if self.operand_size < 2:
             self.operand_size = 2
 
@@ -37,7 +48,7 @@ class RawOperand(BaseModel):
         self.operand_size += 1
 
     def set_dispr(self, disp):
-        self.data[self.operand_size:self.operand_size + 4] = struct.pack("<I", disp)
+        self.data[self.operand_size : self.operand_size + 4] = struct.pack("<I", disp)
         self.ctx.displacment_offset = len(self.ctx.bytecode) + self.operand_size
         self.operand_size += 4
 
@@ -123,14 +134,21 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
           is 64bit size(W) \
                           is index 64 ext(X)
     """
-    def emit_rex_64(self, rm_reg: Optional[FukuRegister | FukuOperand] = None, reg: Optional[FukuRegister] = None):
+
+    def emit_rex_64(
+        self,
+        rm_reg: Optional[FukuRegister | FukuOperand] = None,
+        reg: Optional[FukuRegister] = None,
+    ):
         if self.arch == FUKU_ASSEMBLER_ARCH.X86:
             return
 
         if rm_reg is None and reg is None:
             self.emit_b(0x48)
         elif isinstance(rm_reg, FukuRegister) and isinstance(reg, FukuRegister):
-            self.emit_b(0x48 | (1 if reg.is_ext64 else 0) << 2 | (1 if rm_reg.is_ext64 else 0))
+            self.emit_b(
+                0x48 | (1 if reg.is_ext64 else 0) << 2 | (1 if rm_reg.is_ext64 else 0)
+            )
         elif isinstance(rm_reg, FukuOperand) and isinstance(reg, FukuRegister):
             self.emit_b(0x48 | (1 if reg.is_ext64 else 0) << 2 | rm_reg.low_rex)
         elif isinstance(rm_reg, FukuRegister) and reg is None:
@@ -138,7 +156,7 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
         elif isinstance(rm_reg, FukuOperand) and reg is None:
             self.emit_b(0x48 | rm_reg.low_rex)
 
-    def emit_optional_rex_32(self, rm_reg, reg = None):
+    def emit_optional_rex_32(self, rm_reg, reg=None):
         if self.arch == FUKU_ASSEMBLER_ARCH.X86:
             return
 
@@ -166,9 +184,7 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
     def emit_operand_x86(self, rm_reg: FukuOperand, reg: FukuRegisterIndex):
         assert len(self.bytecode) != 0
 
-        raw_operand = RawOperand(
-            ctx = self
-        )
+        raw_operand = RawOperand(ctx=self)
         base_idx = rm_reg.base.index
         index_idx = rm_reg.index.index
 
@@ -178,14 +194,14 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
                 raw_operand.set_dispr(rm_reg.disp.immediate32)
 
             case (
-                FukuMemOperandType.FUKU_MEM_OPERAND_BASE_ONLY |
-                FukuMemOperandType.FUKU_MEM_OPERAND_BASE_DISP
+                FukuMemOperandType.FUKU_MEM_OPERAND_BASE_ONLY
+                | FukuMemOperandType.FUKU_MEM_OPERAND_BASE_DISP
             ):
                 if base_idx == FukuRegisterIndex.INDEX_SP:
                     raw_operand.set_sib(
                         FukuOperandScale.FUKU_OPERAND_SCALE_1,
                         FukuRegisterIndex.INDEX_SP,
-                        base_idx
+                        base_idx,
                     )
 
                 disp = rm_reg.disp
@@ -203,13 +219,16 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
                     raw_operand.set_dispr(disp.immediate32)
 
             case (
-                FukuMemOperandType.FUKU_MEM_OPERAND_BASE_INDEX |
-                FukuMemOperandType.FUKU_MEM_OPERAND_BASE_INDEX_DISP
+                FukuMemOperandType.FUKU_MEM_OPERAND_BASE_INDEX
+                | FukuMemOperandType.FUKU_MEM_OPERAND_BASE_INDEX_DISP
             ):
                 raw_operand.set_sib(rm_reg.scale, index_idx, base_idx)
 
                 # [base + index*scale + disp/r]
-                if rm_reg.disp.immediate32 == 0 and base_idx != FukuRegisterIndex.INDEX_BP:
+                if (
+                    rm_reg.disp.immediate32 == 0
+                    and base_idx != FukuRegisterIndex.INDEX_BP
+                ):
                     # [base + index*scale]
                     raw_operand.set_modrm(0, reg, FukuRegisterIndex.INDEX_SP)
                 elif self.is_used_short_disp and rm_reg.disp.is_8:
@@ -231,12 +250,10 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
             case _:
                 raise AssertionError("Unhandled case")
 
-        self.bytecode += raw_operand.data[:raw_operand.operand_size]
+        self.bytecode += raw_operand.data[: raw_operand.operand_size]
 
     def emit_operand_x64(self, rm_reg: FukuOperand, reg: FukuRegisterIndex):
-        raw_operand = RawOperand(
-            ctx = self
-        )
+        raw_operand = RawOperand(ctx=self)
 
         base_idx = rm_reg.base.index
         index_idx = rm_reg.index.index
@@ -247,14 +264,14 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
                 raw_operand.set_dispr(rm_reg.disp.immediate32)
 
             case (
-                FukuMemOperandType.FUKU_MEM_OPERAND_BASE_ONLY |
-                FukuMemOperandType.FUKU_MEM_OPERAND_BASE_DISP
+                FukuMemOperandType.FUKU_MEM_OPERAND_BASE_ONLY
+                | FukuMemOperandType.FUKU_MEM_OPERAND_BASE_DISP
             ):
                 if base_idx == FukuRegisterIndex.INDEX_SP:
                     raw_operand.set_sib(
                         FukuOperandScale.FUKU_OPERAND_SCALE_1,
                         FukuRegisterIndex.INDEX_SP,
-                        base_idx
+                        base_idx,
                     )
 
                 disp = rm_reg.disp
@@ -273,14 +290,17 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
                     raw_operand.set_dispr(disp.immediate32)
 
             case (
-                FukuMemOperandType.FUKU_MEM_OPERAND_BASE_INDEX |
-                FukuMemOperandType.FUKU_MEM_OPERAND_BASE_INDEX_DISP
+                FukuMemOperandType.FUKU_MEM_OPERAND_BASE_INDEX
+                | FukuMemOperandType.FUKU_MEM_OPERAND_BASE_INDEX_DISP
             ):
                 assert index_idx != FukuRegisterIndex.INDEX_SP
 
                 raw_operand.set_sib(rm_reg.scale, index_idx, base_idx)
                 # [base + index*scale + disp/r]
-                if rm_reg.disp.immediate32 == 0 and base_idx != FukuRegisterIndex.INDEX_BP:
+                if (
+                    rm_reg.disp.immediate32 == 0
+                    and base_idx != FukuRegisterIndex.INDEX_BP
+                ):
                     raw_operand.set_modrm(0, reg, FukuRegisterIndex.INDEX_SP)
                 elif self.is_used_short_disp and rm_reg.disp.is_8:
                     # [base + index*scale + disp8]
@@ -303,7 +323,7 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
                 assert True
 
         self.bytecode.append(raw_operand.data[0] | reg.value << 3)
-        self.bytecode += raw_operand.data[1:raw_operand.operand_size]
+        self.bytecode += raw_operand.data[1 : raw_operand.operand_size]
 
     def emit_operand(self, rm_reg: FukuOperand, reg: FukuRegister | int = None):
         index = reg.index if isinstance(reg, FukuRegister) else FukuRegisterIndex(reg)
@@ -311,5 +331,6 @@ class FukuAsmCtx(BaseModel, FukuAsmCtxPattern):
             self.emit_operand_x86(rm_reg, index)
         else:
             self.emit_operand_x64(rm_reg, index)
+
 
 RawOperand.model_rebuild()

@@ -88,7 +88,7 @@ class FukuObfuscator(BaseModel):
                 inst_eflags = fi.cpu_flags
                 inst_customflags = fi.cpu_registers
 
-            if block_idx + 1 != len(block_lens): # insert jmp to the next block
+            if block_idx + 1 != len(block_lens):  # insert jmp to the next block
                 inst.flags = copy(inst_flags)
                 inst.cpu_flags = inst_eflags
                 inst.cpu_registers = inst_customflags
@@ -98,9 +98,7 @@ class FukuObfuscator(BaseModel):
                 prev_block_jmp = line_blocks[block_idx - 1][-1]
                 first_item_of_current_block = line_blocks[block_idx][0]
 
-                code_label = FukuCodeLabel(
-                    inst = first_item_of_current_block
-                )
+                code_label = FukuCodeLabel(inst=first_item_of_current_block)
 
                 rip_reloc = FukuRipRelocation()
                 rip_reloc.offset = 1
@@ -124,8 +122,8 @@ class FukuObfuscator(BaseModel):
         inst = FukuInst()
         asm = FukuAsmBody()
         context = FukuAsmCtx(
-            arch = self.code.arch,
-            inst = inst,
+            arch=self.code.arch,
+            inst=inst,
         )
 
         asm.jmp(context, FukuImmediate(0))

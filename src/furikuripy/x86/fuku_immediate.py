@@ -13,10 +13,7 @@ class FukuImmediate(BaseModel):
     immediate_value: int = 0
 
     def __init__(self, immediate_value: int = 0, relocate: bool = False):
-        super().__init__(
-            immediate_value = immediate_value,
-            relocate = relocate
-        )
+        super().__init__(immediate_value=immediate_value, relocate=relocate)
 
     @property
     def is_8(self) -> bool:
@@ -32,7 +29,7 @@ class FukuImmediate(BaseModel):
 
     @property
     def is_64(self) -> bool:
-        return (self.immediate_value & 0xFFFFFFFF00000000) != 0
+        return -0x8000000000000000 <= self.immediate_value <= 0x7FFFFFFFFFFFFFFF
 
     @property
     def size(self):
@@ -85,22 +82,16 @@ class FukuImmediate(BaseModel):
 
     @staticmethod
     def get_random_x64(size: FukuOperandSize) -> FukuImmediate:
-        sw = rng.randint(0, size.value * 4)
+        max = min(
+            pow(2, pow(2, 3) * min(size.value, FukuOperandSize.SIZE_32.value)),
+            0x7FFFFFFF,
+        )
+        return FukuImmediate(rng.randint(1, max))
 
-        match sw:
-            case 0:
-                return FukuImmediate(rng.randint(1, size.value * 0xFF) * 4)
+    def to_iced(self) -> int:
+        return self.immediate_value
 
-            case 1:
-                return FukuImmediate(rng.randint(1, 0xFFFFFFFF))
-
-            case (
-                2 | 3 | 4 | 5 |
-                6 | 7 | 8 | 9 |
-                10 | 11 | 12 | 13 |
-                14 | 15 | 16
-            ):
-                return FukuImmediate(rng.randint(1, 0xF) * (1 << ((sw - 2) * 4)))
-
-            case _:
-                return FukuImmediate(rng.randint(1, 0xFFFFFFFF))
+    def to_iced_name(self) -> str:
+        p = "i" if self.immediate_value < 0 else "u"
+        s = "64" if self.size == FukuOperandSize.SIZE_64 else "32"
+        return f"{p}{s}"

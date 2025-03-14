@@ -11,6 +11,7 @@ from furikuripy.x86.fuku_immediate import FukuImmediate
 from furikuripy.x86.fuku_mutation_ctx import FukuMutationCtx
 from furikuripy.x86.fuku_register_math_metadata import ODI_FL_JCC
 
+
 # push dst
 # ret
 def _jmp_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType) -> bool:
@@ -40,6 +41,7 @@ def _jmp_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType) -> bool:
     trace_inst("jmp dst -> push dst; ret", opcodes)
     return True
 
+
 # je dst
 # jne dst
 def _jmp_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType) -> bool:
@@ -55,8 +57,7 @@ def _jmp_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType) -> bool:
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     ctx.f_asm.context.inst.rip_reloc = ctx.code_holder.create_rip_relocation(
         FukuRipRelocation(
-            label = rip_reloc.label,
-            offset = ctx.f_asm.context.immediate_offset
+            label=rip_reloc.label, offset=ctx.f_asm.context.immediate_offset
         )
     )
     ctx.f_asm.context.inst.flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE
@@ -68,8 +69,7 @@ def _jmp_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType) -> bool:
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     ctx.f_asm.context.inst.rip_reloc = ctx.code_holder.create_rip_relocation(
         FukuRipRelocation(
-            label = rip_reloc.label,
-            offset = ctx.f_asm.context.immediate_offset
+            label=rip_reloc.label, offset=ctx.f_asm.context.immediate_offset
         )
     )
     ctx.f_asm.context.inst.flags = ctx.inst_flags | FukuInstFlags.FUKU_INST_NO_MUTATE
@@ -81,6 +81,7 @@ def _jmp_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType) -> bool:
     trace_inst("jmp dst -> je dst; jne dst", opcodes)
     return True
 
+
 # mov randreg, dst
 # jmp randreg
 def _jmp_64_multi_tmpl_3(ctx: FukuMutationCtx, src: FukuType) -> bool:
@@ -89,9 +90,7 @@ def _jmp_64_multi_tmpl_3(ctx: FukuMutationCtx, src: FukuType) -> bool:
 
     rand_reg: FukuRegister = FukuRegister(
         FukuRegisterEnum.get_random_free_register(
-            ctx.cpu_registers,
-            FukuOperandSize.SIZE_64,
-            True
+            ctx.cpu_registers, FukuOperandSize.SIZE_64, True
         )
     )
 
@@ -101,7 +100,9 @@ def _jmp_64_multi_tmpl_3(ctx: FukuMutationCtx, src: FukuType) -> bool:
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
     rip_reloc = ctx.payload_inst.rip_reloc
-    out_regflags = ctx.cpu_registers & ~(rand_reg.ftype.get_mask_register() | src.get_mask_register())
+    out_regflags = ctx.cpu_registers & ~(
+        rand_reg.ftype.get_mask_register() | src.get_mask_register()
+    )
 
     if src.type == FukuT0Types.FUKU_T0_IMMEDIATE:
         ctx.f_asm.mov(rand_reg.ftype, FukuImmediate(0xFFFFFFFFFFFFFFFF).ftype)
@@ -122,8 +123,11 @@ def _jmp_64_multi_tmpl_3(ctx: FukuMutationCtx, src: FukuType) -> bool:
     trace_inst("jmp dst -> mov randreg, dst; jmp randreg", opcodes)
     return True
 
+
 def _jmp_64_reg_tmpl(ctx: FukuMutationCtx) -> bool:
-    reg_src: FukuRegister = FukuRegister(FukuRegisterEnum.from_capstone(ctx.instruction.operands[0]))
+    reg_src: FukuRegister = FukuRegister(
+        FukuRegisterEnum.from_capstone(ctx.instruction.operands[0])
+    )
 
     match rng.randint(0, 1):
         case 0:
@@ -131,6 +135,7 @@ def _jmp_64_reg_tmpl(ctx: FukuMutationCtx) -> bool:
 
         case 1:
             return _jmp_64_multi_tmpl_3(ctx, reg_src.ftype)
+
 
 def _jmp_64_op_tmpl(ctx: FukuMutationCtx) -> bool:
     op_src: FukuOperand = FukuOperand.from_capstone(ctx.instruction.operands[0])
@@ -142,6 +147,7 @@ def _jmp_64_op_tmpl(ctx: FukuMutationCtx) -> bool:
         case 1:
             return _jmp_64_multi_tmpl_3(ctx, op_src.ftype)
 
+
 def _jmp_64_imm_tmpl(ctx: FukuMutationCtx) -> bool:
     imm_src = FukuImmediate(ctx.instruction.operands[0].imm)
 
@@ -151,6 +157,7 @@ def _jmp_64_imm_tmpl(ctx: FukuMutationCtx) -> bool:
 
         case 1:
             return _jmp_64_multi_tmpl_3(ctx, imm_src.ftype)
+
 
 def fukutate_64_jmp(ctx: FukuMutationCtx) -> bool:
     op0_t = ctx.instruction.operands[0].type

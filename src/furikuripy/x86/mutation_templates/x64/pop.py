@@ -5,7 +5,11 @@ from furikuripy.fuku_misc import FukuInstFlags
 from furikuripy.x86.misc import FukuOperandSize
 from furikuripy.x86.fuku_operand import FukuOperand, qword_ptr
 from furikuripy.x86.fuku_type import FukuType, FukuT0Types
-from furikuripy.x86.fuku_register import FukuRegister, FukuRegisterEnum, FukuRegisterIndex
+from furikuripy.x86.fuku_register import (
+    FukuRegister,
+    FukuRegisterEnum,
+    FukuRegisterIndex,
+)
 from furikuripy.x86.fuku_immediate import FukuImmediate
 from furikuripy.x86.fuku_mutation_ctx import FukuMutationCtx
 from furikuripy.x86.fuku_register_math import has_free_eflags
@@ -17,7 +21,10 @@ def _pop_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
     if ctx.settings.is_not_allowed_unstable_stack:
         return False
 
-    if dst.type == FukuT0Types.FUKU_T0_REGISTER and dst.register.index == FukuRegisterIndex.INDEX_SP:
+    if (
+        dst.type == FukuT0Types.FUKU_T0_REGISTER
+        and dst.register.index == FukuRegisterIndex.INDEX_SP
+    ):
         return False
 
     opcodes = []
@@ -25,20 +32,25 @@ def _pop_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
 
     if has_free_eflags(
         ctx.cpu_flags,
-        x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_SF |
-        x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_AF |
-        x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_PF
+        x86_const.X86_EFLAGS_MODIFY_OF
+        | x86_const.X86_EFLAGS_MODIFY_SF
+        | x86_const.X86_EFLAGS_MODIFY_ZF
+        | x86_const.X86_EFLAGS_MODIFY_AF
+        | x86_const.X86_EFLAGS_MODIFY_CF
+        | x86_const.X86_EFLAGS_MODIFY_PF,
     ):
-        ctx.f_asm.add(FukuRegister(FukuRegisterEnum.REG_RSP).ftype, FukuImmediate(inst_size).ftype)
+        ctx.f_asm.add(
+            FukuRegister(FukuRegisterEnum.REG_RSP).ftype, FukuImmediate(inst_size).ftype
+        )
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     else:
         ctx.f_asm.lea(
             FukuRegister(FukuRegisterEnum.REG_RSP).ftype,
             qword_ptr(
-                base = FukuRegister(FukuRegisterEnum.REG_RSP),
-                disp = FukuImmediate(inst_size))
-            .ftype
+                base=FukuRegister(FukuRegisterEnum.REG_RSP),
+                disp=FukuImmediate(inst_size),
+            ).ftype,
         )
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
@@ -49,10 +61,10 @@ def _pop_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
     ctx.f_asm.mov(
         dst,
         FukuOperand(
-            base = FukuRegister(FukuRegisterEnum.REG_RSP),
-            disp = FukuImmediate(-inst_size),
-            size = FukuOperandSize(inst_size)
-        ).ftype
+            base=FukuRegister(FukuRegisterEnum.REG_RSP),
+            disp=FukuImmediate(-inst_size),
+            size=FukuOperandSize(inst_size),
+        ).ftype,
     )
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
     ctx.f_asm.context.inst.cpu_registers = out_regflags
@@ -60,24 +72,28 @@ def _pop_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
     ctx.restore_disp_relocate(dst, disp_reloc)
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
-    trace_inst("pop dst -> add rsp, 8 or lea rsp, [rsp + 8]; mov reg, [rsp - 8]", opcodes)
+    trace_inst(
+        "pop dst -> add rsp, 8 or lea rsp, [rsp + 8]; mov reg, [rsp - 8]", opcodes
+    )
     return True
 
 
 # mov reg, [rsp]
 # add rsp, 8 or lea rsp, [rsp + 8]
 def _pop_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) -> bool:
-    if dst.type == FukuT0Types.FUKU_T0_REGISTER and dst.register.index == FukuRegisterIndex.INDEX_SP:
+    if (
+        dst.type == FukuT0Types.FUKU_T0_REGISTER
+        and dst.register.index == FukuRegisterIndex.INDEX_SP
+    ):
         return False
 
     opcodes = []
     disp_reloc = ctx.payload_inst.disp_reloc
 
     ctx.f_asm.mov(
-        dst, 
+        dst,
         FukuOperand(
-            base = FukuRegister(FukuRegisterEnum.REG_RSP),
-            size = FukuOperandSize(inst_size)
+            base=FukuRegister(FukuRegisterEnum.REG_RSP), size=FukuOperandSize(inst_size)
         ).ftype,
     )
     ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
@@ -89,20 +105,25 @@ def _pop_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
 
     if has_free_eflags(
         ctx.cpu_flags,
-        x86_const.X86_EFLAGS_MODIFY_OF | x86_const.X86_EFLAGS_MODIFY_SF |
-        x86_const.X86_EFLAGS_MODIFY_ZF | x86_const.X86_EFLAGS_MODIFY_AF |
-        x86_const.X86_EFLAGS_MODIFY_CF | x86_const.X86_EFLAGS_MODIFY_PF
+        x86_const.X86_EFLAGS_MODIFY_OF
+        | x86_const.X86_EFLAGS_MODIFY_SF
+        | x86_const.X86_EFLAGS_MODIFY_ZF
+        | x86_const.X86_EFLAGS_MODIFY_AF
+        | x86_const.X86_EFLAGS_MODIFY_CF
+        | x86_const.X86_EFLAGS_MODIFY_PF,
     ):
-        ctx.f_asm.add(FukuRegister(FukuRegisterEnum.REG_RSP).ftype, FukuImmediate(inst_size).ftype)
+        ctx.f_asm.add(
+            FukuRegister(FukuRegisterEnum.REG_RSP).ftype, FukuImmediate(inst_size).ftype
+        )
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = out_regflags
     else:
         ctx.f_asm.lea(
             FukuRegister(FukuRegisterEnum.REG_RSP).ftype,
             qword_ptr(
-                base = FukuRegister(FukuRegisterEnum.REG_RSP),
-                disp = FukuImmediate(inst_size))
-            .ftype
+                base=FukuRegister(FukuRegisterEnum.REG_RSP),
+                disp=FukuImmediate(inst_size),
+            ).ftype,
         )
         ctx.f_asm.context.inst.cpu_flags = ctx.cpu_flags
         ctx.f_asm.context.inst.cpu_registers = out_regflags
@@ -111,6 +132,7 @@ def _pop_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
 
     trace_inst("pop dst -> mov reg, [rsp]; add rsp, 8 or lea rsp, [rsp + 8]", opcodes)
     return True
+
 
 def _pop_64_reg_tmpl(ctx: FukuMutationCtx) -> bool:
     reg_dst = FukuRegister.from_capstone(ctx.instruction.operands[0]).ftype
@@ -121,6 +143,7 @@ def _pop_64_reg_tmpl(ctx: FukuMutationCtx) -> bool:
 
         case 1:
             return _pop_64_multi_tmpl_2(ctx, reg_dst, ctx.instruction.operands[0].size)
+
 
 def fukutate_64_pop(ctx: FukuMutationCtx) -> bool:
     match ctx.instruction.operands[0].type:
