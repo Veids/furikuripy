@@ -95,3 +95,13 @@ class FukuImmediate(BaseModel):
         p = "i" if self.immediate_value < 0 else "u"
         s = "64" if self.size == FukuOperandSize.SIZE_64 else "32"
         return f"{p}{s}"
+
+    def to_iced_code(self, is_used_short_imm, size: int) -> str:
+        imm_size = 0
+        if is_used_short_imm and self.is_8:
+            imm_size = 8
+        else:
+            imm_size = 32
+
+        imm_size = min(imm_size, size)
+        return f"IMM{imm_size}"
