@@ -73,7 +73,7 @@ def _pop_64_multi_tmpl_1(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
     trace_inst(
-        "pop dst -> add rsp, 8 or lea rsp, [rsp + 8]; mov reg, [rsp - 8]", opcodes
+        "pop dst -> add rsp, 8 or lea rsp, [rsp + 8]; mov reg, [rsp - 8]", opcodes, ctx
     )
     return True
 
@@ -130,7 +130,9 @@ def _pop_64_multi_tmpl_2(ctx: FukuMutationCtx, dst: FukuType, inst_size: int) ->
 
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
-    trace_inst("pop dst -> mov reg, [rsp]; add rsp, 8 or lea rsp, [rsp + 8]", opcodes)
+    trace_inst(
+        "pop dst -> mov reg, [rsp]; add rsp, 8 or lea rsp, [rsp + 8]", opcodes, ctx
+    )
     return True
 
 

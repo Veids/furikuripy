@@ -12,13 +12,6 @@ from furikuripy.x86.fuku_operand import FukuOperand, FukuMemOperandType, FukuPre
 cs = Cs(CS_ARCH_X86, CS_MODE_64)
 cs.detail = True
 
-FUKU_INTERNAL_ASSEMBLER_ARITH_EX_NOT = 2
-FUKU_INTERNAL_ASSEMBLER_ARITH_EX_NEG = 3
-FUKU_INTERNAL_ASSEMBLER_ARITH_EX_MUL = 4
-FUKU_INTERNAL_ASSEMBLER_ARITH_EX_IMUL = 5
-FUKU_INTERNAL_ASSEMBLER_ARITH_EX_DIV = 6
-FUKU_INTERNAL_ASSEMBLER_ARITH_EX_IDIV = 7
-
 FUKU_INTERNAL_ASSEMBLER_ARITH_INC = 0
 FUKU_INTERNAL_ASSEMBLER_ARITH_DEC = 1
 
@@ -102,6 +95,12 @@ def get_iced_code(ctx, name: str, dst, src, size):
     return getattr(Code, f"{name}_{l}_{r}")
 
 
+def get_iced_code_one_op(ctx, name: str, src, size):
+    name = name.upper()
+    l = build_code_right_part(src, size)
+    return getattr(Code, f"{name}_{l}")
+
+
 class FukuAsmBody:
     def __init__(self):
         # Data Transfer Instructions
@@ -165,9 +164,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
         )
-        self._gen_func_body_arith_ex_one_op(
+        self._gen_func_body_arith_ex_one_op_iced(
             "imul",
-            FUKU_INTERNAL_ASSEMBLER_ARITH_EX_IMUL,
             x86_const.X86_INS_IMUL,
             x86_const.X86_EFLAGS_MODIFY_SF
             | x86_const.X86_EFLAGS_MODIFY_CF
@@ -176,9 +174,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_AF
             | x86_const.X86_EFLAGS_UNDEFINED_PF,
         )
-        self._gen_func_body_arith_ex_one_op(
+        self._gen_func_body_arith_ex_one_op_iced(
             "mul",
-            FUKU_INTERNAL_ASSEMBLER_ARITH_EX_MUL,
             x86_const.X86_INS_MUL,
             x86_const.X86_EFLAGS_MODIFY_OF
             | x86_const.X86_EFLAGS_UNDEFINED_SF
@@ -187,9 +184,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
         )
-        self._gen_func_body_arith_ex_one_op(
+        self._gen_func_body_arith_ex_one_op_iced(
             "idiv",
-            FUKU_INTERNAL_ASSEMBLER_ARITH_EX_IDIV,
             x86_const.X86_INS_IDIV,
             x86_const.X86_EFLAGS_UNDEFINED_OF
             | x86_const.X86_EFLAGS_UNDEFINED_SF
@@ -198,9 +194,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_PF
             | x86_const.X86_EFLAGS_UNDEFINED_CF,
         )
-        self._gen_func_body_arith_ex_one_op(
+        self._gen_func_body_arith_ex_one_op_iced(
             "div",
-            FUKU_INTERNAL_ASSEMBLER_ARITH_EX_DIV,
             x86_const.X86_INS_DIV,
             x86_const.X86_EFLAGS_UNDEFINED_OF
             | x86_const.X86_EFLAGS_UNDEFINED_SF
@@ -229,9 +224,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_AF
             | x86_const.X86_EFLAGS_MODIFY_PF,
         )
-        self._gen_func_body_arith_ex_one_op(
+        self._gen_func_body_arith_ex_one_op_iced(
             "neg",
-            FUKU_INTERNAL_ASSEMBLER_ARITH_EX_NEG,
             x86_const.X86_INS_NEG,
             x86_const.X86_EFLAGS_MODIFY_OF
             | x86_const.X86_EFLAGS_MODIFY_SF
@@ -324,9 +318,7 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_RESET_CF,
         )
-        self._gen_func_body_arith_ex_one_op(
-            "not", FUKU_INTERNAL_ASSEMBLER_ARITH_EX_NOT, x86_const.X86_INS_NOT, 0
-        )
+        self._gen_func_body_arith_ex_one_op_iced("not", x86_const.X86_INS_NOT, 0)
 
         # Shift and Rotate Instructions
         self._gen_func_body_shift(
@@ -1883,51 +1875,30 @@ class FukuAsmBody:
         setattr(self.__class__, self._gen_name(name, "_dw"), wrapper(32))
         setattr(self.__class__, self._gen_name(name, "_qw"), wrapper(64))
 
-    def _gen_func_body_arith_ex_one_op(self, name, type: int, id, cap_eflags):
-        def wrapper_b(self, ctx: FukuAsmCtx, src: FukuRegister | FukuOperand):
-            ctx.clear()
+    def _gen_func_body_arith_ex_one_op_iced(self, name, id, cap_eflags):
+        def wrapper(size: int):
+            def fn(self, ctx: FukuAsmCtx, src: FukuRegister | FukuOperand):
+                ctx.clear()
 
-            if isinstance(src, FukuRegister):
-                ctx.gen_pattern32_1em_rm_idx(0xF6, src, type)
-            else:
-                ctx.gen_pattern32_1em_op_idx(0xF6, src, type)
+                code = get_iced_code_one_op(ctx, name, src, size)
+                arg1 = src.to_iced_name()
+                ins = getattr(Instruction, f"create_{arg1}")(code, src.to_iced())
+                encoder = BlockEncoder(64)
+                encoder.add(ins)
+                opcode = encoder.encode(0x0)
 
-            ctx.gen_func_return(id, cap_eflags)
+                ins = next(cs.disasm(opcode, 0))
+                ctx.displacment_offset = ins.disp_offset
+                ctx.bytecode = bytearray(opcode)
 
-        def wrapper_w(self, ctx: FukuAsmCtx, src: FukuRegister | FukuOperand):
-            ctx.clear()
+                ctx.gen_func_return(id, cap_eflags)
 
-            if isinstance(src, FukuRegister):
-                ctx.gen_pattern32_1em_rm_idx_word(0xF7, src, type)
-            else:
-                ctx.gen_pattern32_1em_op_idx_word(0xF7, src, type)
+            return fn
 
-            ctx.gen_func_return(id, cap_eflags)
-
-        def wrapper_dw(self, ctx: FukuAsmCtx, src: FukuRegister | FukuOperand):
-            ctx.clear()
-
-            if isinstance(src, FukuRegister):
-                ctx.gen_pattern32_1em_rm_idx(0xF7, src, type)
-            else:
-                ctx.gen_pattern32_1em_op_idx(0xF7, src, type)
-
-            ctx.gen_func_return(id, cap_eflags)
-
-        def wrapper_qw(self, ctx: FukuAsmCtx, src: FukuRegister | FukuOperand):
-            ctx.clear()
-
-            if isinstance(src, FukuRegister):
-                ctx.gen_pattern64_1em_rm_idx(0xF7, src, type)
-            else:
-                ctx.gen_pattern64_1em_op_idx(0xF7, src, type)
-
-            ctx.gen_func_return(id, cap_eflags)
-
-        setattr(self.__class__, self._gen_name(name, "_b"), wrapper_b)
-        setattr(self.__class__, self._gen_name(name, "_w"), wrapper_w)
-        setattr(self.__class__, self._gen_name(name, "_dw"), wrapper_dw)
-        setattr(self.__class__, self._gen_name(name, "_qw"), wrapper_qw)
+        setattr(self.__class__, self._gen_name(name, "_b"), wrapper(8))
+        setattr(self.__class__, self._gen_name(name, "_w"), wrapper(16))
+        setattr(self.__class__, self._gen_name(name, "_dw"), wrapper(32))
+        setattr(self.__class__, self._gen_name(name, "_qw"), wrapper(64))
 
     def _gen_func_body_arith_incdec(self, name, type: int, id, cap_eflags):
         def wrapper_b(self, ctx: FukuAsmCtx, src: FukuRegister | FukuOperand):
