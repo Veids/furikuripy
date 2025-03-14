@@ -1,6 +1,5 @@
-from typing import Optional
-from capstone import x86_const, Cs, CS_ARCH_X86, CS_MODE_32, CS_MODE_64
 from pydantic import BaseModel
+from capstone import x86_const, Cs, CS_ARCH_X86, CS_MODE_32, CS_MODE_64
 
 from furikuripy.fuku_inst import FukuCodeLabel, FukuRipRelocation, FukuRelocation
 from furikuripy.fuku_misc import FUKU_ASSEMBLER_ARCH, X86_REL_ADDR
@@ -9,7 +8,6 @@ from furikuripy.fuku_code_holder import FukuCodeHolder, FukuImageRelocation
 
 class FukuCodeAnalyzer(BaseModel):
     arch: FUKU_ASSEMBLER_ARCH
-    code: Optional[FukuCodeHolder] = None
 
     def analyze_code(
         self,
