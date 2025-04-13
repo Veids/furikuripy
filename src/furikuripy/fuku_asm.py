@@ -1692,7 +1692,7 @@ class FukuAsm(BaseModel):
         ):
             UNUSUAL_DATASET()
 
-        self._fuku_assembler_command_2op_graph(
+        self._iced_assembler_command_2op_graph(
             dst,
             src,
             lambda: self.asm.rol_cl_b(self.context, dst.register),

@@ -98,7 +98,7 @@ class FukuImmediate(BaseModel):
 
     def to_iced_code(self, is_used_short_imm, size: int) -> str:
         imm_size = 0
-        if is_used_short_imm and self.is_8:
+        if self.is_8:
             imm_size = 8
         else:
             imm_size = 32
