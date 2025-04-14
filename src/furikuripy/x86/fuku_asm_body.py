@@ -14,14 +14,6 @@ from furikuripy.x86.fuku_operand import FukuOperand, FukuMemOperandType, FukuPre
 cs = Cs(CS_ARCH_X86, CS_MODE_64)
 cs.detail = True
 
-FUKU_INTERNAL_ASSEMBLER_BITTEST_BT = 4
-FUKU_INTERNAL_ASSEMBLER_BITTEST_BTS = 5
-FUKU_INTERNAL_ASSEMBLER_BITTEST_BTR = 6
-FUKU_INTERNAL_ASSEMBLER_BITTEST_BTC = 7
-
-FUKU_INTERNAL_ASSEMBLER_BITTEST_BSF = 0
-FUKU_INTERNAL_ASSEMBLER_BITTEST_BSR = 1
-
 FUKU_INTERNAL_ASSEMBLER_STRING_OUT = 55
 FUKU_INTERNAL_ASSEMBLER_STRING_MOV = 82
 FUKU_INTERNAL_ASSEMBLER_STRING_CMP = 83
@@ -38,7 +30,7 @@ ADI_FL_JCC = [
     x86_const.X86_EFLAGS_TEST_PF , x86_const.X86_EFLAGS_TEST_PF, # jp   / jnp
     x86_const.X86_EFLAGS_TEST_OF | x86_const.X86_EFLAGS_TEST_SF, x86_const.X86_EFLAGS_TEST_OF | x86_const.X86_EFLAGS_TEST_SF, # jnge / jge
     x86_const.X86_EFLAGS_TEST_OF | x86_const.X86_EFLAGS_TEST_SF | x86_const.X86_EFLAGS_TEST_ZF, x86_const.X86_EFLAGS_TEST_OF | x86_const.X86_EFLAGS_TEST_SF | x86_const.X86_EFLAGS_TEST_ZF # jng / jnle
-]
+]  # fmt: skip
 
 
 class PostfixEnum(Enum):
@@ -83,12 +75,12 @@ def build_code_right_part(ctx, t, size: int) -> str:
         raise Exception("Unimplemented")
 
 
-def get_iced_code(ctx, name: str, dst, src, size):
+def get_iced_code(ctx, name: str, dst, src, size, max_imm_size=64):
     name = name.upper()
     l = r = ""
     if isinstance(src, FukuImmediate):
         l = f"RM{size}"
-        r = build_code_right_part(ctx, src, size)
+        r = build_code_right_part(ctx, src, min(size, max_imm_size))
     else:
         l = build_code_left_part(dst, size)
         r = build_code_right_part(ctx, src, size)
@@ -416,9 +408,8 @@ class FukuAsmBody:
         )
 
         # Bit and Byte Instructions
-        self._gen_func_body_bit(
+        self._gen_func_body_bit_iced(
             "bt",
-            FUKU_INTERNAL_ASSEMBLER_BITTEST_BT,
             x86_const.X86_INS_BT,
             x86_const.X86_EFLAGS_UNDEFINED_OF
             | x86_const.X86_EFLAGS_UNDEFINED_SF
@@ -426,9 +417,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
         )
-        self._gen_func_body_bit(
+        self._gen_func_body_bit_iced(
             "bts",
-            FUKU_INTERNAL_ASSEMBLER_BITTEST_BTS,
             x86_const.X86_INS_BTS,
             x86_const.X86_EFLAGS_UNDEFINED_OF
             | x86_const.X86_EFLAGS_UNDEFINED_SF
@@ -436,9 +426,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
         )
-        self._gen_func_body_bit(
+        self._gen_func_body_bit_iced(
             "btr",
-            FUKU_INTERNAL_ASSEMBLER_BITTEST_BTR,
             x86_const.X86_INS_BTR,
             x86_const.X86_EFLAGS_UNDEFINED_OF
             | x86_const.X86_EFLAGS_UNDEFINED_SF
@@ -446,9 +435,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
         )
-        self._gen_func_body_bit(
+        self._gen_func_body_bit_iced(
             "btc",
-            FUKU_INTERNAL_ASSEMBLER_BITTEST_BTC,
             x86_const.X86_INS_BTC,
             x86_const.X86_EFLAGS_UNDEFINED_OF
             | x86_const.X86_EFLAGS_UNDEFINED_SF
@@ -456,9 +444,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
         )
-        self._gen_func_body_bit_ex(
+        self._gen_func_body_bit_iced(
             "bsf",
-            FUKU_INTERNAL_ASSEMBLER_BITTEST_BSF,
             x86_const.X86_INS_BSF,
             x86_const.X86_EFLAGS_UNDEFINED_OF
             | x86_const.X86_EFLAGS_UNDEFINED_SF
@@ -467,9 +454,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_PF
             | x86_const.X86_EFLAGS_UNDEFINED_CF,
         )
-        self._gen_func_body_bit_ex(
+        self._gen_func_body_bit_iced(
             "bsr",
-            FUKU_INTERNAL_ASSEMBLER_BITTEST_BSR,
             x86_const.X86_INS_BSR,
             x86_const.X86_EFLAGS_UNDEFINED_OF
             | x86_const.X86_EFLAGS_UNDEFINED_SF
@@ -1837,130 +1823,30 @@ class FukuAsmBody:
         self._gen_fn(name, gen_default_postfix(wrapper_cl, "cl_"))
         self._gen_fn(name, gen_default_postfix(wrapper))
 
-    def _gen_func_body_bit(self, name, type: int, id, cap_eflags):
-        def wrapper_w(
-            self,
-            ctx: FukuAsmCtx,
-            dst: FukuRegister | FukuOperand,
-            src: FukuRegister | FukuImmediate,
-        ):
-            ctx.clear()
+    def _gen_func_body_bit_iced(self, name, id, cap_eflags):
+        def wrapper(size: int):
+            def fn(
+                self,
+                ctx: FukuAsmCtx,
+                dst: FukuRegister | FukuOperand,
+                src: FukuRegister | FukuImmediate,
+            ):
+                ctx.clear()
 
-            handlers = {}
-            handlers[(FukuRegister, FukuRegister)] = (
-                lambda: ctx.gen_pattern32_2em_rm_r_word(0x0F, 0x83 + 8 * type, dst, src)
-            )
-            handlers[(FukuRegister, FukuImmediate)] = (
-                lambda: ctx.gen_pattern32_2em_rm_idx_immb_word(
-                    0x0F, 0xBA, dst, type, src
+                print(src, src.size)
+                code = get_iced_code(ctx, name, dst, src, size, max_imm_size=8)
+                arg1 = dst.to_iced_name()
+                arg2 = src.to_iced_name()
+                ins = getattr(Instruction, f"create_{arg1}_{arg2}")(
+                    code, dst.to_iced(), src.to_iced()
                 )
-            )
-            handlers[(FukuOperand, FukuRegister)] = (
-                lambda: ctx.gen_pattern32_2em_op_r_word(0x0F, 0x83 + 8 * type, dst, src)
-            )
-            handlers[(FukuOperand, FukuImmediate)] = (
-                lambda: ctx.gen_pattern32_2em_op_idx_immb_word(
-                    0x0F, 0xBA, dst, type, src
-                )
-            )
-            handlers[(dst.__class__, src.__class__)]()
+                gen_iced_ins(ctx, ins)
 
-            ctx.gen_func_return(id, cap_eflags)
+                ctx.gen_func_return(id, cap_eflags)
 
-        def wrapper_dw(
-            self,
-            ctx: FukuAsmCtx,
-            dst: FukuRegister | FukuOperand,
-            src: FukuRegister | FukuImmediate,
-        ):
-            ctx.clear()
+            return fn
 
-            handlers = {}
-            handlers[(FukuRegister, FukuRegister)] = lambda: ctx.gen_pattern32_2em_rm_r(
-                0x0F, 0x83 + 8 * type, dst, src
-            )
-            handlers[(FukuRegister, FukuImmediate)] = (
-                lambda: ctx.gen_pattern32_2em_rm_idx_immb(0x0F, 0xBA, dst, type, src)
-            )
-            handlers[(FukuOperand, FukuRegister)] = lambda: ctx.gen_pattern32_2em_op_r(
-                0x0F, 0x83 + 8 * type, dst, src
-            )
-            handlers[(FukuOperand, FukuImmediate)] = (
-                lambda: ctx.gen_pattern32_2em_op_idx_immb(0x0F, 0xBA, dst, type, src)
-            )
-            handlers[(dst.__class__, src.__class__)]()
-
-            ctx.gen_func_return(id, cap_eflags)
-
-        def wrapper_qw(
-            self,
-            ctx: FukuAsmCtx,
-            dst: FukuRegister | FukuOperand,
-            src: FukuRegister | FukuImmediate,
-        ):
-            ctx.clear()
-
-            handlers = {}
-            handlers[(FukuRegister, FukuRegister)] = lambda: ctx.gen_pattern64_2em_rm_r(
-                0x0F, 0x83 + 8 * type, dst, src
-            )
-            handlers[(FukuRegister, FukuImmediate)] = (
-                lambda: ctx.gen_pattern64_2em_rm_idx_immb(0x0F, 0xBA, dst, type, src)
-            )
-            handlers[(FukuOperand, FukuRegister)] = lambda: ctx.gen_pattern64_2em_op_r(
-                0x0F, 0x83 + 8 * type, dst, src
-            )
-            handlers[(FukuOperand, FukuImmediate)] = (
-                lambda: ctx.gen_pattern64_2em_op_idx_immb(0x0F, 0xBA, dst, type, src)
-            )
-            handlers[(dst.__class__, src.__class__)]()
-
-            ctx.gen_func_return(id, cap_eflags)
-
-        setattr(self.__class__, self._gen_name(name, "_w"), wrapper_w)
-        setattr(self.__class__, self._gen_name(name, "_dw"), wrapper_dw)
-        setattr(self.__class__, self._gen_name(name, "_qw"), wrapper_qw)
-
-    def _gen_func_body_bit_ex(self, name, type: int, id, cap_eflags):
-        def wrapper_w(
-            self, ctx: FukuAsmCtx, dst: FukuRegister | FukuOperand, src: FukuRegister
-        ):
-            ctx.clear()
-
-            if isinstance(dst, FukuRegister):
-                ctx.gen_pattern32_2em_rm_r_word(0x0F, 0xBC + type, dst, src)
-            else:
-                ctx.gen_pattern32_2em_op_r_word(0x0F, 0xBC + type, dst, src)
-
-            ctx.gen_func_return(id, cap_eflags)
-
-        def wrapper_dw(
-            self, ctx: FukuAsmCtx, dst: FukuRegister | FukuOperand, src: FukuRegister
-        ):
-            ctx.clear()
-
-            if isinstance(dst, FukuRegister):
-                ctx.gen_pattern32_2em_rm_r(0x0F, 0xBC + type, dst, src)
-            else:
-                ctx.gen_pattern32_2em_op_r(0x0F, 0xBC + type, dst, src)
-
-            ctx.gen_func_return(id, cap_eflags)
-
-        def wrapper_qw(
-            self, ctx: FukuAsmCtx, dst: FukuRegister | FukuOperand, src: FukuRegister
-        ):
-            ctx.clear()
-
-            if isinstance(dst, FukuRegister):
-                ctx.gen_pattern64_2em_rm_r(0x0F, 0xBC + type, dst, src)
-            else:
-                ctx.gen_pattern64_2em_op_r(0x0F, 0xBC + type, dst, src)
-
-            ctx.gen_func_return(id, cap_eflags)
-
-        setattr(self.__class__, self._gen_name(name, "_w"), wrapper_w)
-        setattr(self.__class__, self._gen_name(name, "_dw"), wrapper_dw)
-        setattr(self.__class__, self._gen_name(name, "_qw"), wrapper_qw)
+        self._gen_fn(name, gen_default_postfix(wrapper, exclude=["b"]))
 
     def _gen_func_body_string_inst(
         self, name, type: int, idMASK: str, cap_eflags, q=True

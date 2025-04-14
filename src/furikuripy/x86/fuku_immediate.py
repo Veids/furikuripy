@@ -83,10 +83,11 @@ class FukuImmediate(BaseModel):
     @staticmethod
     def get_random_x64(size: FukuOperandSize) -> FukuImmediate:
         max = min(
-            pow(2, pow(2, 3) * min(size.value, FukuOperandSize.SIZE_32.value)),
+            pow(2, pow(2, 3) * min(size.value, FukuOperandSize.SIZE_32.value)) - 1,
             0x7FFFFFFF,
         )
-        return FukuImmediate(rng.randint(1, max))
+        value = rng.randint(1, max)
+        return FukuImmediate(value)
 
     def to_iced(self) -> int:
         return self.immediate_value

@@ -1016,9 +1016,6 @@ class FukuAsm(BaseModel):
         return self.on_new_chain_item()
 
     def adc(self, dst: FukuType, src: FukuType) -> FukuAsmCtx:
-        from IPython import embed
-
-        embed()
         self._fuku_assembler_command_2op_graph(
             dst,
             src,
