@@ -5,7 +5,7 @@ from iced_x86 import Code, Instruction, BlockEncoder, Register
 from pydantic import BaseModel
 
 from furikuripy.common import rng
-from furikuripy.x86.misc import FukuCondition, FukuOperandSize, FukuToCapConvertType
+from furikuripy.x86.misc import FukuCondition, FukuToCapConvertType
 from furikuripy.x86.fuku_asm_ctx import FukuAsmCtx
 from furikuripy.x86.fuku_immediate import FukuImmediate
 from furikuripy.x86.fuku_register import FukuRegister, FukuRegisterEnum
@@ -474,9 +474,9 @@ class FukuAsmBody:
             "outs",
             x86_const.X86_EFLAGS_TEST_DF,
             mapping={
-                FukuOperandSize.SIZE_8.value: "B_DX_M8",
-                FukuOperandSize.SIZE_16.value: "W_DX_M16",
-                FukuOperandSize.SIZE_32.value: "D_DX_M32",
+                8: "B_DX_M8",
+                16: "W_DX_M16",
+                32: "D_DX_M32",
             },
             exclude=["qw"],
         )
@@ -484,10 +484,10 @@ class FukuAsmBody:
             "movs",
             x86_const.X86_EFLAGS_TEST_DF,
             mapping={
-                FukuOperandSize.SIZE_8.value: "B_M8_M8",
-                FukuOperandSize.SIZE_16.value: "W_M16_M16",
-                FukuOperandSize.SIZE_32.value: "D_M32_M32",
-                FukuOperandSize.SIZE_64.value: "Q_M64_M64",
+                8: "B_M8_M8",
+                16: "W_M16_M16",
+                32: "D_M32_M32",
+                64: "Q_M64_M64",
             },
         )
         self._gen_func_body_string_inst_iced(
@@ -499,30 +499,30 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
             mapping={
-                FukuOperandSize.SIZE_8.value: "B_M8_M8",
-                FukuOperandSize.SIZE_16.value: "W_M16_M16",
-                FukuOperandSize.SIZE_32.value: "D_M32_M32",
-                FukuOperandSize.SIZE_64.value: "Q_M64_M64",
+                8: "B_M8_M8",
+                16: "W_M16_M16",
+                32: "D_M32_M32",
+                64: "Q_M64_M64",
             },
         )
         self._gen_func_body_string_inst_iced(
             "stos",
             x86_const.X86_EFLAGS_TEST_DF,
             mapping={
-                FukuOperandSize.SIZE_8.value: "B_M8_AL",
-                FukuOperandSize.SIZE_16.value: "W_M16_AX",
-                FukuOperandSize.SIZE_32.value: "D_M32_EAX",
-                FukuOperandSize.SIZE_64.value: "Q_M64_RAX",
+                8: "B_M8_AL",
+                16: "W_M16_AX",
+                32: "D_M32_EAX",
+                64: "Q_M64_RAX",
             },
         )
         self._gen_func_body_string_inst_iced(
             "lods",
             x86_const.X86_EFLAGS_TEST_DF,
             mapping={
-                FukuOperandSize.SIZE_8.value: "B_AL_M8",
-                FukuOperandSize.SIZE_16.value: "W_AX_M16",
-                FukuOperandSize.SIZE_32.value: "D_EAX_M32",
-                FukuOperandSize.SIZE_64.value: "Q_RAX_M64",
+                8: "B_AL_M8",
+                16: "W_AX_M16",
+                32: "D_EAX_M32",
+                64: "Q_RAX_M64",
             },
         )
         self._gen_func_body_string_inst_iced(
@@ -534,10 +534,10 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
             mapping={
-                FukuOperandSize.SIZE_8.value: "B_AL_M8",
-                FukuOperandSize.SIZE_16.value: "W_AX_M16",
-                FukuOperandSize.SIZE_32.value: "D_EAX_M32",
-                FukuOperandSize.SIZE_64.value: "Q_RAX_M64",
+                8: "B_AL_M8",
+                16: "W_AX_M16",
+                32: "D_EAX_M32",
+                64: "Q_RAX_M64",
             },
         )
 
@@ -656,195 +656,106 @@ class FukuAsmBody:
         self._gen_func_body_byte_no_arg_iced("rdtsc", x86_const.X86_INS_RDTSC, 0)
         self._gen_func_body_byte_no_arg_iced("lfence", x86_const.X86_INS_LFENCE, 0)
 
+        self._gen_func_body_mov_iced("mov")
+
     def _gen_fn(self, name: str, wrappers: list[PostfixedWrapper]):
         for wrapper in wrappers:
             setattr(self.__class__, f"{name}_{wrapper.postfix}", wrapper.wrapper)
 
     # Data Transfer Instructions
     # MOV
-    def mov_b(
-        self,
-        ctx: FukuAsmCtx,
-        dst: FukuRegister | FukuOperand,
-        src: FukuRegister | FukuImmediate | FukuOperand,
-    ):
-        ctx.clear()
+    def _gen_func_body_mov_iced(self, name):
+        eax_mapping = {
+            8: {
+                "reg": FukuRegisterEnum.REG_AL,
+                "code_reg_op": Code.MOV_AL_MOFFS8,
+                "code_op_reg": Code.MOV_MOFFS8_AL,
+                "op_imm_size": 8,
+            },
+            16: {
+                "reg": FukuRegisterEnum.REG_AX,
+                "code_reg_op": Code.MOV_AX_MOFFS16,
+                "code_op_reg": Code.MOV_MOFFS16_AX,
+                "op_imm_size": 16,
+            },
+            32: {
+                "reg": FukuRegisterEnum.REG_EAX,
+                "code_reg_op": Code.MOV_EAX_MOFFS32,
+                "code_op_reg": Code.MOV_MOFFS32_EAX,
+                "op_imm_size": 32,
+            },
+            64: {
+                "reg": FukuRegisterEnum.REG_RAX,
+                "code_reg_op": Code.MOV_RAX_MOFFS64,
+                "code_op_reg": Code.MOV_MOFFS64_RAX,
+                "op_imm_size": 32,
+            },
+        }
 
-        if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
-            ctx.gen_pattern32_1em_rm_r(0x88, dst, src)
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            ctx.gen_pattern32_1em_immb(0xB0 | dst.index.value, dst, src)
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuOperand):
-            if (
-                ctx.is_used_short_eax
-                and dst.reg == FukuRegisterEnum.REG_AL
-                and src.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
-            ):
-                ctx.emit_optional_rex_32(src, dst)
-                ctx.emit_b(0xA0)
-                ctx.emit_dw(src.disp.immediate32)
-                ctx.displacment_offset = len(ctx.bytecode)  # todo
-            else:
-                ctx.gen_pattern32_1em_op_r(0x8A, src, dst)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuImmediate):
-            ctx.gen_pattern32_1em_op_idx_immb(0xC6, dst, 0, src)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
-            if (
-                ctx.is_used_short_eax
-                and src.reg == FukuRegisterEnum.REG_AL
-                and dst.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
-            ):
-                ctx.emit_optional_rex_32(dst, src)
-                ctx.emit_b(0xA2)
-                ctx.emit_dw(dst.disp.immediate32)
-                ctx.displacment_offset = len(ctx.bytecode)  # todo
-            else:
-                ctx.gen_pattern32_1em_op_r(0x88, dst, src)
-        else:
-            raise AttributeError("Unhandled case")
+        def wrapper(size: int):
+            def fn(self, ctx: FukuAsmCtx, dst, src):
+                ctx.clear()
 
-        ctx.gen_func_return(x86_const.X86_INS_MOV, 0)
+                if (
+                    (
+                        (isinstance(dst, FukuRegister) and isinstance(src, FukuOperand))
+                        or (
+                            isinstance(dst, FukuOperand)
+                            and isinstance(src, FukuRegister)
+                        )
+                    )
+                    and ctx.is_used_short_eax
+                    and (
+                        (
+                            isinstance(dst, FukuRegister)
+                            and dst.reg == eax_mapping[size]["reg"]
+                            and src.type
+                            == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
+                        )
+                        or (
+                            isinstance(src, FukuRegister)
+                            and src.reg == eax_mapping[size]["reg"]
+                            and dst.type
+                            == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
+                        )
+                    )
+                ):
+                    if (
+                        isinstance(dst, FukuRegister)
+                        and dst.reg == eax_mapping[size]["reg"]
+                    ) or (
+                        isinstance(src, FukuRegister)
+                        and src.reg == eax_mapping[size]["reg"]
+                    ):
+                        code = eax_mapping[size]["code_reg_op"]
+                    else:
+                        code = eax_mapping[size]["code_op_reg"]
+                else:
+                    if isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
+                        code = getattr(Code, f"{name.upper()}_RM{size}_R{size}")
+                    elif isinstance(dst, FukuOperand) and isinstance(
+                        src, FukuImmediate
+                    ):
+                        code_str = f"{name.upper()}_RM{size}_IMM{eax_mapping[size]['op_imm_size']}"
+                        code = getattr(Code, code_str)
+                    else:
+                        code = get_iced_code(ctx, "mov", dst, src, size)
 
-    def mov_w(
-        self,
-        ctx: FukuAsmCtx,
-        dst: FukuRegister | FukuOperand,
-        src: FukuRegister | FukuImmediate | FukuOperand,
-    ):
-        ctx.clear()
+                arg1 = dst.to_iced_name()
+                arg2 = src.to_iced_name()
+                ins = getattr(Instruction, f"create_{arg1}_{arg2}")(
+                    code, dst.to_iced(), src.to_iced()
+                )
+                gen_iced_ins(ctx, ins)
 
-        if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
-            ctx.gen_pattern32_1em_rm_r_word(0x89, dst, src)
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
-            ctx.emit_optional_rex_32(dst)
-            ctx.emit_b(0xB8 | dst.index.value)
-            ctx.emit_immediate_w(src)
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuOperand):
-            if (
-                ctx.is_used_short_eax
-                and dst.reg == FukuRegisterEnum.REG_AX
-                and src.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
-            ):
-                ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
-                ctx.emit_optional_rex_32(src, dst)
-                ctx.emit_b(0xA1)
-                ctx.emit_dw(src.disp.immediate32)
-                ctx.displacment_offset = len(ctx.bytecode)  # todo
-            else:
-                ctx.gen_pattern32_1em_op_r_word(0x8B, src, dst)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuImmediate):
-            ctx.gen_pattern32_1em_op_idx_immw_word(0xC7, dst, 0, src)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
-            if (
-                ctx.is_used_short_eax
-                and src.reg == FukuRegisterEnum.REG_AX
-                and dst.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
-            ):
-                ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
-                ctx.emit_optional_rex_32(dst, src)
-                ctx.emit_b(0xA3)
-                ctx.emit_dw(dst.disp.immediate32)
-                ctx.displacment_offset = len(ctx.bytecode)  # todo
-            else:
-                ctx.gen_pattern32_1em_op_r_word(0x89, dst, src)
-        else:
-            raise AttributeError("Unhandled case")
+                if isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
+                    ctx.gen_func_return(x86_const.X86_INS_MOVABS, 0)
+                else:
+                    ctx.gen_func_return(x86_const.X86_INS_MOV, 0)
 
-        ctx.gen_func_return(x86_const.X86_INS_MOV, 0)
+            return fn
 
-    def mov_dw(
-        self,
-        ctx: FukuAsmCtx,
-        dst: FukuRegister | FukuOperand,
-        src: FukuRegister | FukuImmediate | FukuOperand,
-    ):
-        ctx.clear()
-
-        if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
-            ctx.gen_pattern32_1em_rm_r(0x89, dst, src)
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            ctx.emit_optional_rex_32(dst)
-            ctx.emit_b(0xB8 | dst.index.value)
-            ctx.emit_immediate_dw(src)
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuOperand):
-            if (
-                ctx.is_used_short_eax
-                and dst.reg == FukuRegisterEnum.REG_EAX
-                and src.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
-            ):
-                ctx.emit_optional_rex_32(dst)
-                ctx.emit_b(0xA1)
-                ctx.emit_dw(src.disp.immediate32)
-                ctx.displacment_offset = len(ctx.bytecode)  # todo
-            else:
-                ctx.gen_pattern32_1em_op_r(0x8B, src, dst)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuImmediate):
-            ctx.gen_pattern32_1em_op_idx_immdw(0xC7, dst, 0, src)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
-            if (
-                ctx.is_used_short_eax
-                and src.reg == FukuRegisterEnum.REG_EAX
-                and dst.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
-            ):
-                ctx.emit_optional_rex_32(dst, src)
-                ctx.emit_b(0xA3)
-                ctx.emit_dw(dst.disp.immediate32)
-                ctx.displacment_offset = len(ctx.bytecode)  # todo
-            else:
-                ctx.gen_pattern32_1em_op_r(0x89, dst, src)
-        else:
-            raise AttributeError("Unhandled case")
-
-        ctx.gen_func_return(x86_const.X86_INS_MOV, 0)
-
-    def mov_qw(
-        self,
-        ctx: FukuAsmCtx,
-        dst: FukuRegister | FukuOperand,
-        src: FukuRegister | FukuImmediate | FukuOperand,
-    ):
-        ctx.clear()
-
-        if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
-            ctx.gen_pattern64_1em_rm_r(0x89, dst, src)
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            ctx.emit_rex_64(dst)
-            ctx.emit_b(0xB8 | dst.index.value)
-            ctx.emit_immediate_qw(src)
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuOperand):
-            if (
-                ctx.is_used_short_eax
-                and dst.reg == FukuRegisterEnum.REG_RAX
-                and src.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
-            ):
-                ctx.emit_rex_64(dst)
-                ctx.emit_b(0xA1)
-                ctx.emit_dw(src.disp.immediate32)
-                ctx.displacment_offset = len(ctx.bytecode)  # todo
-            else:
-                ctx.gen_pattern64_1em_op_r(0x8B, src, dst)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuImmediate):
-            ctx.gen_pattern64_1em_op_idx_immdw(0xC7, dst, 0, src)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
-            if (
-                ctx.is_used_short_eax
-                and src.reg == FukuRegisterEnum.REG_RAX
-                and dst.type == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
-            ):
-                ctx.emit_rex_64(dst, src)
-                ctx.emit_b(0xA3)
-                ctx.emit_dw(dst.disp.immediate32)
-                ctx.displacment_offset = len(ctx.bytecode)  # todo
-            else:
-                ctx.gen_pattern64_1em_op_r(0x89, dst, src)
-        else:
-            raise AttributeError("Unhandled case")
-
-        if isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            ctx.gen_func_return(x86_const.X86_INS_MOVABS, 0)
-        else:
-            ctx.gen_func_return(x86_const.X86_INS_MOV, 0)
+        self._gen_fn(name, gen_default_postfix(wrapper))
 
     def cmovcc_w(
         self,
@@ -1849,7 +1760,6 @@ class FukuAsmBody:
             ):
                 ctx.clear()
 
-                print(src, src.size)
                 code = get_iced_code(ctx, name, dst, src, size, max_imm_size=8)
                 arg1 = dst.to_iced_name()
                 arg2 = src.to_iced_name()
