@@ -5,7 +5,7 @@ from iced_x86 import Code, Instruction, BlockEncoder, Register
 from pydantic import BaseModel
 
 from furikuripy.common import rng
-from furikuripy.x86.misc import FukuCondition, FukuToCapConvertType
+from furikuripy.x86.misc import FukuCondition, FukuOperandSize, FukuToCapConvertType
 from furikuripy.x86.fuku_asm_ctx import FukuAsmCtx
 from furikuripy.x86.fuku_immediate import FukuImmediate
 from furikuripy.x86.fuku_register import FukuRegister, FukuRegisterEnum
@@ -13,13 +13,6 @@ from furikuripy.x86.fuku_operand import FukuOperand, FukuMemOperandType, FukuPre
 
 cs = Cs(CS_ARCH_X86, CS_MODE_64)
 cs.detail = True
-
-FUKU_INTERNAL_ASSEMBLER_STRING_OUT = 55
-FUKU_INTERNAL_ASSEMBLER_STRING_MOV = 82
-FUKU_INTERNAL_ASSEMBLER_STRING_CMP = 83
-FUKU_INTERNAL_ASSEMBLER_STRING_STO = 85
-FUKU_INTERNAL_ASSEMBLER_STRING_LOD = 86
-FUKU_INTERNAL_ASSEMBLER_STRING_SCA = 87
 
 ADI_FL_JCC = [
     x86_const.X86_EFLAGS_TEST_OF , x86_const.X86_EFLAGS_TEST_OF, # jo   / jno
@@ -477,52 +470,75 @@ class FukuAsmBody:
         self._gen_func_body_byte_no_arg_iced("leave", x86_const.X86_INS_LEAVE, 0)
 
         # String Instructions
-        self._gen_func_body_string_inst(
+        self._gen_func_body_string_inst_iced(
             "outs",
-            FUKU_INTERNAL_ASSEMBLER_STRING_OUT,
-            "X86_INS_OUTS",
             x86_const.X86_EFLAGS_TEST_DF,
-            q=False,
+            mapping={
+                FukuOperandSize.SIZE_8.value: "B_DX_M8",
+                FukuOperandSize.SIZE_16.value: "W_DX_M16",
+                FukuOperandSize.SIZE_32.value: "D_DX_M32",
+            },
+            exclude=["qw"],
         )
-        self._gen_func_body_string_inst(
+        self._gen_func_body_string_inst_iced(
             "movs",
-            FUKU_INTERNAL_ASSEMBLER_STRING_MOV,
-            "X86_INS_MOVS",
             x86_const.X86_EFLAGS_TEST_DF,
+            mapping={
+                FukuOperandSize.SIZE_8.value: "B_M8_M8",
+                FukuOperandSize.SIZE_16.value: "W_M16_M16",
+                FukuOperandSize.SIZE_32.value: "D_M32_M32",
+                FukuOperandSize.SIZE_64.value: "Q_M64_M64",
+            },
         )
-        self._gen_func_body_string_inst(
+        self._gen_func_body_string_inst_iced(
             "cmps",
-            FUKU_INTERNAL_ASSEMBLER_STRING_CMP,
-            "X86_INS_CMPS",
             x86_const.X86_EFLAGS_MODIFY_OF
             | x86_const.X86_EFLAGS_MODIFY_SF
             | x86_const.X86_EFLAGS_MODIFY_ZF
             | x86_const.X86_EFLAGS_MODIFY_AF
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
+            mapping={
+                FukuOperandSize.SIZE_8.value: "B_M8_M8",
+                FukuOperandSize.SIZE_16.value: "W_M16_M16",
+                FukuOperandSize.SIZE_32.value: "D_M32_M32",
+                FukuOperandSize.SIZE_64.value: "Q_M64_M64",
+            },
         )
-        self._gen_func_body_string_inst(
+        self._gen_func_body_string_inst_iced(
             "stos",
-            FUKU_INTERNAL_ASSEMBLER_STRING_STO,
-            "X86_INS_STOS",
             x86_const.X86_EFLAGS_TEST_DF,
+            mapping={
+                FukuOperandSize.SIZE_8.value: "B_M8_AL",
+                FukuOperandSize.SIZE_16.value: "W_M16_AX",
+                FukuOperandSize.SIZE_32.value: "D_M32_EAX",
+                FukuOperandSize.SIZE_64.value: "Q_M64_RAX",
+            },
         )
-        self._gen_func_body_string_inst(
+        self._gen_func_body_string_inst_iced(
             "lods",
-            FUKU_INTERNAL_ASSEMBLER_STRING_LOD,
-            "X86_INS_LODS",
             x86_const.X86_EFLAGS_TEST_DF,
+            mapping={
+                FukuOperandSize.SIZE_8.value: "B_AL_M8",
+                FukuOperandSize.SIZE_16.value: "W_AX_M16",
+                FukuOperandSize.SIZE_32.value: "D_EAX_M32",
+                FukuOperandSize.SIZE_64.value: "Q_RAX_M64",
+            },
         )
-        self._gen_func_body_string_inst(
+        self._gen_func_body_string_inst_iced(
             "scas",
-            FUKU_INTERNAL_ASSEMBLER_STRING_SCA,
-            "X86_INS_SCAS",
             x86_const.X86_EFLAGS_MODIFY_OF
             | x86_const.X86_EFLAGS_MODIFY_SF
             | x86_const.X86_EFLAGS_MODIFY_ZF
             | x86_const.X86_EFLAGS_MODIFY_AF
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
+            mapping={
+                FukuOperandSize.SIZE_8.value: "B_AL_M8",
+                FukuOperandSize.SIZE_16.value: "W_AX_M16",
+                FukuOperandSize.SIZE_32.value: "D_EAX_M32",
+                FukuOperandSize.SIZE_64.value: "Q_RAX_M64",
+            },
         )
 
         # Flag Control (EFLAG) Instructions
@@ -1848,37 +1864,22 @@ class FukuAsmBody:
 
         self._gen_fn(name, gen_default_postfix(wrapper, exclude=["b"]))
 
-    def _gen_func_body_string_inst(
-        self, name, type: int, idMASK: str, cap_eflags, q=True
+    def _gen_func_body_string_inst_iced(
+        self, name, cap_eflags, mapping: dict[int, str], exclude: list[str] = []
     ):
-        def wrapper_b(self, ctx: FukuAsmCtx):
-            ctx.clear()
-            ctx.emit_b(type * 2)
-            ctx.gen_func_return(getattr(x86_const, idMASK + "B"), cap_eflags)
+        def wrapper(size: int):
+            def fn(self, ctx: FukuAsmCtx):
+                ctx.clear()
 
-        def wrapper_w(self, ctx: FukuAsmCtx):
-            ctx.clear()
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
-            ctx.emit_b(type * 2 + 1)
-            ctx.gen_func_return(getattr(x86_const, idMASK + "W"), cap_eflags)
+                code = getattr(Code, f"{name.upper()}{mapping[size]}")
+                ins = Instruction.create(code)
+                gen_iced_ins(ctx, ins)
 
-        def wrapper_d(self, ctx: FukuAsmCtx):
-            ctx.clear()
-            ctx.emit_b(type * 2 + 1)
-            ctx.gen_func_return(getattr(x86_const, idMASK + "D"), cap_eflags)
+                ctx.gen_func_return(id, cap_eflags)
 
-        def wrapper_q(self, ctx: FukuAsmCtx):
-            ctx.clear()
-            ctx.emit_rex_64()
-            ctx.emit_b(type * 2 + 1)
-            ctx.gen_func_return(getattr(x86_const, idMASK + "Q"), cap_eflags)
+            return fn
 
-        setattr(self.__class__, self._gen_name(name, "b"), wrapper_b)
-        setattr(self.__class__, self._gen_name(name, "w"), wrapper_w)
-        setattr(self.__class__, self._gen_name(name, "d"), wrapper_d)
-
-        if q:
-            setattr(self.__class__, self._gen_name(name, "q"), wrapper_q)
+        self._gen_fn(name, gen_default_postfix(wrapper, exclude=exclude))
 
     def _gen_func_body_movxx(self, name, type: int, id):
         def wrapper_byte_w(
