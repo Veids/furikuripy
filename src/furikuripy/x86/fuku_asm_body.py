@@ -1468,18 +1468,19 @@ class FukuAsmBody:
         ctx.clear()
 
         if imm is not None:
-            ctx.gen_pattern32_1em_immw(
-                0xC2, FukuRegister(FukuRegisterEnum.REG_NONE), imm
-            )
+            ins = Instruction.create_u32(Code.RETNQ_IMM16, imm.to_iced())
         else:
-            ctx.emit_b(0xC3)
+            ins = Instruction.create(Code.RETNQ)
+        gen_iced_ins(ctx, ins)
 
         ctx.gen_func_return(x86_const.X86_INS_RET, 0)
 
     def enter(self, ctx: FukuAsmCtx, size: FukuImmediate, nesting_level: int):
         ctx.clear()
-        ctx.gen_pattern32_1em_immw(0xC8, FukuRegister(FukuRegisterEnum.REG_NONE), size)
-        ctx.emit_b(nesting_level)
+
+        ins = Instruction.create_u32_u32(Code.ENTERQ_IMM16_IMM8, size.to_iced(), nesting_level)
+        gen_iced_ins(ctx, ins)
+
         ctx.gen_func_return(x86_const.X86_INS_ENTER, 0)
 
     # Miscellaneous Instructions
