@@ -657,6 +657,26 @@ class FukuAsmBody:
         self._gen_func_body_byte_no_arg_iced("lfence", x86_const.X86_INS_LFENCE, 0)
 
         self._gen_func_body_mov_iced("mov")
+        self._gen_func_body_rdxxxx_iced(
+            "rdrand",
+            x86_const.X86_INS_RDRAND,
+            x86_const.X86_EFLAGS_MODIFY_CF
+            | x86_const.X86_EFLAGS_RESET_OF
+            | x86_const.X86_EFLAGS_RESET_SF
+            | x86_const.X86_EFLAGS_RESET_ZF
+            | x86_const.X86_EFLAGS_RESET_AF
+            | x86_const.X86_EFLAGS_RESET_PF,
+        )
+        self._gen_func_body_rdxxxx_iced(
+            "rdseed",
+            x86_const.X86_INS_RDSEED,
+            x86_const.X86_EFLAGS_MODIFY_CF
+            | x86_const.X86_EFLAGS_RESET_OF
+            | x86_const.X86_EFLAGS_RESET_SF
+            | x86_const.X86_EFLAGS_RESET_ZF
+            | x86_const.X86_EFLAGS_RESET_AF
+            | x86_const.X86_EFLAGS_RESET_PF,
+        )
 
     def _gen_fn(self, name: str, wrappers: list[PostfixedWrapper]):
         for wrapper in wrappers:
@@ -1478,7 +1498,9 @@ class FukuAsmBody:
     def enter(self, ctx: FukuAsmCtx, size: FukuImmediate, nesting_level: int):
         ctx.clear()
 
-        ins = Instruction.create_u32_u32(Code.ENTERQ_IMM16_IMM8, size.to_iced(), nesting_level)
+        ins = Instruction.create_u32_u32(
+            Code.ENTERQ_IMM16_IMM8, size.to_iced(), nesting_level
+        )
         gen_iced_ins(ctx, ins)
 
         ctx.gen_func_return(x86_const.X86_INS_ENTER, 0)
@@ -1500,103 +1522,21 @@ class FukuAsmBody:
         ctx.gen_func_return(x86_const.X86_INS_LEA, 0)
 
     # Random Number Generator Instructions
-    def rdrand_w(self, ctx: FukuAsmCtx, dst: FukuRegister):
-        ctx.clear()
-        ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
-        ctx.emit_optional_rex_32(dst)
-        ctx.emit_b(0x0F)
-        ctx.emit_b(0xC7)
-        ctx.emit_b(0xF0 | dst.index.value)
-        ctx.gen_func_return(
-            x86_const.X86_INS_RDRAND,
-            x86_const.X86_EFLAGS_MODIFY_CF
-            | x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_RESET_SF
-            | x86_const.X86_EFLAGS_RESET_ZF
-            | x86_const.X86_EFLAGS_RESET_AF
-            | x86_const.X86_EFLAGS_RESET_PF,
-        )
+    def _gen_func_body_rdxxxx_iced(self, name, id, cap_eflags):
+        def wrapper(size: int):
+            def fn(self, ctx: FukuAsmCtx, dst: FukuRegister):
+                ctx.clear()
 
-    def rdrand_dw(self, ctx: FukuAsmCtx, dst: FukuRegister):
-        ctx.clear()
-        ctx.emit_optional_rex_32(dst)
-        ctx.emit_b(0x0F)
-        ctx.emit_b(0xC7)
-        ctx.emit_b(0xF0 | dst.index.value)
-        ctx.gen_func_return(
-            x86_const.X86_INS_RDRAND,
-            x86_const.X86_EFLAGS_MODIFY_CF
-            | x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_RESET_SF
-            | x86_const.X86_EFLAGS_RESET_ZF
-            | x86_const.X86_EFLAGS_RESET_AF
-            | x86_const.X86_EFLAGS_RESET_PF,
-        )
+                code = getattr(Code, f"{name}_R{size}")
+                arg1 = dst.to_iced_name()
+                ins = getattr(Instruction, f"create_{arg1}")(code, dst.to_iced())
+                gen_iced_ins(ctx, ins)
 
-    def rdrand_qw(self, ctx: FukuAsmCtx, dst: FukuRegister):
-        ctx.clear()
-        ctx.emit_rex_64(dst)
-        ctx.emit_b(0x0F)
-        ctx.emit_b(0xC7)
-        ctx.emit_b(0xF0 | dst.index.value)
-        ctx.gen_func_return(
-            x86_const.X86_INS_RDRAND,
-            x86_const.X86_EFLAGS_MODIFY_CF
-            | x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_RESET_SF
-            | x86_const.X86_EFLAGS_RESET_ZF
-            | x86_const.X86_EFLAGS_RESET_AF
-            | x86_const.X86_EFLAGS_RESET_PF,
-        )
+                ctx.gen_func_return(id, cap_eflags)
 
-    def rdseed_w(self, ctx: FukuAsmCtx, dst: FukuRegister):
-        ctx.clear()
-        ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
-        ctx.emit_optional_rex_32(dst)
-        ctx.emit_b(0x0F)
-        ctx.emit_b(0xC7)
-        ctx.emit_b(0xF8 | dst.index.value)
-        ctx.gen_func_return(
-            x86_const.X86_INS_RDSEED,
-            x86_const.X86_EFLAGS_MODIFY_CF
-            | x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_RESET_SF
-            | x86_const.X86_EFLAGS_RESET_ZF
-            | x86_const.X86_EFLAGS_RESET_AF
-            | x86_const.X86_EFLAGS_RESET_PF,
-        )
+            return fn
 
-    def rdseed_dw(self, ctx: FukuAsmCtx, dst: FukuRegister):
-        ctx.clear()
-        ctx.emit_optional_rex_32(dst)
-        ctx.emit_b(0x0F)
-        ctx.emit_b(0xC7)
-        ctx.emit_b(0xF8 | dst.index.value)
-        ctx.gen_func_return(
-            x86_const.X86_INS_RDSEED,
-            x86_const.X86_EFLAGS_MODIFY_CF
-            | x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_RESET_SF
-            | x86_const.X86_EFLAGS_RESET_ZF
-            | x86_const.X86_EFLAGS_RESET_AF
-            | x86_const.X86_EFLAGS_RESET_PF,
-        )
-
-    def rdseed_qw(self, ctx: FukuAsmCtx, dst: FukuRegister):
-        ctx.clear()
-        ctx.emit_rex_64(dst)
-        ctx.emit_b(0x0F)
-        ctx.emit_b(0xC7)
-        ctx.emit_b(0xF8 | dst.index.value)
-        ctx.gen_func_return(
-            x86_const.X86_INS_RDSEED,
-            x86_const.X86_EFLAGS_MODIFY_CF
-            | x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_RESET_SF
-            | x86_const.X86_EFLAGS_RESET_ZF
-            | x86_const.X86_EFLAGS_RESET_AF
-            | x86_const.X86_EFLAGS_RESET_PF,
-        )
+        self._gen_fn(name, gen_default_postfix(wrapper, exclude=["b"]))
 
     # SYSTEM INSTRUCTIONS
     def nop(self, ctx: FukuAsmCtx, n: int = None):
