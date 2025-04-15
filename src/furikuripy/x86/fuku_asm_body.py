@@ -170,7 +170,7 @@ class FukuAsmBody:
         self._gen_func_body_movxx("movsx", 0xBE, x86_const.X86_INS_MOVSX)
 
         # Binary Arithmetic Instructions
-        self._gen_func_body_arith_iced(
+        self._gen_func_body_generic(
             "add",
             x86_const.X86_INS_ADD,
             x86_const.X86_EFLAGS_MODIFY_OF
@@ -179,8 +179,10 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_AF
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
+            op1=FukuRegister | FukuOperand | FukuImmediate,
+            op2=FukuRegister | FukuOperand | FukuImmediate,
         )
-        self._gen_func_body_arith_iced(
+        self._gen_func_body_generic(
             "adc",
             x86_const.X86_INS_ADC,
             x86_const.X86_EFLAGS_MODIFY_OF
@@ -189,8 +191,10 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_AF
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
+            op1=FukuRegister | FukuOperand | FukuImmediate,
+            op2=FukuRegister | FukuOperand | FukuImmediate,
         )
-        self._gen_func_body_arith_iced(
+        self._gen_func_body_generic(
             "sub",
             x86_const.X86_INS_SUB,
             x86_const.X86_EFLAGS_MODIFY_OF
@@ -199,8 +203,10 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_AF
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
+            op1=FukuRegister | FukuOperand | FukuImmediate,
+            op2=FukuRegister | FukuOperand | FukuImmediate,
         )
-        self._gen_func_body_arith_iced(
+        self._gen_func_body_generic(
             "sbb",
             x86_const.X86_INS_SBB,
             x86_const.X86_EFLAGS_MODIFY_OF
@@ -209,6 +215,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_AF
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
+            op1=FukuRegister | FukuOperand | FukuImmediate,
+            op2=FukuRegister | FukuOperand | FukuImmediate,
         )
         self._gen_func_body_generic(
             "imul",
@@ -287,7 +295,7 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_CF,
             op1=FukuRegister|FukuOperand,
         )
-        self._gen_func_body_arith_iced(
+        self._gen_func_body_generic(
             "cmp",
             x86_const.X86_INS_CMP,
             x86_const.X86_EFLAGS_MODIFY_OF
@@ -296,6 +304,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_AF
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
+            op1=FukuRegister | FukuOperand | FukuImmediate,
+            op2=FukuRegister | FukuOperand | FukuImmediate,
         )
 
         # Decimal Arithmetic Instructions
@@ -341,7 +351,7 @@ class FukuAsmBody:
         )
 
         # Logical Instructions Instructions
-        self._gen_func_body_arith_iced(
+        self._gen_func_body_generic(
             "and",
             x86_const.X86_INS_AND,
             x86_const.X86_EFLAGS_RESET_OF
@@ -350,8 +360,10 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_AF
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_RESET_CF,
+            op1=FukuRegister | FukuOperand | FukuImmediate,
+            op2=FukuRegister | FukuOperand | FukuImmediate,
         )
-        self._gen_func_body_arith_iced(
+        self._gen_func_body_generic(
             "or",
             x86_const.X86_INS_OR,
             x86_const.X86_EFLAGS_RESET_OF
@@ -360,8 +372,10 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_AF
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_RESET_CF,
+            op1=FukuRegister | FukuOperand | FukuImmediate,
+            op2=FukuRegister | FukuOperand | FukuImmediate,
         )
-        self._gen_func_body_arith_iced(
+        self._gen_func_body_generic(
             "xor",
             x86_const.X86_INS_XOR,
             x86_const.X86_EFLAGS_RESET_OF
@@ -370,6 +384,8 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_AF
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_RESET_CF,
+            op1=FukuRegister | FukuOperand | FukuImmediate,
+            op2=FukuRegister | FukuOperand | FukuImmediate,
         )
         self._gen_func_body_generic("not", x86_const.X86_INS_NOT, 0, op1=FukuRegister|FukuOperand)
 
@@ -1617,25 +1633,6 @@ class FukuAsmBody:
 
     def _gen_name(self, name, postfix):
         return name + postfix
-
-    def _gen_func_body_arith_iced(self, name, id, cap_eflags):
-        def wrapper(size: int):
-            def fn(self, ctx: FukuAsmCtx, dst, src):
-                ctx.clear()
-
-                code = get_iced_code_two_op(ctx, name, dst, src, size)
-                arg1 = dst.to_iced_name()
-                arg2 = src.to_iced_name()
-                ins = getattr(Instruction, f"create_{arg1}_{arg2}")(
-                    code, dst.to_iced(), src.to_iced()
-                )
-                gen_iced_ins(ctx, ins)
-
-                ctx.gen_func_return(id, cap_eflags)
-
-            return fn
-
-        self._gen_fn(name, gen_default_postfix(wrapper))
 
     def _gen_func_body_shift_iced(self, name, id, cap_eflags):
         def wrapper_cl(size: int):
