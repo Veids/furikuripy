@@ -4,7 +4,7 @@ import logging
 
 from typing import List, Tuple, Dict
 from pydantic import StrictBytes
-from capstone import x86_const, Cs, CS_ARCH_X86, CS_MODE_32, CS_MODE_64
+from capstone import Cs, CS_ARCH_X86, CS_MODE_32, CS_MODE_64
 from rich import print
 from rich.syntax import Syntax
 from rich.panel import Panel
