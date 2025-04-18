@@ -166,8 +166,28 @@ class FukuAsmBody:
         self._gen_func_body_generic("cwde", x86_const.X86_INS_CWDE, 0)
         self._gen_func_body_generic("cdqe", x86_const.X86_INS_CDQE, 0)
 
-        self._gen_func_body_movxx("movzx", 0xB6, x86_const.X86_INS_MOVZX)
-        self._gen_func_body_movxx("movsx", 0xBE, x86_const.X86_INS_MOVSX)
+        for inst_name, inst_code in [
+            ("movzx", x86_const.X86_INS_MOVZX),
+            ("movsx", x86_const.X86_INS_MOVSX),
+        ]:
+            self._gen_func_body_generic(
+                inst_name,
+                inst_code,
+                0,
+                exclude=["b"],
+                name_prefix="byte_",
+                op1=FukuRegister,
+                op2=FukuRegister | FukuOperand,
+            )
+            self._gen_func_body_generic(
+                inst_name,
+                inst_code,
+                0,
+                exclude=["b", "w"],
+                name_prefix="word_",
+                op1=FukuRegister,
+                op2=FukuRegister | FukuOperand,
+            )
 
         # Binary Arithmetic Instructions
         self._gen_func_body_generic(
@@ -227,7 +247,7 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_ZF
             | x86_const.X86_EFLAGS_UNDEFINED_AF
             | x86_const.X86_EFLAGS_UNDEFINED_PF,
-            op1=FukuRegister|FukuOperand,
+            op1=FukuRegister | FukuOperand,
         )
         self._gen_func_body_generic(
             "mul",
@@ -238,7 +258,7 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_AF
             | x86_const.X86_EFLAGS_UNDEFINED_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
-            op1=FukuRegister|FukuOperand,
+            op1=FukuRegister | FukuOperand,
         )
         self._gen_func_body_generic(
             "idiv",
@@ -249,7 +269,7 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_AF
             | x86_const.X86_EFLAGS_UNDEFINED_PF
             | x86_const.X86_EFLAGS_UNDEFINED_CF,
-            op1=FukuRegister|FukuOperand,
+            op1=FukuRegister | FukuOperand,
         )
         self._gen_func_body_generic(
             "div",
@@ -260,7 +280,7 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_UNDEFINED_AF
             | x86_const.X86_EFLAGS_UNDEFINED_PF
             | x86_const.X86_EFLAGS_UNDEFINED_CF,
-            op1=FukuRegister|FukuOperand,
+            op1=FukuRegister | FukuOperand,
         )
         self._gen_func_body_generic(
             "inc",
@@ -271,7 +291,7 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_AF
             | x86_const.X86_EFLAGS_MODIFY_PF,
             exclude_ops=["INC_R16", "INC_R32"],
-            op1=FukuRegister|FukuOperand,
+            op1=FukuRegister | FukuOperand,
         )
         self._gen_func_body_generic(
             "dec",
@@ -282,7 +302,7 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_AF
             | x86_const.X86_EFLAGS_MODIFY_PF,
             exclude_ops=["DEC_R16", "DEC_R32"],
-            op1=FukuRegister|FukuOperand,
+            op1=FukuRegister | FukuOperand,
         )
         self._gen_func_body_generic(
             "neg",
@@ -293,7 +313,7 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_AF
             | x86_const.X86_EFLAGS_MODIFY_PF
             | x86_const.X86_EFLAGS_MODIFY_CF,
-            op1=FukuRegister|FukuOperand,
+            op1=FukuRegister | FukuOperand,
         )
         self._gen_func_body_generic(
             "cmp",
@@ -387,11 +407,25 @@ class FukuAsmBody:
             op1=FukuRegister | FukuOperand | FukuImmediate,
             op2=FukuRegister | FukuOperand | FukuImmediate,
         )
-        self._gen_func_body_generic("not", x86_const.X86_INS_NOT, 0, op1=FukuRegister|FukuOperand)
+        self._gen_func_body_generic(
+            "not", x86_const.X86_INS_NOT, 0, op1=FukuRegister | FukuOperand
+        )
 
         # TODO: Make sure pop_b and push_b don't exist
-        self._gen_func_body_generic("pop", x86_const.X86_INS_POP, 0, exclude=["b"], op1=FukuRegister|FukuOperand)
-        self._gen_func_body_generic("push", x86_const.X86_INS_PUSH, 0, exclude=["b"], op1=FukuRegister|FukuOperand)
+        self._gen_func_body_generic(
+            "pop",
+            x86_const.X86_INS_POP,
+            0,
+            exclude=["b"],
+            op1=FukuRegister | FukuOperand,
+        )
+        self._gen_func_body_generic(
+            "push",
+            x86_const.X86_INS_PUSH,
+            0,
+            exclude=["b"],
+            op1=FukuRegister | FukuOperand,
+        )
 
         # Shift and Rotate Instructions
         self._gen_func_body_shift_iced(
@@ -722,6 +756,19 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_NT
             | x86_const.X86_EFLAGS_MODIFY_RF,
         )
+        self._gen_func_body_generic(
+            "popcnt",
+            x86_const.X86_INS_POPCNT,
+            x86_const.X86_EFLAGS_RESET_OF
+            | x86_const.X86_EFLAGS_RESET_SF
+            | x86_const.X86_EFLAGS_MODIFY_ZF
+            | x86_const.X86_EFLAGS_RESET_AF
+            | x86_const.X86_EFLAGS_RESET_PF
+            | x86_const.X86_EFLAGS_RESET_CF,
+            exclude=["b"],
+            op1=FukuRegister,
+            op2=FukuRegister|FukuOperand,
+        )
 
         # Miscellaneous Instructions
         self._gen_func_body_generic("ud2", x86_const.X86_INS_UD2, 0)
@@ -760,7 +807,7 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_RESET_AF
             | x86_const.X86_EFLAGS_RESET_PF,
             exclude=["b"],
-            op1=FukuRegister
+            op1=FukuRegister,
         )
         self._gen_func_body_generic(
             "rdseed",
@@ -796,6 +843,16 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_MODIFY_CF,
             op1=FukuOperand | FukuRegister,
             op2=FukuRegister,
+        )
+
+        self._gen_func_body_generic(
+            "lea",
+            x86_const.X86_INS_LEA,
+            0,
+            exclude=["b"],
+            code_getter=lambda _,_2,_3,_4, size: f"LEA_R{size}_M",
+            op1=FukuRegister,
+            op2=FukuOperand,
         )
 
     def _gen_fn(self, name: str, wrappers: list[PostfixedWrapper]):
@@ -1333,92 +1390,6 @@ class FukuAsmBody:
             | x86_const.X86_EFLAGS_RESET_CF,
         )
 
-    def popcnt_w(
-        self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuRegister):
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
-            ctx.emit_b(0xF3)
-            ctx.emit_optional_rex_32(dst, src)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0xB8)
-            ctx.emit_modrm(src, dst)
-        else:
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
-            ctx.emit_b(0xF3)
-            ctx.emit_optional_rex_32(src, dst)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0xB8)
-            ctx.emit_operand(src, dst)
-
-        ctx.gen_func_return(
-            x86_const.X86_INS_POPCNT,
-            x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_RESET_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_RESET_AF
-            | x86_const.X86_EFLAGS_RESET_PF
-            | x86_const.X86_EFLAGS_RESET_CF,
-        )
-
-    def popcnt_dw(
-        self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuRegister):
-            ctx.emit_b(0xF3)
-            ctx.emit_optional_rex_32(dst, src)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0xB8)
-            ctx.emit_modrm(src, dst)
-        else:
-            ctx.emit_b(0xF3)
-            ctx.emit_optional_rex_32(src, dst)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0xB8)
-            ctx.emit_operand(src, dst)
-
-        ctx.gen_func_return(
-            x86_const.X86_INS_POPCNT,
-            x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_RESET_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_RESET_AF
-            | x86_const.X86_EFLAGS_RESET_PF
-            | x86_const.X86_EFLAGS_RESET_CF,
-        )
-
-    def popcnt_qw(
-        self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuRegister):
-            ctx.emit_b(0xF3)
-            ctx.emit_rex_64(dst, src)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0xB8)
-            ctx.emit_modrm(src, dst)
-        else:
-            ctx.emit_b(0xF3)
-            ctx.emit_rex_64(src, dst)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0xB8)
-            ctx.emit_operand(src, dst)
-
-        ctx.gen_func_return(
-            x86_const.X86_INS_POPCNT,
-            x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_RESET_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_RESET_AF
-            | x86_const.X86_EFLAGS_RESET_PF
-            | x86_const.X86_EFLAGS_RESET_CF,
-        )
-
     # Control Transfer Instructions
     def jmp(self, ctx: FukuAsmCtx, src: FukuRegister | FukuOperand | FukuImmediate):
         ctx.clear()
@@ -1482,22 +1453,6 @@ class FukuAsmBody:
 
         ctx.gen_func_return(x86_const.X86_INS_ENTER, 0)
 
-    # Miscellaneous Instructions
-    def lea_w(self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuOperand):
-        ctx.clear()
-        ctx.gen_pattern32_1em_op_r_word(0x8D, src, dst)
-        ctx.gen_func_return(x86_const.X86_INS_LEA, 0)
-
-    def lea_dw(self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuOperand):
-        ctx.clear()
-        ctx.gen_pattern32_1em_op_r(0x8D, src, dst)
-        ctx.gen_func_return(x86_const.X86_INS_LEA, 0)
-
-    def lea_qw(self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuOperand):
-        ctx.clear()
-        ctx.gen_pattern64_1em_op_r(0x8D, src, dst)
-        ctx.gen_func_return(x86_const.X86_INS_LEA, 0)
-
     def _gen_func_body_generic(
         self,
         name,
@@ -1506,6 +1461,8 @@ class FukuAsmBody:
         exclude: list[str] = [],
         exclude_ops: list[str] = [],
         max_imm_size=64,
+        name_prefix="",
+        code_getter: Optional[Callable] = None,
         **fn_param_types: Type,
     ):
         def wrapper(size: int):
@@ -1536,24 +1493,33 @@ class FukuAsmBody:
 
                 ctx.clear()
 
-                match len(ops):
-                    case 0:
-                        code = getattr(Code, name.upper())
-                    case 1:
-                        code = get_iced_code_one_op(
-                            ctx, name, ops[0], size, exclude_ops=exclude_ops
-                        )
-                    case 2:
-                        code = get_iced_code_two_op(
-                            ctx, name, ops[0], ops[1], size, max_imm_size=max_imm_size
-                        )
-                    case 3:
-                        code = get_iced_code_three_op(
-                            ctx, name, ops[0], ops[1], ops[2], size
-                        )
+                if code_getter:
+                    code_str = code_getter(ctx, name, *ops, size)
+                    code = getattr(Code, code_str)
+                else:
+                    match len(ops):
+                        case 0:
+                            code = getattr(Code, name.upper())
+                        case 1:
+                            code = get_iced_code_one_op(
+                                ctx, name, ops[0], size, exclude_ops=exclude_ops
+                            )
+                        case 2:
+                            code = get_iced_code_two_op(
+                                ctx,
+                                name,
+                                ops[0],
+                                ops[1],
+                                size,
+                                max_imm_size=max_imm_size,
+                            )
+                        case 3:
+                            code = get_iced_code_three_op(
+                                ctx, name, ops[0], ops[1], ops[2], size
+                            )
 
-                    case _:
-                        raise Exception("To much arguments")
+                        case _:
+                            raise Exception("To much arguments")
 
                 ins = call_iced_create_inst(code, *ops)
                 gen_iced_ins(ctx, ins)
@@ -1566,7 +1532,10 @@ class FukuAsmBody:
         if len(fn_param_types) == 0:
             setattr(self.__class__, name, wrapper(0))
         else:
-            self._gen_fn(name, gen_default_postfix(wrapper, exclude=exclude))
+            self._gen_fn(
+                name,
+                gen_default_postfix(wrapper, modifier=name_prefix, exclude=exclude),
+            )
 
     # SYSTEM INSTRUCTIONS
     def nop(self, ctx: FukuAsmCtx, n: int = None):
@@ -1631,9 +1600,6 @@ class FukuAsmBody:
 
         ctx.gen_func_return(x86_const.X86_INS_NOP, 0)
 
-    def _gen_name(self, name, postfix):
-        return name + postfix
-
     def _gen_func_body_shift_iced(self, name, id, cap_eflags):
         def wrapper_cl(size: int):
             def fn(self, ctx: FukuAsmCtx, dst: FukuRegister | FukuOperand):
@@ -1690,73 +1656,6 @@ class FukuAsmBody:
             return fn
 
         self._gen_fn(name, gen_default_postfix(wrapper, exclude=exclude))
-
-    def _gen_func_body_movxx(self, name, type: int, id):
-        def wrapper_byte_w(
-            self, ctx: FukuAsmCtx, src: FukuRegister, dst: FukuRegister | FukuOperand
-        ):
-            ctx.clear()
-
-            if isinstance(dst, FukuRegister):
-                ctx.gen_pattern32_2em_rm_r_word(0x0F, type, dst, src)
-            else:
-                ctx.gen_pattern32_2em_op_r_word(0x0F, type, dst, src)
-
-            ctx.gen_func_return(id, 0)
-
-        def wrapper_byte_dw(
-            self, ctx: FukuAsmCtx, src: FukuRegister, dst: FukuRegister | FukuOperand
-        ):
-            ctx.clear()
-
-            if isinstance(dst, FukuRegister):
-                ctx.gen_pattern32_2em_rm_r(0x0F, type, dst, src)
-            else:
-                ctx.gen_pattern32_2em_op_r(0x0F, type, dst, src)
-
-            ctx.gen_func_return(id, 0)
-
-        def wrapper_byte_qw(
-            self, ctx: FukuAsmCtx, src: FukuRegister, dst: FukuRegister | FukuOperand
-        ):
-            ctx.clear()
-
-            if isinstance(dst, FukuRegister):
-                ctx.gen_pattern64_2em_rm_r(0x0F, type, dst, src)
-            else:
-                ctx.gen_pattern64_2em_op_r(0x0F, type, dst, src)
-
-            ctx.gen_func_return(id, 0)
-
-        def wrapper_word_dw(
-            self, ctx: FukuAsmCtx, src: FukuRegister, dst: FukuRegister | FukuOperand
-        ):
-            ctx.clear()
-
-            if isinstance(dst, FukuRegister):
-                ctx.gen_pattern32_2em_rm_r(0x0F, type + 1, dst, src)
-            else:
-                ctx.gen_pattern32_2em_op_r(0x0F, type + 1, dst, src)
-
-            ctx.gen_func_return(id, 0)
-
-        def wrapper_word_qw(
-            self, ctx: FukuAsmCtx, src: FukuRegister, dst: FukuRegister | FukuOperand
-        ):
-            ctx.clear()
-
-            if isinstance(dst, FukuRegister):
-                ctx.gen_pattern64_2em_rm_r(0x0F, type + 1, dst, src)
-            else:
-                ctx.gen_pattern64_2em_op_r(0x0F, type + 1, dst, src)
-
-            ctx.gen_func_return(id, 0)
-
-        setattr(self.__class__, self._gen_name(name, "_byte_w"), wrapper_byte_w)
-        setattr(self.__class__, self._gen_name(name, "_byte_dw"), wrapper_byte_dw)
-        setattr(self.__class__, self._gen_name(name, "_byte_qw"), wrapper_byte_qw)
-        setattr(self.__class__, self._gen_name(name, "_word_dw"), wrapper_word_dw)
-        setattr(self.__class__, self._gen_name(name, "_word_qw"), wrapper_word_qw)
 
     def _gen_func_body_shxd_iced(self, name, id, cap_eflags):
         def wrapper(size: int):
