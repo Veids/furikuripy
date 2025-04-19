@@ -1,32 +1,24 @@
 import itertools
-import inspect
 
 from enum import Enum
-from typing import Callable, Optional, Type
+from typing import Callable, Optional
 from capstone import x86_const, Cs, CS_ARCH_X86, CS_MODE_32, CS_MODE_64
-from iced_x86 import Code, Instruction, BlockEncoder, Register
+from iced_x86 import Code, Instruction
 from pydantic import BaseModel
 
+
 from furikuripy.common import rng
+from furikuripy.x86.inst_tables import INST_PROPS
 from furikuripy.x86.misc import FukuCondition, FukuToCapConvertType
+from furikuripy.x86.iced_builder import IcedBuilder, gen_iced_ins
 from furikuripy.x86.fuku_asm_ctx import FukuAsmCtx
 from furikuripy.x86.fuku_immediate import FukuImmediate
 from furikuripy.x86.fuku_register import FukuRegister, FukuRegisterEnum
 from furikuripy.x86.fuku_operand import FukuOperand, FukuMemOperandType, FukuPrefix
+from furikuripy.x86.fuku_register_math_tables import ADI_FL_JCC
 
 cs = Cs(CS_ARCH_X86, CS_MODE_64)
 cs.detail = True
-
-ADI_FL_JCC = [
-    x86_const.X86_EFLAGS_TEST_OF , x86_const.X86_EFLAGS_TEST_OF, # jo   / jno
-    x86_const.X86_EFLAGS_TEST_CF , x86_const.X86_EFLAGS_TEST_CF, # jb   / jae
-    x86_const.X86_EFLAGS_TEST_ZF , x86_const.X86_EFLAGS_TEST_ZF, # je   / jne
-    x86_const.X86_EFLAGS_TEST_ZF | x86_const.X86_EFLAGS_TEST_CF, x86_const.X86_EFLAGS_TEST_ZF | x86_const.X86_EFLAGS_TEST_CF, # jbe / jnbe
-    x86_const.X86_EFLAGS_TEST_SF , x86_const.X86_EFLAGS_TEST_SF, # js   / jns
-    x86_const.X86_EFLAGS_TEST_PF , x86_const.X86_EFLAGS_TEST_PF, # jp   / jnp
-    x86_const.X86_EFLAGS_TEST_OF | x86_const.X86_EFLAGS_TEST_SF, x86_const.X86_EFLAGS_TEST_OF | x86_const.X86_EFLAGS_TEST_SF, # jnge / jge
-    x86_const.X86_EFLAGS_TEST_OF | x86_const.X86_EFLAGS_TEST_SF | x86_const.X86_EFLAGS_TEST_ZF, x86_const.X86_EFLAGS_TEST_OF | x86_const.X86_EFLAGS_TEST_SF | x86_const.X86_EFLAGS_TEST_ZF # jng / jnle
-]  # fmt: skip
 
 
 class PostfixEnum(Enum):
@@ -39,18 +31,6 @@ class PostfixEnum(Enum):
 class PostfixedWrapper(BaseModel):
     postfix: str
     wrapper: Callable
-
-
-def get_iced_create_inst(*args) -> Callable:
-    s = ["create"] + [arg.to_iced_name() for arg in args]
-    s = "_".join(s)
-
-    return getattr(Instruction, s)
-
-
-def call_iced_create_inst(code, *args):
-    fn = get_iced_create_inst(*args)
-    return fn(code, *[op.to_iced() for op in args])
 
 
 def gen_default_postfix(
@@ -83,7 +63,9 @@ def build_code_right_part(ctx, t, size: int) -> str:
         raise Exception("Unimplemented")
 
 
-def get_iced_code_two_op(ctx, name: str, dst, src, size, max_imm_size=64):
+def get_iced_code_two_op(
+    ctx, name: str, dst, src, size, postfix: str = "", max_imm_size=64
+):
     name = name.upper()
     l = r = ""
     if isinstance(src, FukuImmediate):
@@ -94,7 +76,7 @@ def get_iced_code_two_op(ctx, name: str, dst, src, size, max_imm_size=64):
         rs = ls.copy()
         posibilities = []
         for l, r in itertools.product(ls, rs):
-            code_str = f"{name}_{l}_{r}"
+            code_str = f"{name}_{l}_{r}{postfix}"
             if hasattr(Code, code_str):
                 posibilities.append(code_str)
 
@@ -106,493 +88,168 @@ def get_iced_code_two_op(ctx, name: str, dst, src, size, max_imm_size=64):
         l = build_code_left_part(dst, size)
         r = build_code_right_part(ctx, src, size)
 
-    return getattr(Code, f"{name}_{l}_{r}")
-
-
-def get_iced_code_one_op(
-    ctx, name: str, src, size: int, postfix: str = "", exclude_ops: list[str] = []
-):
-    name = name.upper()
-    if isinstance(src, FukuRegister):
-        ls = [f"R{size}", f"RM{size}"]
-        posibilities = [
-            f"{name}_{l}{postfix}" for l in ls if hasattr(Code, f"{name}_{l}{postfix}")
-        ]
-        posibilities = [pos for pos in posibilities if pos not in exclude_ops]
-
-        if len(posibilities) == 1:
-            return getattr(Code, posibilities[0])
-        else:
-            return getattr(Code, rng.choice(posibilities))
-    else:
-        l = build_code_right_part(ctx, src, size)
-    return getattr(Code, f"{name}_{l}{postfix}")
-
-
-def get_iced_code_three_op(ctx, name: str, dst, src, imm, size: int, postfix: str = ""):
-    name = name.upper()
-    l = build_code_left_part(dst, size)
-    r = build_code_right_part(ctx, src, size)
-    i = build_code_right_part(ctx, imm, size)
-    return getattr(Code, f"{name}_{l}_{r}_{i}{postfix}")
-
-
-def gen_iced_ins(ctx, ins):
-    encoder = BlockEncoder(64)
-    encoder.add(ins)
-    opcode = encoder.encode(0x0)
-
-    ins = next(cs.disasm(opcode, 0))
-    ctx.displacment_offset = ins.disp_offset
-    ctx.bytecode = bytearray(opcode)
+    return getattr(Code, f"{name}_{l}_{r}{postfix}")
 
 
 class FukuAsmBody:
     def __init__(self):
-        # Data Transfer Instructions
-        self._gen_func_body_generic(
-            "cwd",
-            x86_const.X86_INS_CWD,
-            0,
-        )
-        self._gen_func_body_generic("cdq", x86_const.X86_INS_CDQ, 0)
-        self._gen_func_body_generic("cqo", x86_const.X86_INS_CQO, 0)
-
-        self._gen_func_body_generic(
-            "cbw",
-            x86_const.X86_INS_CBW,
-            0,
-        )
-        self._gen_func_body_generic("cwde", x86_const.X86_INS_CWDE, 0)
-        self._gen_func_body_generic("cdqe", x86_const.X86_INS_CDQE, 0)
-
-        for inst_name, inst_code in [
-            ("movzx", x86_const.X86_INS_MOVZX),
-            ("movsx", x86_const.X86_INS_MOVSX),
-        ]:
-            self._gen_func_body_generic(
-                inst_name,
-                inst_code,
-                0,
-                exclude=["b"],
-                name_prefix="byte_",
-                op1=FukuRegister,
-                op2=FukuRegister | FukuOperand,
-            )
-            self._gen_func_body_generic(
-                inst_name,
-                inst_code,
-                0,
-                exclude=["b", "w"],
-                name_prefix="word_",
-                op1=FukuRegister,
-                op2=FukuRegister | FukuOperand,
-            )
-
         # Binary Arithmetic Instructions
-        self._gen_func_body_generic(
-            "add",
-            x86_const.X86_INS_ADD,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            op1=FukuRegister | FukuOperand | FukuImmediate,
-            op2=FukuRegister | FukuOperand | FukuImmediate,
+        self._gen_iced_fns(IcedBuilder(name="add", inst=INST_PROPS["add"]))
+        self._gen_iced_fns(IcedBuilder(name="adc", inst=INST_PROPS["adc"]))
+        self._gen_iced_fns(IcedBuilder(name="sub", inst=INST_PROPS["sub"]))
+        self._gen_iced_fns(IcedBuilder(name="sbb", inst=INST_PROPS["sbb"]))
+        self._gen_iced_fns(IcedBuilder(name="imul", inst=INST_PROPS["imul"]))
+        self._gen_iced_fns(IcedBuilder(name="mul", inst=INST_PROPS["mul"]))
+        self._gen_iced_fns(IcedBuilder(name="idiv", inst=INST_PROPS["idiv"]))
+        self._gen_iced_fns(IcedBuilder(name="div", inst=INST_PROPS["div"]))
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="inc", inst=INST_PROPS["inc"], exclude_inst=["INC_R16", "INC_R32"]
+            )
         )
-        self._gen_func_body_generic(
-            "adc",
-            x86_const.X86_INS_ADC,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            op1=FukuRegister | FukuOperand | FukuImmediate,
-            op2=FukuRegister | FukuOperand | FukuImmediate,
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="dec", inst=INST_PROPS["dec"], exclude_inst=["DEC_R16", "DEC_R32"]
+            )
         )
-        self._gen_func_body_generic(
-            "sub",
-            x86_const.X86_INS_SUB,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            op1=FukuRegister | FukuOperand | FukuImmediate,
-            op2=FukuRegister | FukuOperand | FukuImmediate,
-        )
-        self._gen_func_body_generic(
-            "sbb",
-            x86_const.X86_INS_SBB,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            op1=FukuRegister | FukuOperand | FukuImmediate,
-            op2=FukuRegister | FukuOperand | FukuImmediate,
-        )
-        self._gen_func_body_generic(
-            "imul",
-            x86_const.X86_INS_IMUL,
-            x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_CF
-            | x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_UNDEFINED_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_UNDEFINED_PF,
-            op1=FukuRegister | FukuOperand,
-        )
-        self._gen_func_body_generic(
-            "mul",
-            x86_const.X86_INS_MUL,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_UNDEFINED_SF
-            | x86_const.X86_EFLAGS_UNDEFINED_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_UNDEFINED_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            op1=FukuRegister | FukuOperand,
-        )
-        self._gen_func_body_generic(
-            "idiv",
-            x86_const.X86_INS_IDIV,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_UNDEFINED_SF
-            | x86_const.X86_EFLAGS_UNDEFINED_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_UNDEFINED_PF
-            | x86_const.X86_EFLAGS_UNDEFINED_CF,
-            op1=FukuRegister | FukuOperand,
-        )
-        self._gen_func_body_generic(
-            "div",
-            x86_const.X86_INS_DIV,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_UNDEFINED_SF
-            | x86_const.X86_EFLAGS_UNDEFINED_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_UNDEFINED_PF
-            | x86_const.X86_EFLAGS_UNDEFINED_CF,
-            op1=FukuRegister | FukuOperand,
-        )
-        self._gen_func_body_generic(
-            "inc",
-            x86_const.X86_INS_INC,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF,
-            exclude_ops=["INC_R16", "INC_R32"],
-            op1=FukuRegister | FukuOperand,
-        )
-        self._gen_func_body_generic(
-            "dec",
-            x86_const.X86_INS_DEC,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF,
-            exclude_ops=["DEC_R16", "DEC_R32"],
-            op1=FukuRegister | FukuOperand,
-        )
-        self._gen_func_body_generic(
-            "neg",
-            x86_const.X86_INS_NEG,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            op1=FukuRegister | FukuOperand,
-        )
-        self._gen_func_body_generic(
-            "cmp",
-            x86_const.X86_INS_CMP,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            op1=FukuRegister | FukuOperand | FukuImmediate,
-            op2=FukuRegister | FukuOperand | FukuImmediate,
-        )
+        self._gen_iced_fns(IcedBuilder(name="neg", inst=INST_PROPS["neg"]))
+        self._gen_iced_fns(IcedBuilder(name="cmp", inst=INST_PROPS["cmp"]))
 
         # Decimal Arithmetic Instructions
-        self._gen_func_body_generic(
-            "daa",
-            x86_const.X86_INS_DAA,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
-        self._gen_func_body_generic(
-            "das",
-            x86_const.X86_INS_DAS,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
-        self._gen_func_body_generic(
-            "aaa",
-            x86_const.X86_INS_AAA,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_UNDEFINED_SF
-            | x86_const.X86_EFLAGS_UNDEFINED_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_UNDEFINED_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
-        self._gen_func_body_generic(
-            "aas",
-            x86_const.X86_INS_AAS,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_UNDEFINED_SF
-            | x86_const.X86_EFLAGS_UNDEFINED_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_UNDEFINED_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
+        self._gen_iced_fns(IcedBuilder(name="daa", inst=INST_PROPS["daa"]))
+        self._gen_iced_fns(IcedBuilder(name="das", inst=INST_PROPS["das"]))
+        self._gen_iced_fns(IcedBuilder(name="aaa", inst=INST_PROPS["aaa"]))
+        self._gen_iced_fns(IcedBuilder(name="aas", inst=INST_PROPS["aas"]))
 
-        # Logical Instructions Instructions
-        self._gen_func_body_generic(
-            "and",
-            x86_const.X86_INS_AND,
-            x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_RESET_CF,
-            op1=FukuRegister | FukuOperand | FukuImmediate,
-            op2=FukuRegister | FukuOperand | FukuImmediate,
-        )
-        self._gen_func_body_generic(
-            "or",
-            x86_const.X86_INS_OR,
-            x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_RESET_CF,
-            op1=FukuRegister | FukuOperand | FukuImmediate,
-            op2=FukuRegister | FukuOperand | FukuImmediate,
-        )
-        self._gen_func_body_generic(
-            "xor",
-            x86_const.X86_INS_XOR,
-            x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_RESET_CF,
-            op1=FukuRegister | FukuOperand | FukuImmediate,
-            op2=FukuRegister | FukuOperand | FukuImmediate,
-        )
-        self._gen_func_body_generic(
-            "not", x86_const.X86_INS_NOT, 0, op1=FukuRegister | FukuOperand
-        )
+        # Logical Instructions
+        self._gen_iced_fns(IcedBuilder(name="and", inst=INST_PROPS["and"]))
+        self._gen_iced_fns(IcedBuilder(name="or", inst=INST_PROPS["or"]))
+        self._gen_iced_fns(IcedBuilder(name="xor", inst=INST_PROPS["xor"]))
+        self._gen_iced_fns(IcedBuilder(name="not", inst=INST_PROPS["not"]))
 
-        # TODO: Make sure pop_b and push_b don't exist
-        self._gen_func_body_generic(
-            "pop",
-            x86_const.X86_INS_POP,
-            0,
-            exclude=["b"],
-            op1=FukuRegister | FukuOperand,
+        # Data Transfer Instructions
+        self._gen_func_body_mov_iced("mov")
+        self._gen_iced_fns(IcedBuilder(name="xchg", inst=INST_PROPS["xchg"]))
+        self._gen_iced_fns(
+            IcedBuilder(name="bswap", inst=INST_PROPS["bswap"], exclude_postfix=["b"])
         )
-        self._gen_func_body_generic(
-            "push",
-            x86_const.X86_INS_PUSH,
-            0,
-            exclude=["b"],
-            op1=FukuRegister | FukuOperand,
+        self._gen_iced_fns(IcedBuilder(name="xadd", inst=INST_PROPS["xadd"]))
+        self._gen_iced_fns(
+            IcedBuilder(name="push", inst=INST_PROPS["push"], exclude_postfix=["b"])
         )
+        self._gen_iced_fns(
+            IcedBuilder(name="pop", inst=INST_PROPS["pop"], exclude_postfix=["b"])
+        )
+        self._gen_iced_fns(IcedBuilder(name="cwd", inst=INST_PROPS["cwd"]))
+        self._gen_iced_fns(IcedBuilder(name="cdq", inst=INST_PROPS["cdq"]))
+        self._gen_iced_fns(IcedBuilder(name="cqo", inst=INST_PROPS["cqo"]))
+        self._gen_iced_fns(IcedBuilder(name="cbw", inst=INST_PROPS["cbw"]))
+        self._gen_iced_fns(IcedBuilder(name="cwde", inst=INST_PROPS["cwde"]))
+        self._gen_iced_fns(IcedBuilder(name="cdqe", inst=INST_PROPS["cdqe"]))
+
+        for inst_name in [
+            "movzx",
+            "movsx",
+        ]:
+            self._gen_iced_fns(
+                IcedBuilder(
+                    name=inst_name,
+                    inst=INST_PROPS[inst_name],
+                    postfix_modifier="byte_",
+                    exclude_postfix=["b"],
+                )
+            )
+            self._gen_iced_fns(
+                IcedBuilder(
+                    name=inst_name,
+                    inst=INST_PROPS[inst_name],
+                    postfix_modifier="word_",
+                    exclude_postfix=["b", "w"],
+                )
+            )
 
         # Shift and Rotate Instructions
-        self._gen_func_body_shift_iced(
-            "sar",
-            x86_const.X86_INS_SAR,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
+        self._gen_iced_fns(IcedBuilder(name="sar", inst=INST_PROPS["sar"]))
+        self._gen_iced_fns(IcedBuilder(name="sar", inst=INST_PROPS["sar_cl"], cl=True))
+        self._gen_iced_fns(IcedBuilder(name="shr", inst=INST_PROPS["shr"]))
+        self._gen_iced_fns(IcedBuilder(name="shr", inst=INST_PROPS["shr_cl"], cl=True))
+        self._gen_iced_fns(IcedBuilder(name="shl", inst=INST_PROPS["shl"]))
+        self._gen_iced_fns(IcedBuilder(name="shl", inst=INST_PROPS["shl_cl"], cl=True))
+        self._gen_iced_fns(
+            IcedBuilder(name="shrd", inst=INST_PROPS["shrd"], exclude_postfix=["b"])
         )
-        self._gen_func_body_shift_iced(
-            "shr",
-            x86_const.X86_INS_SHR,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="shrd", inst=INST_PROPS["shrd_cl"], cl=True, exclude_postfix=["b"]
+            )
         )
-        self._gen_func_body_shift_iced(
-            "shl",
-            x86_const.X86_INS_SHL,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
+        self._gen_iced_fns(
+            IcedBuilder(name="shld", inst=INST_PROPS["shld"], exclude_postfix=["b"])
         )
-
-        self._gen_func_body_shxd_iced(
-            "shrd",
-            x86_const.X86_INS_SHRD,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="shld", inst=INST_PROPS["shld_cl"], cl=True, exclude_postfix=["b"]
+            )
         )
-        self._gen_func_body_shxd_iced(
-            "shld",
-            x86_const.X86_INS_SHLD,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
-
-        self._gen_func_body_shift_iced(
-            "ror",
-            x86_const.X86_INS_ROR,
-            x86_const.X86_EFLAGS_UNDEFINED_OF | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
-        self._gen_func_body_shift_iced(
-            "rol",
-            x86_const.X86_INS_ROL,
-            x86_const.X86_EFLAGS_UNDEFINED_OF | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
-        self._gen_func_body_shift_iced(
-            "rcr",
-            x86_const.X86_INS_RCR,
-            x86_const.X86_EFLAGS_UNDEFINED_OF | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
-        self._gen_func_body_shift_iced(
-            "rcl",
-            x86_const.X86_INS_RCL,
-            x86_const.X86_EFLAGS_UNDEFINED_OF | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
+        self._gen_iced_fns(IcedBuilder(name="ror", inst=INST_PROPS["ror"]))
+        self._gen_iced_fns(IcedBuilder(name="ror", inst=INST_PROPS["ror_cl"], cl=True))
+        self._gen_iced_fns(IcedBuilder(name="rol", inst=INST_PROPS["rol"]))
+        self._gen_iced_fns(IcedBuilder(name="rol", inst=INST_PROPS["rol_cl"], cl=True))
+        self._gen_iced_fns(IcedBuilder(name="rcr", inst=INST_PROPS["rcr"]))
+        self._gen_iced_fns(IcedBuilder(name="rcr", inst=INST_PROPS["rcr_cl"], cl=True))
+        self._gen_iced_fns(IcedBuilder(name="rcl", inst=INST_PROPS["rcl"]))
+        self._gen_iced_fns(IcedBuilder(name="rcl", inst=INST_PROPS["rcl_cl"], cl=True))
 
         # Bit and Byte Instructions
-        self._gen_func_body_generic(
-            "bt",
-            x86_const.X86_INS_BT,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_UNDEFINED_SF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_UNDEFINED_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            exclude=["b"],
-            max_imm_size=8,
-            op1=FukuRegister | FukuRegister,
-            op2=FukuRegister | FukuImmediate,
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="bt", inst=INST_PROPS["bt"], exclude_postfix=["b"], max_imm_size=8
+            )
         )
-        self._gen_func_body_generic(
-            "bts",
-            x86_const.X86_INS_BTS,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_UNDEFINED_SF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_UNDEFINED_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            exclude=["b"],
-            max_imm_size=8,
-            op1=FukuRegister | FukuRegister,
-            op2=FukuRegister | FukuImmediate,
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="bts",
+                inst=INST_PROPS["bts"],
+                exclude_postfix=["b"],
+                max_imm_size=8,
+            )
         )
-        self._gen_func_body_generic(
-            "btr",
-            x86_const.X86_INS_BTR,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_UNDEFINED_SF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_UNDEFINED_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            exclude=["b"],
-            max_imm_size=8,
-            op1=FukuRegister | FukuRegister,
-            op2=FukuRegister | FukuImmediate,
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="btr",
+                inst=INST_PROPS["btr"],
+                exclude_postfix=["b"],
+                max_imm_size=8,
+            )
         )
-        self._gen_func_body_generic(
-            "btc",
-            x86_const.X86_INS_BTC,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_UNDEFINED_SF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_UNDEFINED_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            exclude=["b"],
-            max_imm_size=8,
-            op1=FukuRegister | FukuRegister,
-            op2=FukuRegister | FukuImmediate,
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="btc",
+                inst=INST_PROPS["btc"],
+                exclude_postfix=["b"],
+                max_imm_size=8,
+            )
         )
-        self._gen_func_body_generic(
-            "bsf",
-            x86_const.X86_INS_BSF,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_UNDEFINED_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_UNDEFINED_PF
-            | x86_const.X86_EFLAGS_UNDEFINED_CF,
-            exclude=["b"],
-            max_imm_size=8,
-            op1=FukuRegister | FukuRegister,
-            op2=FukuRegister | FukuImmediate,
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="bsf",
+                inst=INST_PROPS["bsf"],
+                exclude_postfix=["b"],
+                max_imm_size=8,
+            )
         )
-        self._gen_func_body_generic(
-            "bsr",
-            x86_const.X86_INS_BSR,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_UNDEFINED_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_UNDEFINED_PF
-            | x86_const.X86_EFLAGS_UNDEFINED_CF,
-            exclude=["b"],
-            max_imm_size=8,
-            op1=FukuRegister | FukuRegister,
-            op2=FukuRegister | FukuImmediate,
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="bsr",
+                inst=INST_PROPS["bsr"],
+                exclude_postfix=["b"],
+                max_imm_size=8,
+            )
         )
 
         # Control Transfer Instructions
-        self._gen_func_body_generic(
-            "int3",
-            x86_const.X86_INS_INT3,
-            x86_const.X86_EFLAGS_MODIFY_IF
-            | x86_const.X86_EFLAGS_MODIFY_TF
-            | x86_const.X86_EFLAGS_MODIFY_NT
-            | x86_const.X86_EFLAGS_MODIFY_RF,
-        )
-        self._gen_func_body_generic("leave", x86_const.X86_INS_LEAVE, 0)
+        self._gen_iced_fns(IcedBuilder(name="int3", inst=INST_PROPS["int3"]))
+        self._gen_iced_fns(IcedBuilder(name="leave", inst=INST_PROPS["leave"]))
 
         # String Instructions
         self._gen_func_body_string_inst_iced(
@@ -667,197 +324,60 @@ class FukuAsmBody:
         )
 
         # Flag Control (EFLAG) Instructions
-        self._gen_func_body_generic(
-            "stc", x86_const.X86_INS_STC, x86_const.X86_EFLAGS_SET_CF
-        )
-        self._gen_func_body_generic(
-            "clc", x86_const.X86_INS_CLC, x86_const.X86_EFLAGS_RESET_CF
-        )
-        self._gen_func_body_generic(
-            "cmc", x86_const.X86_INS_CMC, x86_const.X86_EFLAGS_MODIFY_CF
-        )
-        self._gen_func_body_generic(
-            "cld", x86_const.X86_INS_CLD, x86_const.X86_EFLAGS_RESET_DF
-        )
-        self._gen_func_body_generic(
-            "std", x86_const.X86_INS_STD, x86_const.X86_EFLAGS_SET_DF
-        )
-        self._gen_func_body_generic("lahf", x86_const.X86_INS_LAHF, 0)
-        self._gen_func_body_generic(
-            "sahf",
-            x86_const.X86_INS_SAHF,
-            x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
-        self._gen_func_body_generic(
-            "pusha",
-            x86_const.X86_INS_PUSHAW,
-            0,
-        )
-        self._gen_func_body_generic("pushad", x86_const.X86_INS_PUSHAL, 0)
-        self._gen_func_body_generic(
-            "popa",
-            x86_const.X86_INS_POPAW,
-            0,
-        )
-        self._gen_func_body_generic("popad", x86_const.X86_INS_POPAL, 0)
-        self._gen_func_body_generic(
-            "pushf",
-            x86_const.X86_INS_PUSHF,
-            0,
-        )
-        self._gen_func_body_generic("pushfd", x86_const.X86_INS_PUSHFD, 0)
-        self._gen_func_body_generic("pushfq", x86_const.X86_INS_PUSHFQ, 0)
-        self._gen_func_body_generic(
-            "popf",
-            x86_const.X86_INS_POPF,
-            x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_CF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_TF
-            | x86_const.X86_EFLAGS_MODIFY_IF
-            | x86_const.X86_EFLAGS_MODIFY_DF
-            | x86_const.X86_EFLAGS_MODIFY_NT
-            | x86_const.X86_EFLAGS_MODIFY_RF,
-        )
-        self._gen_func_body_generic(
-            "popfd",
-            x86_const.X86_INS_POPFD,
-            x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_CF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_TF
-            | x86_const.X86_EFLAGS_MODIFY_IF
-            | x86_const.X86_EFLAGS_MODIFY_DF
-            | x86_const.X86_EFLAGS_MODIFY_NT
-            | x86_const.X86_EFLAGS_MODIFY_RF,
-        )
-        self._gen_func_body_generic(
-            "popfq",
-            x86_const.X86_INS_POPFQ,
-            x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_CF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_TF
-            | x86_const.X86_EFLAGS_MODIFY_IF
-            | x86_const.X86_EFLAGS_MODIFY_DF
-            | x86_const.X86_EFLAGS_MODIFY_NT
-            | x86_const.X86_EFLAGS_MODIFY_RF,
-        )
-        self._gen_func_body_generic(
-            "popcnt",
-            x86_const.X86_INS_POPCNT,
-            x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_RESET_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_RESET_AF
-            | x86_const.X86_EFLAGS_RESET_PF
-            | x86_const.X86_EFLAGS_RESET_CF,
-            exclude=["b"],
-            op1=FukuRegister,
-            op2=FukuRegister|FukuOperand,
+        self._gen_iced_fns(IcedBuilder(name="stc", inst=INST_PROPS["stc"]))
+        self._gen_iced_fns(IcedBuilder(name="clc", inst=INST_PROPS["clc"]))
+        self._gen_iced_fns(IcedBuilder(name="cmc", inst=INST_PROPS["cmc"]))
+        self._gen_iced_fns(IcedBuilder(name="cld", inst=INST_PROPS["cld"]))
+        self._gen_iced_fns(IcedBuilder(name="std", inst=INST_PROPS["std"]))
+        self._gen_iced_fns(IcedBuilder(name="lahf", inst=INST_PROPS["lahf"]))
+        self._gen_iced_fns(IcedBuilder(name="sahf", inst=INST_PROPS["sahf"]))
+        self._gen_iced_fns(IcedBuilder(name="pusha", inst=INST_PROPS["pusha"]))
+        self._gen_iced_fns(IcedBuilder(name="pushad", inst=INST_PROPS["pushad"]))
+        self._gen_iced_fns(IcedBuilder(name="popa", inst=INST_PROPS["popa"]))
+        self._gen_iced_fns(IcedBuilder(name="popad", inst=INST_PROPS["popad"]))
+        self._gen_iced_fns(IcedBuilder(name="pushf", inst=INST_PROPS["pushf"]))
+        self._gen_iced_fns(IcedBuilder(name="pushfd", inst=INST_PROPS["pushfd"]))
+        self._gen_iced_fns(IcedBuilder(name="pushfq", inst=INST_PROPS["pushfq"]))
+        self._gen_iced_fns(IcedBuilder(name="popf", inst=INST_PROPS["popf"]))
+        self._gen_iced_fns(IcedBuilder(name="popfd", inst=INST_PROPS["popfd"]))
+        self._gen_iced_fns(IcedBuilder(name="popfq", inst=INST_PROPS["popfq"]))
+        self._gen_iced_fns(
+            IcedBuilder(name="popcnt", inst=INST_PROPS["popcnt"], exclude_postfix=["b"])
         )
 
         # Miscellaneous Instructions
-        self._gen_func_body_generic("ud2", x86_const.X86_INS_UD2, 0)
-        self._gen_func_body_generic("cpuid", x86_const.X86_INS_CPUID, 0)
-
-        # BMI1, BMI2 Instructions
-        # ANDN
-        # BEXTR
-        # BLSI
-        # BLSMSK
-        # BLSR
-        # BZHI
-        # LZCNT
-        # MULX
-        # PDEP
-        # PEXT
-        # RORX
-        # SARX
-        # SHLX
-        # SHRX
-        # SYSTEM INSTRUCTIONS
-        self._gen_func_body_generic("hlt", x86_const.X86_INS_HLT, 0)
-        self._gen_func_body_generic("rdtsc", x86_const.X86_INS_RDTSC, 0)
-        self._gen_func_body_generic("lfence", x86_const.X86_INS_LFENCE, 0)
-
-        self._gen_func_body_mov_iced("mov")
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="lea",
+                inst=INST_PROPS["lea"],
+                exclude_postfix=["b"],
+                code_resolver=lambda _, _2, _3, _4, size: f"LEA_R{size}_M",
+            )
+        )
+        self._gen_iced_fns(IcedBuilder(name="ud2", inst=INST_PROPS["ud2"]))
+        self._gen_iced_fns(IcedBuilder(name="cpuid", inst=INST_PROPS["cpuid"]))
 
         # Random Number Generator Instructions
-        self._gen_func_body_generic(
-            "rdrand",
-            x86_const.X86_INS_RDRAND,
-            x86_const.X86_EFLAGS_MODIFY_CF
-            | x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_RESET_SF
-            | x86_const.X86_EFLAGS_RESET_ZF
-            | x86_const.X86_EFLAGS_RESET_AF
-            | x86_const.X86_EFLAGS_RESET_PF,
-            exclude=["b"],
-            op1=FukuRegister,
+        self._gen_iced_fns(
+            IcedBuilder(name="rdseed", inst=INST_PROPS["rdseed"], exclude_postfix=["b"])
         )
-        self._gen_func_body_generic(
-            "rdseed",
-            x86_const.X86_INS_RDSEED,
-            x86_const.X86_EFLAGS_MODIFY_CF
-            | x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_RESET_SF
-            | x86_const.X86_EFLAGS_RESET_ZF
-            | x86_const.X86_EFLAGS_RESET_AF
-            | x86_const.X86_EFLAGS_RESET_PF,
-            exclude=["b"],
-            op1=FukuRegister,
+        self._gen_iced_fns(
+            IcedBuilder(name="rdrand", inst=INST_PROPS["rdrand"], exclude_postfix=["b"])
         )
 
-        self._gen_func_body_generic(
-            "xchg",
-            x86_const.X86_INS_XCHG,
-            0,
-            op1=FukuOperand | FukuRegister,
-            op2=FukuRegister,
-        )
-        self._gen_func_body_generic(
-            "bswap", x86_const.X86_INS_BSWAP, 0, exclude=["b"], op1=FukuRegister
-        )
-        self._gen_func_body_generic(
-            "xadd",
-            x86_const.X86_INS_XADD,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            op1=FukuOperand | FukuRegister,
-            op2=FukuRegister,
-        )
-
-        self._gen_func_body_generic(
-            "lea",
-            x86_const.X86_INS_LEA,
-            0,
-            exclude=["b"],
-            code_getter=lambda _,_2,_3,_4, size: f"LEA_R{size}_M",
-            op1=FukuRegister,
-            op2=FukuOperand,
-        )
+        # SYSTEM INSTRUCTIONS
+        self._gen_iced_fns(IcedBuilder(name="hlt", inst=INST_PROPS["hlt"]))
+        self._gen_iced_fns(IcedBuilder(name="rdtsc", inst=INST_PROPS["rdtsc"]))
+        self._gen_iced_fns(IcedBuilder(name="lfence", inst=INST_PROPS["lfence"]))
 
     def _gen_fn(self, name: str, wrappers: list[PostfixedWrapper]):
         for wrapper in wrappers:
-            setattr(self.__class__, f"{name}_{wrapper.postfix}", wrapper.wrapper)
+            class_name = f"{name}_{wrapper.postfix}" if wrapper.postfix else name
+            setattr(self.__class__, class_name, wrapper.wrapper)
+
+    def _gen_iced_fns(self, builder: IcedBuilder):
+        name, wrappers = builder.build()
+        self._gen_fn(name, wrappers)
 
     # Data Transfer Instructions
     # MOV
@@ -1453,92 +973,8 @@ class FukuAsmBody:
 
         ctx.gen_func_return(x86_const.X86_INS_ENTER, 0)
 
-    def _gen_func_body_generic(
-        self,
-        name,
-        id,
-        cap_eflags,
-        exclude: list[str] = [],
-        exclude_ops: list[str] = [],
-        max_imm_size=64,
-        name_prefix="",
-        code_getter: Optional[Callable] = None,
-        **fn_param_types: Type,
-    ):
-        def wrapper(size: int):
-            parameters = [
-                inspect.Parameter(
-                    "self", inspect.Parameter.POSITIONAL_ONLY, annotation=FukuAsmBody
-                ),
-                inspect.Parameter(
-                    "ctx",
-                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                    annotation=FukuAsmCtx,
-                ),
-            ]
-
-            for param_name, param_type in fn_param_types.items():
-                parameters.append(
-                    inspect.Parameter(
-                        param_name,
-                        inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                        annotation=param_type,
-                    )
-                )
-            fn_signature = inspect.Signature(parameters)
-
-            def fn(*args):
-                ctx = args[1]
-                ops = args[2:]
-
-                ctx.clear()
-
-                if code_getter:
-                    code_str = code_getter(ctx, name, *ops, size)
-                    code = getattr(Code, code_str)
-                else:
-                    match len(ops):
-                        case 0:
-                            code = getattr(Code, name.upper())
-                        case 1:
-                            code = get_iced_code_one_op(
-                                ctx, name, ops[0], size, exclude_ops=exclude_ops
-                            )
-                        case 2:
-                            code = get_iced_code_two_op(
-                                ctx,
-                                name,
-                                ops[0],
-                                ops[1],
-                                size,
-                                max_imm_size=max_imm_size,
-                            )
-                        case 3:
-                            code = get_iced_code_three_op(
-                                ctx, name, ops[0], ops[1], ops[2], size
-                            )
-
-                        case _:
-                            raise Exception("To much arguments")
-
-                ins = call_iced_create_inst(code, *ops)
-                gen_iced_ins(ctx, ins)
-
-                ctx.gen_func_return(id, cap_eflags)
-
-            fn.__signature__ = fn_signature
-            return fn
-
-        if len(fn_param_types) == 0:
-            setattr(self.__class__, name, wrapper(0))
-        else:
-            self._gen_fn(
-                name,
-                gen_default_postfix(wrapper, modifier=name_prefix, exclude=exclude),
-            )
-
     # SYSTEM INSTRUCTIONS
-    def nop(self, ctx: FukuAsmCtx, n: int = None):
+    def nop(self, ctx: FukuAsmCtx, n: int = 0):
         ctx.clear()
 
         if not n:
@@ -1600,46 +1036,6 @@ class FukuAsmBody:
 
         ctx.gen_func_return(x86_const.X86_INS_NOP, 0)
 
-    def _gen_func_body_shift_iced(self, name, id, cap_eflags):
-        def wrapper_cl(size: int):
-            def fn(self, ctx: FukuAsmCtx, dst: FukuRegister | FukuOperand):
-                ctx.clear()
-
-                code = get_iced_code_one_op(ctx, name, dst, size, "_CL")
-                arg1 = dst.to_iced_name()
-                ins = getattr(Instruction, f"create_{arg1}_reg")(
-                    code, dst.to_iced(), Register.CL
-                )
-                gen_iced_ins(ctx, ins)
-
-                ctx.gen_func_return(id, cap_eflags)
-
-            return fn
-
-        def wrapper(size: int):
-            def fn(
-                self,
-                ctx: FukuAsmCtx,
-                dst: FukuRegister | FukuOperand,
-                src: FukuImmediate,
-            ):
-                ctx.clear()
-
-                code = get_iced_code_two_op(ctx, name, dst, src, size)
-                arg1 = dst.to_iced_name()
-                arg2 = src.to_iced_name()
-                ins = getattr(Instruction, f"create_{arg1}_{arg2}")(
-                    code, dst.to_iced(), src.to_iced()
-                )
-                gen_iced_ins(ctx, ins)
-
-                ctx.gen_func_return(id, cap_eflags)
-
-            return fn
-
-        self._gen_fn(name, gen_default_postfix(wrapper_cl, "cl_"))
-        self._gen_fn(name, gen_default_postfix(wrapper))
-
     def _gen_func_body_string_inst_iced(
         self, name, cap_eflags, mapping: dict[int, str], exclude: list[str] = []
     ):
@@ -1656,53 +1052,3 @@ class FukuAsmBody:
             return fn
 
         self._gen_fn(name, gen_default_postfix(wrapper, exclude=exclude))
-
-    def _gen_func_body_shxd_iced(self, name, id, cap_eflags):
-        def wrapper(size: int):
-            def fn(
-                self,
-                ctx: FukuAsmCtx,
-                dst: FukuRegister | FukuOperand,
-                src: FukuRegister,
-                imm: FukuImmediate,
-            ):
-                ctx.clear()
-
-                code = get_iced_code_three_op(ctx, name, dst, src, imm, size)
-                arg1 = dst.to_iced_name()
-                arg2 = src.to_iced_name()
-                arg3 = imm.to_iced_name()
-                ins = getattr(Instruction, f"create_{arg1}_{arg2}_{arg3}")(
-                    code, dst.to_iced(), src.to_iced(), imm.to_iced()
-                )
-                gen_iced_ins(ctx, ins)
-
-                ctx.gen_func_return(id, cap_eflags)
-
-            return fn
-
-        def wrapper_cl(size: int):
-            def fn(
-                self,
-                ctx: FukuAsmCtx,
-                dst: FukuRegister | FukuOperand,
-                src: FukuRegister,
-            ):
-                ctx.clear()
-
-                code = get_iced_code_two_op(ctx, name, dst, src, size)
-                arg1 = dst.to_iced_name()
-                arg2 = src.to_iced_name()
-                ins = getattr(Instruction, f"create_{arg1}_{arg2}")(
-                    code, dst.to_iced(), src.to_iced()
-                )
-                gen_iced_ins(ctx, ins)
-
-                ctx.gen_func_return(id, cap_eflags)
-
-            return fn
-
-        self._gen_fn(name, gen_default_postfix(wrapper, exclude=["b"]))
-        self._gen_fn(
-            name, gen_default_postfix(wrapper_cl, modifier="cl_", exclude=["b"])
-        )
