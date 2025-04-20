@@ -134,6 +134,7 @@ class FukuAsmBody:
             IcedBuilder(name="bswap", inst=INST_PROPS["bswap"], exclude_postfix=["b"])
         )
         self._gen_iced_fns(IcedBuilder(name="xadd", inst=INST_PROPS["xadd"]))
+        self._gen_iced_fns(IcedBuilder(name="cmpxchg", inst=INST_PROPS["cmpxchg"]))
         self._gen_iced_fns(
             IcedBuilder(name="push", inst=INST_PROPS["push"], exclude_postfix=["b"])
         )
@@ -167,6 +168,24 @@ class FukuAsmBody:
                     exclude_postfix=["b", "w"],
                 )
             )
+
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="movsxd",
+                inst=INST_PROPS["movsxd"],
+                postfix_modifier="word_",
+                exclude_postfix=["b", "d", "q"],
+            )
+        )
+
+        self._gen_iced_fns(
+            IcedBuilder(
+                name="movsxd",
+                inst=INST_PROPS["movsxd"],
+                postfix_modifier="dword_",
+                exclude_postfix=["b", "w"],
+            )
+        )
 
         # Shift and Rotate Instructions
         self._gen_iced_fns(IcedBuilder(name="sar", inst=INST_PROPS["sar"]))
@@ -528,86 +547,6 @@ class FukuAsmBody:
             cond.to_capstone_cc(FukuToCapConvertType.CMOVCC), ADI_FL_JCC[cond.value]
         )
 
-    def cmpxchg_b(
-        self, ctx: FukuAsmCtx, dst: FukuOperand | FukuRegister, src: FukuRegister
-    ):
-        ctx.clear()
-
-        if isinstance(dst, FukuOperand):
-            ctx.gen_pattern32_2em_op_r(0x0F, 0xB0, dst, src)
-        else:
-            ctx.gen_pattern32_2em_rm_r(0x0F, 0xB0, dst, src)
-
-        ctx.gen_func_return(
-            x86_const.X86_INS_CMPXCHG,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
-
-    def cmpxchg_w(
-        self, ctx: FukuAsmCtx, dst: FukuOperand | FukuRegister, src: FukuRegister
-    ):
-        ctx.clear()
-
-        if isinstance(dst, FukuOperand):
-            ctx.gen_pattern32_2em_op_r_word(0x0F, 0xB1, dst, src)
-        else:
-            ctx.gen_pattern32_2em_rm_r_word(0x0F, 0xB1, dst, src)
-
-        ctx.gen_func_return(
-            x86_const.X86_INS_CMPXCHG,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
-
-    def cmpxchg_dw(
-        self, ctx: FukuAsmCtx, dst: FukuOperand | FukuRegister, src: FukuRegister
-    ):
-        ctx.clear()
-
-        if isinstance(dst, FukuOperand):
-            ctx.gen_pattern32_2em_op_r(0x0F, 0xB1, dst, src)
-        else:
-            ctx.gen_pattern32_2em_rm_r(0x0F, 0xB1, dst, src)
-
-        ctx.gen_func_return(
-            x86_const.X86_INS_CMPXCHG,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
-
-    def cmpxchg_qw(
-        self, ctx: FukuAsmCtx, dst: FukuOperand | FukuRegister, src: FukuRegister
-    ):
-        ctx.clear()
-
-        if isinstance(dst, FukuOperand):
-            ctx.gen_pattern64_2em_op_r(0x0F, 0xB1, dst, src)
-        else:
-            ctx.gen_pattern64_2em_rm_r(0x0F, 0xB1, dst, src)
-
-        ctx.gen_func_return(
-            x86_const.X86_INS_CMPXCHG,
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-        )
-
     def cmpxchg8b(self, ctx: FukuAsmCtx, dst: FukuOperand):
         ctx.clear()
         ctx.gen_pattern32_2em_op_idx(0x0F, 0xC7, dst, 1)
@@ -619,42 +558,6 @@ class FukuAsmBody:
         ctx.gen_func_return(
             x86_const.X86_INS_CMPXCHG16B, x86_const.X86_EFLAGS_MODIFY_ZF
         )
-
-    def movsxd_word_w(
-        self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuRegister):
-            ctx.gen_pattern32_1em_rm_r_word(0x63, src, dst)
-        else:
-            ctx.gen_pattern32_1em_op_r_word(0x63, dst, src)
-
-        ctx.gen_func_return(x86_const.X86_INS_MOVSXD, 0)
-
-    def movsxd_dword_dw(
-        self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuRegister):
-            ctx.gen_pattern32_1em_rm_r(0x63, src, dst)
-        else:
-            ctx.gen_pattern32_1em_op_r(0x63, dst, src)
-
-        ctx.gen_func_return(x86_const.X86_INS_MOVSXD, 0)
-
-    def movsxd_dword_qw(
-        self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuRegister):
-            ctx.gen_pattern64_1em_rm_r(0x63, src, dst)
-        else:
-            ctx.gen_pattern64_1em_op_r(0x63, dst, src)
-
-        ctx.gen_func_return(x86_const.X86_INS_MOVSXD, 0)
 
     # Binary Arithmetic Instructions
     def adcx_dw(

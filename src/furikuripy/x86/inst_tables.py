@@ -410,6 +410,19 @@ INST_PROPS = {
             "op2": FukuRegister,
         },
     ),
+    "cmpxchg": InstProp(
+        capstone_code=x86_const.X86_INS_CMPXCHG,
+        cap_eflags=x86_const.X86_EFLAGS_MODIFY_OF
+        | x86_const.X86_EFLAGS_MODIFY_SF
+        | x86_const.X86_EFLAGS_MODIFY_ZF
+        | x86_const.X86_EFLAGS_MODIFY_AF
+        | x86_const.X86_EFLAGS_MODIFY_PF
+        | x86_const.X86_EFLAGS_MODIFY_CF,
+        ops={
+            "op1": FukuOperand | FukuRegister,
+            "op2": FukuRegister,
+        },
+    ),
     "push": InstProp(
         capstone_code=x86_const.X86_INS_PUSH,
         cap_eflags=0,
@@ -447,6 +460,14 @@ INST_PROPS = {
     ),
     "movsx": InstProp(
         capstone_code=x86_const.X86_INS_MOVSX,
+        cap_eflags=0,
+        ops={
+            "op1": FukuRegister,
+            "op2": FukuRegister | FukuOperand,
+        },
+    ),
+    "movsxd": InstProp(
+        capstone_code=x86_const.X86_INS_MOVSXD,
         cap_eflags=0,
         ops={
             "op1": FukuRegister,
@@ -492,6 +513,29 @@ INST_PROPS = {
         | x86_const.X86_EFLAGS_UNDEFINED_PF
         | x86_const.X86_EFLAGS_MODIFY_CF,
         ops={"op1": FukuRegister, "op2": FukuRegister | FukuImmediate},
+    ),
+    "popcnt": InstProp(
+        capstone_code=x86_const.X86_INS_POPCNT,
+        cap_eflags=x86_const.X86_EFLAGS_RESET_OF
+        | x86_const.X86_EFLAGS_RESET_SF
+        | x86_const.X86_EFLAGS_MODIFY_ZF
+        | x86_const.X86_EFLAGS_RESET_AF
+        | x86_const.X86_EFLAGS_RESET_PF
+        | x86_const.X86_EFLAGS_RESET_CF,
+        ops={
+            "op1": FukuRegister,
+            "op2": FukuRegister | FukuOperand,
+        },
+    ),
+    "test": InstProp(
+        capstone_code=x86_const.X86_INS_TEST,
+        cap_eflags=x86_const.X86_EFLAGS_RESET_OF
+        | x86_const.X86_EFLAGS_MODIFY_SF
+        | x86_const.X86_EFLAGS_MODIFY_ZF
+        | x86_const.X86_EFLAGS_UNDEFINED_AF
+        | x86_const.X86_EFLAGS_MODIFY_PF
+        | x86_const.X86_EFLAGS_RESET_CF,
+        ops={"op1": FukuRegister | FukuOperand, "op2": FukuRegister | FukuImmediate},
     ),
     "bsf": InstProp(
         capstone_code=x86_const.X86_INS_BSF,
@@ -613,19 +657,6 @@ INST_PROPS = {
         | x86_const.X86_EFLAGS_MODIFY_DF
         | x86_const.X86_EFLAGS_MODIFY_NT
         | x86_const.X86_EFLAGS_MODIFY_RF,
-    ),
-    "popcnt": InstProp(
-        capstone_code=x86_const.X86_INS_POPCNT,
-        cap_eflags=x86_const.X86_EFLAGS_RESET_OF
-        | x86_const.X86_EFLAGS_RESET_SF
-        | x86_const.X86_EFLAGS_MODIFY_ZF
-        | x86_const.X86_EFLAGS_RESET_AF
-        | x86_const.X86_EFLAGS_RESET_PF
-        | x86_const.X86_EFLAGS_RESET_CF,
-        ops={
-            "op1": FukuRegister,
-            "op2": FukuRegister | FukuOperand,
-        },
     ),
     # Miscellaneous Instructions
     "lea": InstProp(
