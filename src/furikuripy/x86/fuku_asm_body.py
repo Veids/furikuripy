@@ -1,8 +1,6 @@
-import itertools
-
 from enum import Enum
 from typing import Callable, Optional
-from capstone import x86_const, Cs, CS_ARCH_X86, CS_MODE_32, CS_MODE_64
+from capstone import x86_const
 from iced_x86 import Code, Instruction
 from pydantic import BaseModel
 
@@ -14,11 +12,8 @@ from furikuripy.x86.iced_builder import BaseBuilder, gen_iced_ins
 from furikuripy.x86.fuku_asm_ctx import FukuAsmCtx
 from furikuripy.x86.fuku_immediate import FukuImmediate
 from furikuripy.x86.fuku_register import FukuRegister, FukuRegisterEnum
-from furikuripy.x86.fuku_operand import FukuOperand, FukuPrefix
+from furikuripy.x86.fuku_operand import FukuOperand
 from furikuripy.x86.fuku_register_math_tables import ADI_FL_JCC
-
-cs = Cs(CS_ARCH_X86, CS_MODE_64)
-cs.detail = True
 
 
 class PostfixEnum(Enum):
@@ -33,67 +28,15 @@ class PostfixedWrapper(BaseModel):
     wrapper: Callable
 
 
-def gen_default_postfix(
-    wrapper: Callable, modifier: str = "", exclude: list[str] = []
-) -> list[PostfixedWrapper]:
-    return [
-        PostfixedWrapper(postfix=f"{modifier}{p.name}", wrapper=wrapper(p.value))
-        for p in PostfixEnum
-        if p.name not in exclude
-    ]
-
-
-def build_code_left_part(t, size: int) -> str:
-    if isinstance(t, FukuRegister):
-        return f"R{size}"
-    elif isinstance(t, FukuOperand):
-        return f"RM{size}"
-    else:
-        raise Exception("Unknown")
-
-
-def build_code_right_part(ctx, t, size: int) -> str:
-    if isinstance(t, FukuRegister):
-        return f"RM{size}"
-    elif isinstance(t, FukuOperand):
-        return f"RM{size}"
-    elif isinstance(t, FukuImmediate):
-        return t.to_iced_code(ctx.is_used_short_disp, size)
-    else:
-        raise Exception("Unimplemented")
-
-
-def get_iced_code_two_op(
-    ctx, name: str, dst, src, size, postfix: str = "", max_imm_size=64
-):
-    name = name.upper()
-    l = r = ""
-    if isinstance(src, FukuImmediate):
-        l = f"RM{size}"
-        r = build_code_right_part(ctx, src, min(size, max_imm_size))
-    elif isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
-        ls = [f"R{size}", f"RM{size}"]
-        rs = ls.copy()
-        posibilities = []
-        for l, r in itertools.product(ls, rs):
-            code_str = f"{name}_{l}_{r}{postfix}"
-            if hasattr(Code, code_str):
-                posibilities.append(code_str)
-
-        if len(posibilities) == 1:
-            return getattr(Code, posibilities[0])
-        else:
-            return getattr(Code, rng.choice(posibilities))
-    else:
-        l = build_code_left_part(dst, size)
-        r = build_code_right_part(ctx, src, size)
-
-    return getattr(Code, f"{name}_{l}_{r}{postfix}")
-
-
 class FukuAsmBody:
     def __init__(self):
         # Binary Arithmetic Instructions
+        self._gen_iced_fns(
+            BaseBuilder(name="adcx", inst=INST_PROPS["adcx"], exclude=["b", "w"])
+        )
+        self._gen_iced_fns(
+            BaseBuilder(name="adox", inst=INST_PROPS["adox"], exclude=["b", "w"])
+        )
         self._gen_iced_fns(BaseBuilder(name="add", inst=INST_PROPS["add"]))
         self._gen_iced_fns(BaseBuilder(name="adc", inst=INST_PROPS["adc"]))
         self._gen_iced_fns(BaseBuilder(name="sub", inst=INST_PROPS["sub"]))
@@ -135,6 +78,10 @@ class FukuAsmBody:
         )
         self._gen_iced_fns(BaseBuilder(name="xadd", inst=INST_PROPS["xadd"]))
         self._gen_iced_fns(BaseBuilder(name="cmpxchg", inst=INST_PROPS["cmpxchg"]))
+        self._gen_iced_fns(BaseBuilder(name="cmpxchg8b", inst=INST_PROPS["cmpxchg8b"]))
+        self._gen_iced_fns(
+            BaseBuilder(name="cmpxchg16b", inst=INST_PROPS["cmpxchg16b"])
+        )
         self._gen_iced_fns(
             BaseBuilder(name="push", inst=INST_PROPS["push"], exclude_postfix=["b"])
         )
@@ -271,76 +218,14 @@ class FukuAsmBody:
         self._gen_iced_fns(BaseBuilder(name="leave", inst=INST_PROPS["leave"]))
 
         # String Instructions
-        self._gen_func_body_string_inst_iced(
-            "outs",
-            x86_const.X86_EFLAGS_TEST_DF,
-            mapping={
-                8: "B_DX_M8",
-                16: "W_DX_M16",
-                32: "D_DX_M32",
-            },
-            exclude=["qw"],
+        self._gen_iced_fns(
+            BaseBuilder(name="outs", inst=INST_PROPS["outs"], exclude=["qw"])
         )
-        self._gen_func_body_string_inst_iced(
-            "movs",
-            x86_const.X86_EFLAGS_TEST_DF,
-            mapping={
-                8: "B_M8_M8",
-                16: "W_M16_M16",
-                32: "D_M32_M32",
-                64: "Q_M64_M64",
-            },
-        )
-        self._gen_func_body_string_inst_iced(
-            "cmps",
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            mapping={
-                8: "B_M8_M8",
-                16: "W_M16_M16",
-                32: "D_M32_M32",
-                64: "Q_M64_M64",
-            },
-        )
-        self._gen_func_body_string_inst_iced(
-            "stos",
-            x86_const.X86_EFLAGS_TEST_DF,
-            mapping={
-                8: "B_M8_AL",
-                16: "W_M16_AX",
-                32: "D_M32_EAX",
-                64: "Q_M64_RAX",
-            },
-        )
-        self._gen_func_body_string_inst_iced(
-            "lods",
-            x86_const.X86_EFLAGS_TEST_DF,
-            mapping={
-                8: "B_AL_M8",
-                16: "W_AX_M16",
-                32: "D_EAX_M32",
-                64: "Q_RAX_M64",
-            },
-        )
-        self._gen_func_body_string_inst_iced(
-            "scas",
-            x86_const.X86_EFLAGS_MODIFY_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_MODIFY_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_MODIFY_CF,
-            mapping={
-                8: "B_AL_M8",
-                16: "W_AX_M16",
-                32: "D_EAX_M32",
-                64: "Q_RAX_M64",
-            },
-        )
+        self._gen_iced_fns(BaseBuilder(name="movs", inst=INST_PROPS["movs"]))
+        self._gen_iced_fns(BaseBuilder(name="cmps", inst=INST_PROPS["cmps"]))
+        self._gen_iced_fns(BaseBuilder(name="stos", inst=INST_PROPS["stos"]))
+        self._gen_iced_fns(BaseBuilder(name="lods", inst=INST_PROPS["lods"]))
+        self._gen_iced_fns(BaseBuilder(name="scas", inst=INST_PROPS["scas"]))
 
         # Flag Control (EFLAG) Instructions
         self._gen_iced_fns(BaseBuilder(name="stc", inst=INST_PROPS["stc"]))
@@ -452,134 +337,6 @@ class FukuAsmBody:
 
         ctx.gen_func_return(
             cond.to_capstone_cc(FukuToCapConvertType.CMOVCC), ADI_FL_JCC[cond.value]
-        )
-
-    def cmpxchg8b(self, ctx: FukuAsmCtx, dst: FukuOperand):
-        ctx.clear()
-        ctx.gen_pattern32_2em_op_idx(0x0F, 0xC7, dst, 1)
-        ctx.gen_func_return(x86_const.X86_INS_CMPXCHG8B, x86_const.X86_EFLAGS_MODIFY_ZF)
-
-    def cmpxchg16b(self, ctx: FukuAsmCtx, dst: FukuOperand):
-        ctx.clear()
-        ctx.gen_pattern64_2em_op_idx(0x0F, 0xC7, dst, 1)
-        ctx.gen_func_return(
-            x86_const.X86_INS_CMPXCHG16B, x86_const.X86_EFLAGS_MODIFY_ZF
-        )
-
-    # Binary Arithmetic Instructions
-    def adcx_dw(
-        self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuRegister):
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
-            ctx.emit_optional_rex_32(dst, src)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0x38)
-            ctx.emit_b(0xF6)
-            ctx.emit_modrm(src, dst)
-        else:
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
-            ctx.emit_optional_rex_32(src, dst)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0x38)
-            ctx.emit_b(0xF6)
-            ctx.emit_operand(src, dst)
-
-        ctx.gen_func_return(x86_const.X86_INS_ADCX, x86_const.X86_EFLAGS_MODIFY_CF)
-
-    def adcx_qw(
-        self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuRegister):
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
-            ctx.emit_rex_64(dst, src)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0x38)
-            ctx.emit_b(0xF6)
-            ctx.emit_modrm(src, dst)
-        else:
-            ctx.emit_b(FukuPrefix.FUKU_PREFIX_OVERRIDE_DATA.value)
-            ctx.emit_rex_64(src, dst)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0x38)
-            ctx.emit_b(0xF6)
-            ctx.emit_operand(src, dst)
-
-        ctx.gen_func_return(x86_const.X86_INS_ADCX, x86_const.X86_EFLAGS_MODIFY_CF)
-
-    def adox_dw(
-        self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuRegister):
-            ctx.emit_b(0xF3)
-            ctx.emit_optional_rex_32(dst, src)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0x38)
-            ctx.emit_b(0xF6)
-            ctx.emit_modrm(src, dst)
-        else:
-            ctx.emit_b(0xF3)
-            ctx.emit_optional_rex_32(src, dst)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0x38)
-            ctx.emit_b(0xF6)
-            ctx.emit_operand(src, dst)
-
-        ctx.gen_func_return(x86_const.X86_INS_ADOX, x86_const.X86_EFLAGS_MODIFY_OF)
-
-    def adox_qw(
-        self, ctx: FukuAsmCtx, dst: FukuRegister, src: FukuRegister | FukuOperand
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuRegister):
-            ctx.emit_b(0xF3)
-            ctx.emit_rex_64(dst, src)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0x38)
-            ctx.emit_b(0xF6)
-            ctx.emit_modrm(src, dst)
-        else:
-            ctx.emit_b(0xF3)
-            ctx.emit_rex_64(src, dst)
-            ctx.emit_b(0x0F)
-            ctx.emit_b(0x38)
-            ctx.emit_b(0xF6)
-            ctx.emit_operand(src, dst)
-
-        ctx.gen_func_return(x86_const.X86_INS_ADOX, x86_const.X86_EFLAGS_MODIFY_OF)
-
-    # Decimal Arithmetic Instructions
-    def aam(self, ctx: FukuAsmCtx, imm: FukuImmediate):
-        ctx.clear()
-        ctx.gen_pattern32_1em_immb(0xD4, FukuRegister(FukuRegisterEnum.REG_NONE), imm)
-        ctx.gen_func_return(
-            x86_const.X86_INS_AAM,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_UNDEFINED_CF,
-        )
-
-    def aad(self, ctx: FukuAsmCtx, imm: FukuImmediate):
-        ctx.clear()
-        ctx.gen_pattern32_1em_immb(0xD5, FukuRegister(FukuRegisterEnum.REG_NONE), imm)
-        ctx.gen_func_return(
-            x86_const.X86_INS_AAD,
-            x86_const.X86_EFLAGS_UNDEFINED_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_UNDEFINED_CF,
         )
 
     # Bit and Byte Instructions
@@ -724,20 +481,3 @@ class FukuAsmBody:
                 ctx.emit_b(0x90)
 
         ctx.gen_func_return(x86_const.X86_INS_NOP, 0)
-
-    def _gen_func_body_string_inst_iced(
-        self, name, cap_eflags, mapping: dict[int, str], exclude: list[str] = []
-    ):
-        def wrapper(size: int):
-            def fn(self, ctx: FukuAsmCtx):
-                ctx.clear()
-
-                code = getattr(Code, f"{name.upper()}{mapping[size]}")
-                ins = Instruction.create(code)
-                gen_iced_ins(ctx, ins)
-
-                ctx.gen_func_return(id, cap_eflags)
-
-            return fn
-
-        self._gen_fn(name, gen_default_postfix(wrapper, exclude=exclude))

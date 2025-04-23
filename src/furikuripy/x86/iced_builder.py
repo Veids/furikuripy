@@ -44,24 +44,15 @@ def gen_iced_ins(ctx, ins):
     ctx.bytecode = bytearray(opcode)
 
 
-def build_code_left_part(t, size: int) -> str:
-    if isinstance(t, FukuRegister):
-        return f"R{size}"
-    elif isinstance(t, FukuOperand):
-        return f"RM{size}"
+def parts_for(ctx, obj, size: int, max_imm_size: int = 64) -> list[str]:
+    if isinstance(obj, FukuRegister):
+        return [f"R{size}", f"RM{size}"]
+    elif isinstance(obj, FukuOperand):
+        return [f"RM{size}"]
+    elif isinstance(obj, FukuImmediate):
+        return [obj.to_iced_code(ctx.is_used_short_disp, min(size, max_imm_size))]
     else:
-        raise Exception("Unknown")
-
-
-def build_code_right_part(ctx, t, size: int) -> str:
-    if isinstance(t, FukuRegister):
-        return f"RM{size}"
-    elif isinstance(t, FukuOperand):
-        return f"RM{size}"
-    elif isinstance(t, FukuImmediate):
-        return t.to_iced_code(ctx.is_used_short_disp, size)
-    else:
-        raise Exception("Unimplemented")
+        raise TypeError(obj)
 
 
 class BaseBuilder(BaseModel):
@@ -82,9 +73,10 @@ class BaseBuilder(BaseModel):
     _registry: ClassVar[dict[str, type["BaseBuilder"]]] = {}
 
     @classmethod
-    def register(cls, mnemonic: str):
+    def register(cls, mnemonics: list[str]):
         def decorator(subcls: type["BaseBuilder"]):
-            cls._registry[mnemonic] = subcls
+            for mnemonic in mnemonics:
+                cls._registry[mnemonic] = subcls
             return subcls
 
         return decorator
@@ -125,25 +117,6 @@ class BaseBuilder(BaseModel):
             )
         )
 
-    def ops(self, **fn_param_types):
-        for param_name, param_type in fn_param_types.items():
-            self.parameters.append(
-                inspect.Parameter(
-                    param_name,
-                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                    annotation=param_type,
-                )
-            )
-        return self
-
-    def _get_iced_code(self, *args) -> int:
-        code_str = self._gen_iced_code_str(*args)
-        return getattr(Code, code_str)
-
-    def _has_iced_code(self, *args) -> bool:
-        code_str = self._gen_iced_code_str(*args)
-        return hasattr(Code, code_str)
-
     def _gen_iced_code_str(self, *args) -> str:
         parts = [self.name.upper()]
         parts += list(args)
@@ -159,60 +132,35 @@ class BaseBuilder(BaseModel):
         else:
             return getattr(Code, rng.choice(posibilities))
 
-    def _get_iced_code_one_op(self, ctx, size: int, src) -> int:
-        if isinstance(src, FukuRegister):
-            ls = [f"R{size}", f"RM{size}"]
-            posibilities = [
-                self._gen_iced_code_str(l) for l in ls if self._has_iced_code(l)
-            ]
-            posibilities = [pos for pos in posibilities if pos not in self.exclude_inst]
+    def _choose_from_posibilities(self, *args):
+        posibilities = []
+        for x in itertools.product(*args):
+            code_str = self.name.upper() + "_" + "_".join(x)
 
-            return self._get_iced_code_from_posibilities(posibilities)
-        else:
-            l = build_code_right_part(ctx, src, size)
+            if self.cl:
+                code_str += "_CL"
 
-        return self._get_iced_code(l)
+            if code_str in self.exclude_inst or not hasattr(Code, code_str):
+                continue
 
-    def _get_iced_code_two_op(self, ctx, size: int, dst, src):
-        l = r = ""
-        if isinstance(src, FukuImmediate):
-            l = f"RM{size}"
-            r = build_code_right_part(ctx, src, min(size, self.max_imm_size))
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
-            ls = [f"R{size}", f"RM{size}"]
-            rs = ls.copy()
-            posibilities = []
-            for l, r in itertools.product(ls, rs):
-                if self._has_iced_code(l, r):
-                    posibilities.append(self._gen_iced_code_str(l, r))
+            posibilities.append(code_str)
 
-            return self._get_iced_code_from_posibilities(posibilities)
-        else:
-            l = build_code_left_part(dst, size)
-            r = build_code_right_part(ctx, src, size)
-
-        return self._get_iced_code(l, r)
-
-    def _get_iced_code_three_op(self, ctx, size: int, dst, src, imm):
-        l = build_code_left_part(dst, size)
-        r = build_code_right_part(ctx, src, size)
-        i = build_code_right_part(ctx, imm, size)
-        return self._get_iced_code(l, r, i)
-
-    def _get_iced_code_no_ops(self, _, size: int):
-        return self._get_iced_code()
+        return self._get_iced_code_from_posibilities(posibilities)
 
     def resolve_code(self, ctx, size, ops: Tuple):
         if self.code_resolver:
             return getattr(Code, self.code_resolver(ctx, self.name, *ops, size))
-        else:
-            resolve_map = {
-                0: self._get_iced_code_no_ops,
-                1: self._get_iced_code_one_op,
-                2: self._get_iced_code_two_op,
-                3: self._get_iced_code_three_op,
-            }
-            return resolve_map[len(ops)](ctx, size, *ops)
+
+        if len(ops) == 0:
+            code_str = self._gen_iced_code_str()
+            return getattr(Code, code_str)
+
+        posibilities = []
+        for op in ops:
+            parts = parts_for(ctx, op, size, min(size, self.max_imm_size))
+            posibilities.append(parts)
+
+        return self._choose_from_posibilities(*posibilities)
 
     def _get_iced_create_inst(self, *args) -> Callable:
         s = ["create"] + [arg.to_iced_name() for arg in args]
@@ -277,7 +225,7 @@ class GenericBuilder(BaseBuilder):
         return self.name, self._deduce_postfix(wrapper)
 
 
-@BaseBuilder.register("mov")
+@BaseBuilder.register(["mov"])
 class MovBuilder(BaseBuilder):
     def _build(self) -> Tuple[str, list[PostfixedWrapper]]:
         eax_mapping = {
@@ -369,7 +317,7 @@ class MovBuilder(BaseBuilder):
         return self.name, self._deduce_postfix(wrapper)
 
 
-@BaseBuilder.register("test")
+@BaseBuilder.register(["test"])
 class TestBuilder(BaseBuilder):
     def _build(self) -> Tuple[str, list[PostfixedWrapper]]:
         def wrapper(size: int):
@@ -395,6 +343,73 @@ class TestBuilder(BaseBuilder):
                 ins = self.call_iced_create_inst(code, *ops)
                 gen_iced_ins(ctx, ins)
                 ctx.gen_func_return(self.inst.capstone_code, self.inst.cap_eflags)
+
+            fn.__signature__ = fn_signature
+            return fn
+
+        return self.name, self._deduce_postfix(wrapper)
+
+
+@BaseBuilder.register(["outs", "movs", "cmps", "stos", "lods", "scas"])
+class StringBuilder(BaseBuilder):
+    mapping: ClassVar[dict[str, dict[int, str]]] = {
+        "outs": {
+            8: "B_DX_M8",
+            16: "W_DX_M16",
+            32: "D_DX_M32",
+        },
+        "movs": {
+            8: "B_M8_M8",
+            16: "W_M16_M16",
+            32: "D_M32_M32",
+            64: "Q_M64_M64",
+        },
+        "cmps": {
+            8: "B_M8_M8",
+            16: "W_M16_M16",
+            32: "D_M32_M32",
+            64: "Q_M64_M64",
+        },
+        "stos": {
+            8: "B_M8_AL",
+            16: "W_M16_AX",
+            32: "D_M32_EAX",
+            64: "Q_M64_RAX",
+        },
+        "lods": {
+            8: "B_AL_M8",
+            16: "W_AX_M16",
+            32: "D_EAX_M32",
+            64: "Q_RAX_M64",
+        },
+        "scas": {
+            8: "B_AL_M8",
+            16: "W_AX_M16",
+            32: "D_EAX_M32",
+            64: "Q_RAX_M64",
+        },
+    }
+
+    def _get_capstone_code(self, size) -> int:
+        postfix_stripped = PostfixEnum(size).name[:1].upper()
+        name = self.name.upper()
+        return getattr(x86_const, f"X86_INS_{name}{postfix_stripped}")
+
+    def _build(self) -> Tuple[str, list[PostfixedWrapper]]:
+        def wrapper(size: int):
+            fn_signature = inspect.Signature(self.parameters)
+
+            def fn(*args):
+                ctx = args[1]
+                ctx.clear()
+
+                code = getattr(
+                    Code, f"{self.name.upper()}{self.mapping[self.name][size]}"
+                )
+                ins = Instruction.create(code)
+                gen_iced_ins(ctx, ins)
+
+                ctx.gen_func_return(self._get_capstone_code(size), self.inst.cap_eflags)
 
             fn.__signature__ = fn_signature
             return fn

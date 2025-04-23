@@ -14,6 +14,16 @@ class InstProp(BaseModel):
 
 INST_PROPS = {
     # Binary Arithmetic Instructions
+    "adcx": InstProp(
+        capstone_code=x86_const.X86_INS_ADCX,
+        cap_eflags=x86_const.X86_EFLAGS_MODIFY_CF,
+        ops={"op1": FukuRegister, "op2": FukuRegister | FukuOperand},
+    ),
+    "adox": InstProp(
+        capstone_code=x86_const.X86_INS_ADOX,
+        cap_eflags=x86_const.X86_EFLAGS_MODIFY_OF,
+        ops={"op1": FukuRegister, "op2": FukuRegister | FukuOperand},
+    ),
     "add": InstProp(
         capstone_code=x86_const.X86_INS_ADD,
         cap_eflags=x86_const.X86_EFLAGS_MODIFY_OF,
@@ -431,6 +441,16 @@ INST_PROPS = {
             "op2": FukuRegister,
         },
     ),
+    "cmpxchg8b": InstProp(
+        capstone_code=x86_const.X86_INS_CMPXCHG8B,
+        cap_eflags=x86_const.X86_EFLAGS_MODIFY_ZF,
+        ops={"op1": FukuOperand},
+    ),
+    "cmpxchg16b": InstProp(
+        capstone_code=x86_const.X86_INS_CMPXCHG16B,
+        cap_eflags=x86_const.X86_EFLAGS_MODIFY_ZF,
+        ops={"op1": FukuOperand},
+    ),
     "push": InstProp(
         capstone_code=x86_const.X86_INS_PUSH,
         cap_eflags=0,
@@ -574,6 +594,41 @@ INST_PROPS = {
         | x86_const.X86_EFLAGS_MODIFY_RF,
     ),
     "leave": InstProp(capstone_code=x86_const.X86_INS_LEAVE, cap_eflags=0),
+    # String Instructions
+    "outs": InstProp(
+        capstone_code=x86_const.X86_INS_OUTSB,
+        cap_eflags=x86_const.X86_EFLAGS_TEST_DF,
+    ),
+    "movs": InstProp(
+        capstone_code=x86_const.X86_INS_MOVSB,
+        cap_eflags=x86_const.X86_EFLAGS_TEST_DF,
+    ),
+    "cmps": InstProp(
+        capstone_code=x86_const.X86_INS_CMPSB,
+        cap_eflags=x86_const.X86_EFLAGS_MODIFY_OF
+        | x86_const.X86_EFLAGS_MODIFY_SF
+        | x86_const.X86_EFLAGS_MODIFY_ZF
+        | x86_const.X86_EFLAGS_MODIFY_AF
+        | x86_const.X86_EFLAGS_MODIFY_PF
+        | x86_const.X86_EFLAGS_MODIFY_CF,
+    ),
+    "stos": InstProp(
+        capstone_code=x86_const.X86_INS_STOSB,
+        cap_eflags=x86_const.X86_EFLAGS_TEST_DF,
+    ),
+    "lods": InstProp(
+        capstone_code=x86_const.X86_INS_LODSB,
+        cap_eflags=x86_const.X86_EFLAGS_TEST_DF,
+    ),
+    "scas": InstProp(
+        capstone_code=x86_const.X86_INS_SCASB,
+        cap_eflags=x86_const.X86_EFLAGS_MODIFY_OF
+        | x86_const.X86_EFLAGS_MODIFY_SF
+        | x86_const.X86_EFLAGS_MODIFY_ZF
+        | x86_const.X86_EFLAGS_MODIFY_AF
+        | x86_const.X86_EFLAGS_MODIFY_PF
+        | x86_const.X86_EFLAGS_MODIFY_CF,
+    ),
     # Flag Control (EFLAG) Instructions
     "stc": InstProp(
         capstone_code=x86_const.X86_INS_STC, cap_eflags=x86_const.X86_EFLAGS_SET_CF
