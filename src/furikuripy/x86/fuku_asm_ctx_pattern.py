@@ -20,12 +20,6 @@ class FukuAsmCtxPattern:
         self.emit_b(byte2)
         self.emit_modrm(rm_reg, idx)
 
-    def gen_pattern64_2em_rm_idx(self, byte1, byte2, rm_reg, idx):
-        self.emit_rex_64(rm_reg)
-        self.emit_b(byte1)
-        self.emit_b(byte2)
-        self.emit_modrm(rm_reg, idx)
-
     # emit 1 byte , emit modrm(regrm, reg)
     def gen_pattern32_1em_rm_r(self, byte1, rm_reg, reg):
         self.emit_optional_rex_32(rm_reg, reg)

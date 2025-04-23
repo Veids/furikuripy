@@ -10,11 +10,11 @@ from pydantic import BaseModel
 from furikuripy.common import rng
 from furikuripy.x86.inst_tables import INST_PROPS
 from furikuripy.x86.misc import FukuCondition, FukuToCapConvertType
-from furikuripy.x86.iced_builder import IcedBuilder, gen_iced_ins
+from furikuripy.x86.iced_builder import BaseBuilder, gen_iced_ins
 from furikuripy.x86.fuku_asm_ctx import FukuAsmCtx
 from furikuripy.x86.fuku_immediate import FukuImmediate
 from furikuripy.x86.fuku_register import FukuRegister, FukuRegisterEnum
-from furikuripy.x86.fuku_operand import FukuOperand, FukuMemOperandType, FukuPrefix
+from furikuripy.x86.fuku_operand import FukuOperand, FukuPrefix
 from furikuripy.x86.fuku_register_math_tables import ADI_FL_JCC
 
 cs = Cs(CS_ARCH_X86, CS_MODE_64)
@@ -94,66 +94,66 @@ def get_iced_code_two_op(
 class FukuAsmBody:
     def __init__(self):
         # Binary Arithmetic Instructions
-        self._gen_iced_fns(IcedBuilder(name="add", inst=INST_PROPS["add"]))
-        self._gen_iced_fns(IcedBuilder(name="adc", inst=INST_PROPS["adc"]))
-        self._gen_iced_fns(IcedBuilder(name="sub", inst=INST_PROPS["sub"]))
-        self._gen_iced_fns(IcedBuilder(name="sbb", inst=INST_PROPS["sbb"]))
-        self._gen_iced_fns(IcedBuilder(name="imul", inst=INST_PROPS["imul"]))
-        self._gen_iced_fns(IcedBuilder(name="mul", inst=INST_PROPS["mul"]))
-        self._gen_iced_fns(IcedBuilder(name="idiv", inst=INST_PROPS["idiv"]))
-        self._gen_iced_fns(IcedBuilder(name="div", inst=INST_PROPS["div"]))
+        self._gen_iced_fns(BaseBuilder(name="add", inst=INST_PROPS["add"]))
+        self._gen_iced_fns(BaseBuilder(name="adc", inst=INST_PROPS["adc"]))
+        self._gen_iced_fns(BaseBuilder(name="sub", inst=INST_PROPS["sub"]))
+        self._gen_iced_fns(BaseBuilder(name="sbb", inst=INST_PROPS["sbb"]))
+        self._gen_iced_fns(BaseBuilder(name="imul", inst=INST_PROPS["imul"]))
+        self._gen_iced_fns(BaseBuilder(name="mul", inst=INST_PROPS["mul"]))
+        self._gen_iced_fns(BaseBuilder(name="idiv", inst=INST_PROPS["idiv"]))
+        self._gen_iced_fns(BaseBuilder(name="div", inst=INST_PROPS["div"]))
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="inc", inst=INST_PROPS["inc"], exclude_inst=["INC_R16", "INC_R32"]
             )
         )
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="dec", inst=INST_PROPS["dec"], exclude_inst=["DEC_R16", "DEC_R32"]
             )
         )
-        self._gen_iced_fns(IcedBuilder(name="neg", inst=INST_PROPS["neg"]))
-        self._gen_iced_fns(IcedBuilder(name="cmp", inst=INST_PROPS["cmp"]))
+        self._gen_iced_fns(BaseBuilder(name="neg", inst=INST_PROPS["neg"]))
+        self._gen_iced_fns(BaseBuilder(name="cmp", inst=INST_PROPS["cmp"]))
 
         # Decimal Arithmetic Instructions
-        self._gen_iced_fns(IcedBuilder(name="daa", inst=INST_PROPS["daa"]))
-        self._gen_iced_fns(IcedBuilder(name="das", inst=INST_PROPS["das"]))
-        self._gen_iced_fns(IcedBuilder(name="aaa", inst=INST_PROPS["aaa"]))
-        self._gen_iced_fns(IcedBuilder(name="aas", inst=INST_PROPS["aas"]))
+        self._gen_iced_fns(BaseBuilder(name="daa", inst=INST_PROPS["daa"]))
+        self._gen_iced_fns(BaseBuilder(name="das", inst=INST_PROPS["das"]))
+        self._gen_iced_fns(BaseBuilder(name="aaa", inst=INST_PROPS["aaa"]))
+        self._gen_iced_fns(BaseBuilder(name="aas", inst=INST_PROPS["aas"]))
 
         # Logical Instructions
-        self._gen_iced_fns(IcedBuilder(name="and", inst=INST_PROPS["and"]))
-        self._gen_iced_fns(IcedBuilder(name="or", inst=INST_PROPS["or"]))
-        self._gen_iced_fns(IcedBuilder(name="xor", inst=INST_PROPS["xor"]))
-        self._gen_iced_fns(IcedBuilder(name="not", inst=INST_PROPS["not"]))
+        self._gen_iced_fns(BaseBuilder(name="and", inst=INST_PROPS["and"]))
+        self._gen_iced_fns(BaseBuilder(name="or", inst=INST_PROPS["or"]))
+        self._gen_iced_fns(BaseBuilder(name="xor", inst=INST_PROPS["xor"]))
+        self._gen_iced_fns(BaseBuilder(name="not", inst=INST_PROPS["not"]))
 
         # Data Transfer Instructions
-        self._gen_func_body_mov_iced("mov")
-        self._gen_iced_fns(IcedBuilder(name="xchg", inst=INST_PROPS["xchg"]))
+        self._gen_iced_fns(BaseBuilder(name="mov", inst=INST_PROPS["mov"]))
+        self._gen_iced_fns(BaseBuilder(name="xchg", inst=INST_PROPS["xchg"]))
         self._gen_iced_fns(
-            IcedBuilder(name="bswap", inst=INST_PROPS["bswap"], exclude_postfix=["b"])
+            BaseBuilder(name="bswap", inst=INST_PROPS["bswap"], exclude_postfix=["b"])
         )
-        self._gen_iced_fns(IcedBuilder(name="xadd", inst=INST_PROPS["xadd"]))
-        self._gen_iced_fns(IcedBuilder(name="cmpxchg", inst=INST_PROPS["cmpxchg"]))
+        self._gen_iced_fns(BaseBuilder(name="xadd", inst=INST_PROPS["xadd"]))
+        self._gen_iced_fns(BaseBuilder(name="cmpxchg", inst=INST_PROPS["cmpxchg"]))
         self._gen_iced_fns(
-            IcedBuilder(name="push", inst=INST_PROPS["push"], exclude_postfix=["b"])
+            BaseBuilder(name="push", inst=INST_PROPS["push"], exclude_postfix=["b"])
         )
         self._gen_iced_fns(
-            IcedBuilder(name="pop", inst=INST_PROPS["pop"], exclude_postfix=["b"])
+            BaseBuilder(name="pop", inst=INST_PROPS["pop"], exclude_postfix=["b"])
         )
-        self._gen_iced_fns(IcedBuilder(name="cwd", inst=INST_PROPS["cwd"]))
-        self._gen_iced_fns(IcedBuilder(name="cdq", inst=INST_PROPS["cdq"]))
-        self._gen_iced_fns(IcedBuilder(name="cqo", inst=INST_PROPS["cqo"]))
-        self._gen_iced_fns(IcedBuilder(name="cbw", inst=INST_PROPS["cbw"]))
-        self._gen_iced_fns(IcedBuilder(name="cwde", inst=INST_PROPS["cwde"]))
-        self._gen_iced_fns(IcedBuilder(name="cdqe", inst=INST_PROPS["cdqe"]))
+        self._gen_iced_fns(BaseBuilder(name="cwd", inst=INST_PROPS["cwd"]))
+        self._gen_iced_fns(BaseBuilder(name="cdq", inst=INST_PROPS["cdq"]))
+        self._gen_iced_fns(BaseBuilder(name="cqo", inst=INST_PROPS["cqo"]))
+        self._gen_iced_fns(BaseBuilder(name="cbw", inst=INST_PROPS["cbw"]))
+        self._gen_iced_fns(BaseBuilder(name="cwde", inst=INST_PROPS["cwde"]))
+        self._gen_iced_fns(BaseBuilder(name="cdqe", inst=INST_PROPS["cdqe"]))
 
         for inst_name in [
             "movzx",
             "movsx",
         ]:
             self._gen_iced_fns(
-                IcedBuilder(
+                BaseBuilder(
                     name=inst_name,
                     inst=INST_PROPS[inst_name],
                     postfix_modifier="byte_",
@@ -161,7 +161,7 @@ class FukuAsmBody:
                 )
             )
             self._gen_iced_fns(
-                IcedBuilder(
+                BaseBuilder(
                     name=inst_name,
                     inst=INST_PROPS[inst_name],
                     postfix_modifier="word_",
@@ -170,7 +170,7 @@ class FukuAsmBody:
             )
 
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="movsxd",
                 inst=INST_PROPS["movsxd"],
                 postfix_modifier="word_",
@@ -179,7 +179,7 @@ class FukuAsmBody:
         )
 
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="movsxd",
                 inst=INST_PROPS["movsxd"],
                 postfix_modifier="dword_",
@@ -188,45 +188,45 @@ class FukuAsmBody:
         )
 
         # Shift and Rotate Instructions
-        self._gen_iced_fns(IcedBuilder(name="sar", inst=INST_PROPS["sar"]))
-        self._gen_iced_fns(IcedBuilder(name="sar", inst=INST_PROPS["sar_cl"], cl=True))
-        self._gen_iced_fns(IcedBuilder(name="shr", inst=INST_PROPS["shr"]))
-        self._gen_iced_fns(IcedBuilder(name="shr", inst=INST_PROPS["shr_cl"], cl=True))
-        self._gen_iced_fns(IcedBuilder(name="shl", inst=INST_PROPS["shl"]))
-        self._gen_iced_fns(IcedBuilder(name="shl", inst=INST_PROPS["shl_cl"], cl=True))
+        self._gen_iced_fns(BaseBuilder(name="sar", inst=INST_PROPS["sar"]))
+        self._gen_iced_fns(BaseBuilder(name="sar", inst=INST_PROPS["sar_cl"], cl=True))
+        self._gen_iced_fns(BaseBuilder(name="shr", inst=INST_PROPS["shr"]))
+        self._gen_iced_fns(BaseBuilder(name="shr", inst=INST_PROPS["shr_cl"], cl=True))
+        self._gen_iced_fns(BaseBuilder(name="shl", inst=INST_PROPS["shl"]))
+        self._gen_iced_fns(BaseBuilder(name="shl", inst=INST_PROPS["shl_cl"], cl=True))
         self._gen_iced_fns(
-            IcedBuilder(name="shrd", inst=INST_PROPS["shrd"], exclude_postfix=["b"])
+            BaseBuilder(name="shrd", inst=INST_PROPS["shrd"], exclude_postfix=["b"])
         )
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="shrd", inst=INST_PROPS["shrd_cl"], cl=True, exclude_postfix=["b"]
             )
         )
         self._gen_iced_fns(
-            IcedBuilder(name="shld", inst=INST_PROPS["shld"], exclude_postfix=["b"])
+            BaseBuilder(name="shld", inst=INST_PROPS["shld"], exclude_postfix=["b"])
         )
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="shld", inst=INST_PROPS["shld_cl"], cl=True, exclude_postfix=["b"]
             )
         )
-        self._gen_iced_fns(IcedBuilder(name="ror", inst=INST_PROPS["ror"]))
-        self._gen_iced_fns(IcedBuilder(name="ror", inst=INST_PROPS["ror_cl"], cl=True))
-        self._gen_iced_fns(IcedBuilder(name="rol", inst=INST_PROPS["rol"]))
-        self._gen_iced_fns(IcedBuilder(name="rol", inst=INST_PROPS["rol_cl"], cl=True))
-        self._gen_iced_fns(IcedBuilder(name="rcr", inst=INST_PROPS["rcr"]))
-        self._gen_iced_fns(IcedBuilder(name="rcr", inst=INST_PROPS["rcr_cl"], cl=True))
-        self._gen_iced_fns(IcedBuilder(name="rcl", inst=INST_PROPS["rcl"]))
-        self._gen_iced_fns(IcedBuilder(name="rcl", inst=INST_PROPS["rcl_cl"], cl=True))
+        self._gen_iced_fns(BaseBuilder(name="ror", inst=INST_PROPS["ror"]))
+        self._gen_iced_fns(BaseBuilder(name="ror", inst=INST_PROPS["ror_cl"], cl=True))
+        self._gen_iced_fns(BaseBuilder(name="rol", inst=INST_PROPS["rol"]))
+        self._gen_iced_fns(BaseBuilder(name="rol", inst=INST_PROPS["rol_cl"], cl=True))
+        self._gen_iced_fns(BaseBuilder(name="rcr", inst=INST_PROPS["rcr"]))
+        self._gen_iced_fns(BaseBuilder(name="rcr", inst=INST_PROPS["rcr_cl"], cl=True))
+        self._gen_iced_fns(BaseBuilder(name="rcl", inst=INST_PROPS["rcl"]))
+        self._gen_iced_fns(BaseBuilder(name="rcl", inst=INST_PROPS["rcl_cl"], cl=True))
 
         # Bit and Byte Instructions
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="bt", inst=INST_PROPS["bt"], exclude_postfix=["b"], max_imm_size=8
             )
         )
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="bts",
                 inst=INST_PROPS["bts"],
                 exclude_postfix=["b"],
@@ -234,7 +234,7 @@ class FukuAsmBody:
             )
         )
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="btr",
                 inst=INST_PROPS["btr"],
                 exclude_postfix=["b"],
@@ -242,7 +242,7 @@ class FukuAsmBody:
             )
         )
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="btc",
                 inst=INST_PROPS["btc"],
                 exclude_postfix=["b"],
@@ -250,7 +250,7 @@ class FukuAsmBody:
             )
         )
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="bsf",
                 inst=INST_PROPS["bsf"],
                 exclude_postfix=["b"],
@@ -258,7 +258,7 @@ class FukuAsmBody:
             )
         )
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="bsr",
                 inst=INST_PROPS["bsr"],
                 exclude_postfix=["b"],
@@ -267,8 +267,8 @@ class FukuAsmBody:
         )
 
         # Control Transfer Instructions
-        self._gen_iced_fns(IcedBuilder(name="int3", inst=INST_PROPS["int3"]))
-        self._gen_iced_fns(IcedBuilder(name="leave", inst=INST_PROPS["leave"]))
+        self._gen_iced_fns(BaseBuilder(name="int3", inst=INST_PROPS["int3"]))
+        self._gen_iced_fns(BaseBuilder(name="leave", inst=INST_PROPS["leave"]))
 
         # String Instructions
         self._gen_func_body_string_inst_iced(
@@ -343,156 +343,63 @@ class FukuAsmBody:
         )
 
         # Flag Control (EFLAG) Instructions
-        self._gen_iced_fns(IcedBuilder(name="stc", inst=INST_PROPS["stc"]))
-        self._gen_iced_fns(IcedBuilder(name="clc", inst=INST_PROPS["clc"]))
-        self._gen_iced_fns(IcedBuilder(name="cmc", inst=INST_PROPS["cmc"]))
-        self._gen_iced_fns(IcedBuilder(name="cld", inst=INST_PROPS["cld"]))
-        self._gen_iced_fns(IcedBuilder(name="std", inst=INST_PROPS["std"]))
-        self._gen_iced_fns(IcedBuilder(name="lahf", inst=INST_PROPS["lahf"]))
-        self._gen_iced_fns(IcedBuilder(name="sahf", inst=INST_PROPS["sahf"]))
-        self._gen_iced_fns(IcedBuilder(name="pusha", inst=INST_PROPS["pusha"]))
-        self._gen_iced_fns(IcedBuilder(name="pushad", inst=INST_PROPS["pushad"]))
-        self._gen_iced_fns(IcedBuilder(name="popa", inst=INST_PROPS["popa"]))
-        self._gen_iced_fns(IcedBuilder(name="popad", inst=INST_PROPS["popad"]))
-        self._gen_iced_fns(IcedBuilder(name="pushf", inst=INST_PROPS["pushf"]))
-        self._gen_iced_fns(IcedBuilder(name="pushfd", inst=INST_PROPS["pushfd"]))
-        self._gen_iced_fns(IcedBuilder(name="pushfq", inst=INST_PROPS["pushfq"]))
-        self._gen_iced_fns(IcedBuilder(name="popf", inst=INST_PROPS["popf"]))
-        self._gen_iced_fns(IcedBuilder(name="popfd", inst=INST_PROPS["popfd"]))
-        self._gen_iced_fns(IcedBuilder(name="popfq", inst=INST_PROPS["popfq"]))
+        self._gen_iced_fns(BaseBuilder(name="stc", inst=INST_PROPS["stc"]))
+        self._gen_iced_fns(BaseBuilder(name="clc", inst=INST_PROPS["clc"]))
+        self._gen_iced_fns(BaseBuilder(name="cmc", inst=INST_PROPS["cmc"]))
+        self._gen_iced_fns(BaseBuilder(name="cld", inst=INST_PROPS["cld"]))
+        self._gen_iced_fns(BaseBuilder(name="std", inst=INST_PROPS["std"]))
+        self._gen_iced_fns(BaseBuilder(name="lahf", inst=INST_PROPS["lahf"]))
+        self._gen_iced_fns(BaseBuilder(name="sahf", inst=INST_PROPS["sahf"]))
+        self._gen_iced_fns(BaseBuilder(name="pusha", inst=INST_PROPS["pusha"]))
+        self._gen_iced_fns(BaseBuilder(name="pushad", inst=INST_PROPS["pushad"]))
+        self._gen_iced_fns(BaseBuilder(name="popa", inst=INST_PROPS["popa"]))
+        self._gen_iced_fns(BaseBuilder(name="popad", inst=INST_PROPS["popad"]))
+        self._gen_iced_fns(BaseBuilder(name="pushf", inst=INST_PROPS["pushf"]))
+        self._gen_iced_fns(BaseBuilder(name="pushfd", inst=INST_PROPS["pushfd"]))
+        self._gen_iced_fns(BaseBuilder(name="pushfq", inst=INST_PROPS["pushfq"]))
+        self._gen_iced_fns(BaseBuilder(name="popf", inst=INST_PROPS["popf"]))
+        self._gen_iced_fns(BaseBuilder(name="popfd", inst=INST_PROPS["popfd"]))
+        self._gen_iced_fns(BaseBuilder(name="popfq", inst=INST_PROPS["popfq"]))
         self._gen_iced_fns(
-            IcedBuilder(name="popcnt", inst=INST_PROPS["popcnt"], exclude_postfix=["b"])
+            BaseBuilder(name="popcnt", inst=INST_PROPS["popcnt"], exclude_postfix=["b"])
         )
+        self._gen_iced_fns(BaseBuilder(name="test", inst=INST_PROPS["test"]))
 
         # Miscellaneous Instructions
         self._gen_iced_fns(
-            IcedBuilder(
+            BaseBuilder(
                 name="lea",
                 inst=INST_PROPS["lea"],
                 exclude_postfix=["b"],
                 code_resolver=lambda _, _2, _3, _4, size: f"LEA_R{size}_M",
             )
         )
-        self._gen_iced_fns(IcedBuilder(name="ud2", inst=INST_PROPS["ud2"]))
-        self._gen_iced_fns(IcedBuilder(name="cpuid", inst=INST_PROPS["cpuid"]))
+        self._gen_iced_fns(BaseBuilder(name="ud2", inst=INST_PROPS["ud2"]))
+        self._gen_iced_fns(BaseBuilder(name="cpuid", inst=INST_PROPS["cpuid"]))
 
         # Random Number Generator Instructions
         self._gen_iced_fns(
-            IcedBuilder(name="rdseed", inst=INST_PROPS["rdseed"], exclude_postfix=["b"])
+            BaseBuilder(name="rdseed", inst=INST_PROPS["rdseed"], exclude_postfix=["b"])
         )
         self._gen_iced_fns(
-            IcedBuilder(name="rdrand", inst=INST_PROPS["rdrand"], exclude_postfix=["b"])
+            BaseBuilder(name="rdrand", inst=INST_PROPS["rdrand"], exclude_postfix=["b"])
         )
 
         # SYSTEM INSTRUCTIONS
-        self._gen_iced_fns(IcedBuilder(name="hlt", inst=INST_PROPS["hlt"]))
-        self._gen_iced_fns(IcedBuilder(name="rdtsc", inst=INST_PROPS["rdtsc"]))
-        self._gen_iced_fns(IcedBuilder(name="lfence", inst=INST_PROPS["lfence"]))
+        self._gen_iced_fns(BaseBuilder(name="hlt", inst=INST_PROPS["hlt"]))
+        self._gen_iced_fns(BaseBuilder(name="rdtsc", inst=INST_PROPS["rdtsc"]))
+        self._gen_iced_fns(BaseBuilder(name="lfence", inst=INST_PROPS["lfence"]))
 
     def _gen_fn(self, name: str, wrappers: list[PostfixedWrapper]):
         for wrapper in wrappers:
             class_name = f"{name}_{wrapper.postfix}" if wrapper.postfix else name
             setattr(self.__class__, class_name, wrapper.wrapper)
 
-    def _gen_iced_fns(self, builder: IcedBuilder):
+    def _gen_iced_fns(self, builder: BaseBuilder):
         name, wrappers = builder.build()
         self._gen_fn(name, wrappers)
 
     # Data Transfer Instructions
-    # MOV
-    def _gen_func_body_mov_iced(self, name):
-        eax_mapping = {
-            8: {
-                "reg": FukuRegisterEnum.REG_AL,
-                "code_reg_op": Code.MOV_AL_MOFFS8,
-                "code_op_reg": Code.MOV_MOFFS8_AL,
-                "op_imm_size": 8,
-            },
-            16: {
-                "reg": FukuRegisterEnum.REG_AX,
-                "code_reg_op": Code.MOV_AX_MOFFS16,
-                "code_op_reg": Code.MOV_MOFFS16_AX,
-                "op_imm_size": 16,
-            },
-            32: {
-                "reg": FukuRegisterEnum.REG_EAX,
-                "code_reg_op": Code.MOV_EAX_MOFFS32,
-                "code_op_reg": Code.MOV_MOFFS32_EAX,
-                "op_imm_size": 32,
-            },
-            64: {
-                "reg": FukuRegisterEnum.REG_RAX,
-                "code_reg_op": Code.MOV_RAX_MOFFS64,
-                "code_op_reg": Code.MOV_MOFFS64_RAX,
-                "op_imm_size": 32,
-            },
-        }
-
-        def wrapper(size: int):
-            def fn(self, ctx: FukuAsmCtx, dst, src):
-                ctx.clear()
-
-                if (
-                    (
-                        (isinstance(dst, FukuRegister) and isinstance(src, FukuOperand))
-                        or (
-                            isinstance(dst, FukuOperand)
-                            and isinstance(src, FukuRegister)
-                        )
-                    )
-                    and ctx.is_used_short_eax
-                    and (
-                        (
-                            isinstance(dst, FukuRegister)
-                            and dst.reg == eax_mapping[size]["reg"]
-                            and src.type
-                            == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
-                        )
-                        or (
-                            isinstance(src, FukuRegister)
-                            and src.reg == eax_mapping[size]["reg"]
-                            and dst.type
-                            == FukuMemOperandType.FUKU_MEM_OPERAND_DISP_ONLY
-                        )
-                    )
-                ):
-                    if (
-                        isinstance(dst, FukuRegister)
-                        and dst.reg == eax_mapping[size]["reg"]
-                    ) or (
-                        isinstance(src, FukuRegister)
-                        and src.reg == eax_mapping[size]["reg"]
-                    ):
-                        code = eax_mapping[size]["code_reg_op"]
-                    else:
-                        code = eax_mapping[size]["code_op_reg"]
-                else:
-                    if isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
-                        code = getattr(Code, f"{name.upper()}_RM{size}_R{size}")
-                    elif isinstance(dst, FukuOperand) and isinstance(
-                        src, FukuImmediate
-                    ):
-                        code_str = f"{name.upper()}_RM{size}_IMM{eax_mapping[size]['op_imm_size']}"
-                        code = getattr(Code, code_str)
-                    else:
-                        code = get_iced_code_two_op(ctx, "mov", dst, src, size)
-
-                arg1 = dst.to_iced_name()
-                arg2 = src.to_iced_name()
-                ins = getattr(Instruction, f"create_{arg1}_{arg2}")(
-                    code, dst.to_iced(), src.to_iced()
-                )
-                gen_iced_ins(ctx, ins)
-
-                if isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-                    ctx.gen_func_return(x86_const.X86_INS_MOVABS, 0)
-                else:
-                    ctx.gen_func_return(x86_const.X86_INS_MOV, 0)
-
-            return fn
-
-        self._gen_fn(name, gen_default_postfix(wrapper))
-
     def cmovcc_w(
         self,
         ctx: FukuAsmCtx,
@@ -690,127 +597,6 @@ class FukuAsmBody:
 
         ctx.gen_func_return(
             cond.to_capstone_cc(FukuToCapConvertType.SETCC), ADI_FL_JCC[cond.value]
-        )
-
-    def test_b(
-        self,
-        ctx: FukuAsmCtx,
-        dst: FukuRegister | FukuOperand,
-        src: FukuRegister | FukuImmediate,
-    ):
-        ctx.clear()
-
-        if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
-            ctx.gen_pattern32_1em_rm_r(0x84, dst, src)
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.REG_AL:
-                ctx.gen_pattern32_1em_immb(0xA8, dst, src)
-            else:
-                ctx.gen_pattern32_1em_rm_idx_immb(0xF6, dst, 0, src)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
-            ctx.gen_pattern32_1em_op_r(0x84, dst, src)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuImmediate):
-            ctx.gen_pattern32_1em_op_idx_immb(0xF6, dst, 0, src)
-
-        ctx.gen_func_return(
-            x86_const.X86_INS_TEST,
-            x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_RESET_CF,
-        )
-
-    def test_w(
-        self,
-        ctx: FukuAsmCtx,
-        dst: FukuRegister | FukuOperand,
-        src: FukuRegister | FukuImmediate,
-    ):
-        ctx.clear()
-
-        if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
-            ctx.gen_pattern32_1em_rm_r_word(0x85, dst, src)
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.REG_AX:
-                ctx.gen_pattern32_1em_immw_word(0xA9, dst, src)
-            else:
-                ctx.gen_pattern32_1em_rm_idx_immw_word(0xF7, dst, 0, src)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
-            ctx.gen_pattern32_1em_op_r_word(0x85, dst, src)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuImmediate):
-            ctx.gen_pattern32_1em_op_idx_immw_word(0xF7, dst, 0, src)
-
-        ctx.gen_func_return(
-            x86_const.X86_INS_TEST,
-            x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_RESET_CF,
-        )
-
-    def test_dw(
-        self,
-        ctx: FukuAsmCtx,
-        dst: FukuRegister | FukuOperand,
-        src: FukuRegister | FukuImmediate,
-    ):
-        ctx.clear()
-
-        if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
-            ctx.gen_pattern32_1em_rm_r(0x85, dst, src)
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.REG_EAX:
-                ctx.gen_pattern32_1em_immdw(0xA9, dst, src)
-            else:
-                ctx.gen_pattern32_1em_rm_idx_immdw(0xF7, dst, 0, src)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
-            ctx.gen_pattern32_1em_op_r(0x85, dst, src)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuImmediate):
-            ctx.gen_pattern32_1em_op_idx_immdw(0xF7, dst, 0, src)
-
-        ctx.gen_func_return(
-            x86_const.X86_INS_TEST,
-            x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_RESET_CF,
-        )
-
-    def test_qw(
-        self,
-        ctx: FukuAsmCtx,
-        dst: FukuRegister | FukuOperand,
-        src: FukuRegister | FukuImmediate,
-    ):
-        ctx.clear()
-
-        if isinstance(dst, FukuRegister) and isinstance(src, FukuRegister):
-            ctx.gen_pattern64_1em_rm_r(0x85, dst, src)
-        elif isinstance(dst, FukuRegister) and isinstance(src, FukuImmediate):
-            if ctx.is_used_short_eax and dst.reg == FukuRegisterEnum.REG_RAX:
-                ctx.emit_rex_64(dst)
-                ctx.gen_pattern64_1em_immdw(0xA9, dst, src)
-            else:
-                ctx.gen_pattern64_1em_rm_idx_immdw(0xF7, dst, 0, src)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuRegister):
-            ctx.gen_pattern64_1em_op_r(0x85, dst, src)
-        elif isinstance(dst, FukuOperand) and isinstance(src, FukuImmediate):
-            ctx.gen_pattern64_1em_op_idx_immdw(0xF7, dst, 0, src)
-
-        ctx.gen_func_return(
-            x86_const.X86_INS_TEST,
-            x86_const.X86_EFLAGS_RESET_OF
-            | x86_const.X86_EFLAGS_MODIFY_SF
-            | x86_const.X86_EFLAGS_MODIFY_ZF
-            | x86_const.X86_EFLAGS_UNDEFINED_AF
-            | x86_const.X86_EFLAGS_MODIFY_PF
-            | x86_const.X86_EFLAGS_RESET_CF,
         )
 
     # Control Transfer Instructions

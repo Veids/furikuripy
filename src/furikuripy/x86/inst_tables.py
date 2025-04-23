@@ -386,6 +386,14 @@ INST_PROPS = {
         ops={"op1": FukuRegister | FukuOperand},
     ),
     # Data Transfer Instructions
+    "mov": InstProp(
+        capstone_code=x86_const.X86_INS_MOV,
+        cap_eflags=0,
+        ops={
+            "op1": FukuRegister | FukuOperand,
+            "op2": FukuRegister | FukuOperand | FukuImmediate,
+        },
+    ),
     "xchg": InstProp(
         capstone_code=x86_const.X86_INS_XCHG,
         cap_eflags=0,

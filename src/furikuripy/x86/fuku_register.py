@@ -379,10 +379,15 @@ class FukuRegister(BaseModel):
     def from_capstone(op: X86Op) -> FukuRegister:
         return FukuRegister(FukuRegisterEnum.from_capstone(op))
 
-    def to_iced(self):
+    def to_iced_str(self) -> str:
         name = self.reg.name.removeprefix("REG_")
         if name[-1] == "B":
             name = name.replace("B", "L")
+
+        return name
+
+    def to_iced(self):
+        name = self.to_iced_str()
         return getattr(Register, name)
 
     def to_iced_name(self):
