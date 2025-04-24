@@ -5,6 +5,7 @@ from furikuripy.x86.fuku_register_math_tables import (
     CAPSTONE_JCC,
     CAPSTONE_SETCC,
     CAPSTONE_MOVCC,
+    ICED_CONDCC,
 )
 
 
@@ -87,6 +88,12 @@ class FukuCondition(Enum):
             return CAPSTONE_SETCC[self.value]
         else:
             return CAPSTONE_JCC[self.value]
+
+    def to_iced_cc(self) -> str:
+        if self in [FukuCondition.NO_CONDITION, FukuCondition.CONDITION_MAX]:
+            raise TypeError(self)
+
+        return ICED_CONDCC[self.value]
 
     @staticmethod
     def from_capstone(id: int):

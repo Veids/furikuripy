@@ -16,6 +16,8 @@ from furikuripy.x86.fuku_register import (
     FukuRegisterIndex,
 )
 from furikuripy.x86.inst_tables import InstProp
+from furikuripy.x86.misc import FukuCondition, FukuToCapConvertType
+from furikuripy.x86.fuku_register_math_tables import ADI_FL_JCC
 
 
 cs = Cs(CS_ARCH_X86, CS_MODE_64)
@@ -67,6 +69,7 @@ class BaseBuilder(BaseModel):
 
     cl: bool = False
     postfix_modifier: str = ""
+    name_postfix: str = ""
     max_imm_size: int = 64
 
     # registry of name → builder subclass
@@ -135,7 +138,7 @@ class BaseBuilder(BaseModel):
     def _choose_from_posibilities(self, *args):
         posibilities = []
         for x in itertools.product(*args):
-            code_str = self.name.upper() + "_" + "_".join(x)
+            code_str = self.name.upper() + self.name_postfix + "_" + "_".join(x)
 
             if self.cl:
                 code_str += "_CL"
@@ -203,8 +206,6 @@ class BaseBuilder(BaseModel):
 
 class GenericBuilder(BaseBuilder):
     def _build(self) -> Tuple[str, list[PostfixedWrapper]]:
-        # literally move your old _build_generic here
-        # you still have access to self.name, self.inst, etc.
         def wrapper(size: int):
             fn_signature = inspect.Signature(self.parameters)
 
@@ -415,3 +416,43 @@ class StringBuilder(BaseBuilder):
             return fn
 
         return self.name, self._deduce_postfix(wrapper)
+
+
+@BaseBuilder.register(["cmovcc"])
+class CmovConditionBuilder(BaseBuilder):
+    handler_str: ClassVar[str] = "cmovcc"
+    type_str: ClassVar[str] = "CMOV"
+    type: ClassVar[FukuToCapConvertType] = FukuToCapConvertType.CMOVCC
+
+    def _build(self) -> Tuple[str, list[PostfixedWrapper]]:
+        def wrapper(size: int):
+            fn_signature = inspect.Signature(self.parameters)
+
+            def fn(*args):
+                ctx = args[1]
+                ops = args[2:]
+                cond: FukuCondition = ops[0]
+                ops = ops[1:]
+
+                ctx.clear()
+
+                self.name = self.__class__.type_str + cond.to_iced_cc()
+                code = self.resolve_code(ctx, size, ops)
+                ins = self.call_iced_create_inst(code, *ops)
+                gen_iced_ins(ctx, ins)
+                ctx.gen_func_return(
+                    cond.to_capstone_cc(self.__class__.type), ADI_FL_JCC[cond.value]
+                )
+                self.name = self.__class__.handler_str
+
+            fn.__signature__ = fn_signature
+            return fn
+
+        return self.name, self.gen_default_postfix(wrapper)
+
+
+@BaseBuilder.register(["setcc"])
+class SetConditionBuilder(ConditionBuilder):
+    handler_str: ClassVar[str] = "setcc"
+    type_str: ClassVar[str] = "SET"
+    type: ClassVar[FukuToCapConvertType] = FukuToCapConvertType.SETCC

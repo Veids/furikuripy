@@ -72,6 +72,7 @@ class FukuAsmBody:
 
         # Data Transfer Instructions
         self._gen_iced_fns(BaseBuilder(name="mov", inst=INST_PROPS["mov"]))
+        self._gen_iced_fns(BaseBuilder(name="cmovcc", inst=INST_PROPS["cmovcc"]))
         self._gen_iced_fns(BaseBuilder(name="xchg", inst=INST_PROPS["xchg"]))
         self._gen_iced_fns(
             BaseBuilder(name="bswap", inst=INST_PROPS["bswap"], exclude_postfix=["b"])
@@ -180,6 +181,7 @@ class FukuAsmBody:
                 max_imm_size=8,
             )
         )
+        self._gen_iced_fns(BaseBuilder(name="setcc", inst=INST_PROPS["setcc"]))
         self._gen_iced_fns(
             BaseBuilder(
                 name="btr",
@@ -283,78 +285,6 @@ class FukuAsmBody:
     def _gen_iced_fns(self, builder: BaseBuilder):
         name, wrappers = builder.build()
         self._gen_fn(name, wrappers)
-
-    # Data Transfer Instructions
-    def cmovcc_w(
-        self,
-        ctx: FukuAsmCtx,
-        cond: FukuCondition,
-        dst: FukuRegister,
-        src: FukuOperand | FukuRegister,
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuOperand):
-            ctx.gen_pattern32_2em_op_r_word(0x0F, 0x40 | cond.value, src, dst)
-        else:
-            ctx.gen_pattern32_2em_rm_r_word(0x0F, 0x40 | cond.value, src, dst)
-
-        ctx.gen_func_return(
-            cond.to_capstone_cc(FukuToCapConvertType.CMOVCC), ADI_FL_JCC[cond.value]
-        )
-
-    def cmovcc_dw(
-        self,
-        ctx: FukuAsmCtx,
-        cond: FukuCondition,
-        dst: FukuRegister,
-        src: FukuOperand | FukuRegister,
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuOperand):
-            ctx.gen_pattern32_2em_op_r(0x0F, 0x40 | cond.value, src, dst)
-        else:
-            ctx.gen_pattern32_2em_rm_r(0x0F, 0x40 | cond.value, src, dst)
-
-        ctx.gen_func_return(
-            cond.to_capstone_cc(FukuToCapConvertType.CMOVCC), ADI_FL_JCC[cond.value]
-        )
-
-    def cmovcc_qw(
-        self,
-        ctx: FukuAsmCtx,
-        cond: FukuCondition,
-        dst: FukuRegister,
-        src: FukuOperand | FukuRegister,
-    ):
-        ctx.clear()
-
-        if isinstance(src, FukuOperand):
-            ctx.gen_pattern64_2em_op_r(0x0F, 0x40 | cond.value, src, dst)
-        else:
-            ctx.gen_pattern64_2em_rm_r(0x0F, 0x40 | cond.value, src, dst)
-
-        ctx.gen_func_return(
-            cond.to_capstone_cc(FukuToCapConvertType.CMOVCC), ADI_FL_JCC[cond.value]
-        )
-
-    # Bit and Byte Instructions
-    def setcc(
-        self, ctx: FukuAsmCtx, cond: FukuCondition, dst: FukuRegister | FukuOperand
-    ):
-        ctx.clear()
-
-        assert cond not in [FukuCondition.NO_CONDITION, FukuCondition.CONDITION_MAX]
-
-        if isinstance(dst, FukuRegister):
-            ctx.gen_pattern32_2em_rm_idx(0x0F, 0x90 | cond.value, dst, 0)
-        else:
-            ctx.gen_pattern32_2em_op_idx(0x0F, 0x90 | cond.value, dst, 0)
-
-        ctx.gen_func_return(
-            cond.to_capstone_cc(FukuToCapConvertType.SETCC), ADI_FL_JCC[cond.value]
-        )
 
     # Control Transfer Instructions
     def jmp(self, ctx: FukuAsmCtx, src: FukuRegister | FukuOperand | FukuImmediate):

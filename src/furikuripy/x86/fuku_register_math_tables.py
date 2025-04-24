@@ -60,6 +60,25 @@ CAPSTONE_MOVCC = [
     x86_const.X86_INS_CMOVG,
 ]
 
+ICED_CONDCC = [
+    "O",
+    "NO",
+    "B",
+    "AE",
+    "E",
+    "NE",
+    "BE",
+    "A",
+    "S",
+    "NS",
+    "P",
+    "NP",
+    "L",
+    "GE",
+    "LE",
+    "G",
+]
+
 CAPSTONE_REGISTER_FLAGS = [
     -2,
     FlagRegister.AX,

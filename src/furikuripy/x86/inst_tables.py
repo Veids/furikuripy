@@ -776,4 +776,19 @@ INST_PROPS = {
         capstone_code=x86_const.X86_INS_LFENCE,
         cap_eflags=0,
     ),
+    "cmovcc": InstProp(
+        capstone_code=-1,
+        cap_eflags=-1,
+        ops={
+            "op1": FukuRegister,
+            "op2": FukuOperand | FukuRegister,
+        },
+    ),
+    "setcc": InstProp(
+        capstone_code=-1,
+        cap_eflags=-1,
+        ops={
+            "op1": FukuRegister | FukuOperand,
+        },
+    ),
 }
