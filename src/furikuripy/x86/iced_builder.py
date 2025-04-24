@@ -452,7 +452,7 @@ class CmovConditionBuilder(BaseBuilder):
 
 
 @BaseBuilder.register(["setcc"])
-class SetConditionBuilder(ConditionBuilder):
+class SetConditionBuilder(CmovConditionBuilder):
     handler_str: ClassVar[str] = "setcc"
     type_str: ClassVar[str] = "SET"
     type: ClassVar[FukuToCapConvertType] = FukuToCapConvertType.SETCC
