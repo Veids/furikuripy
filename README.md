@@ -14,7 +14,7 @@ A command-line tool for obfuscating shellcode by introducing relocations, junk i
 You can install shellcode_obfuscation via pipx:
 
 ```bash
-pipx install git+https://github.com/your-repo/shellcode_obfuscation.git
+pipx install git+https://github.com/veids/shellcode_obfuscation.git
 ```
 
 ## Usage
@@ -29,10 +29,7 @@ shellcode_obfuscation obfuscate [OPTIONS]
 | --------- | ----- | ---------- | -------------------------------------- | ------- |
 | `--input` | `-i`  | `FILENAME` | Input file (binary or analysis pickle) |         |
 
-|   |
-| - |
-
-| **Required**                                     |      |            |                                                          |                        |
+| **Required**    | Short | Type       | Description                            | Default |
 | ------------------------------------------------ | ---- | ---------- | -------------------------------------------------------- | ---------------------- |
 | `--output`                                       | `-o` | `FILENAME` | Output file                                              | **Required**           |
 | `--input-is-analysis` / `--no-input-is-analysis` |      | Flag       | Treat input as analysis pickle rather than raw shellcode | `no-input-is-analysis` |
