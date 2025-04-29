@@ -86,6 +86,7 @@ def perform_analysis(
     code_holder = FukuCodeHolder(arch=arch)
     code_analyzer = FukuCodeAnalyzer(arch=arch)
 
+    relocs = []
     for i, reloc in enumerate(relocations):
         reloc = Relocation.parse_relocation(reloc)
 
