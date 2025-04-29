@@ -1,9 +1,9 @@
 from binascii import hexlify
-from typing import Dict, Callable, List, Optional
 from pydantic import BaseModel, ConfigDict
+from typing import Dict, Callable, List, Optional
 from capstone import x86_const, Cs, CS_ARCH_X86, CS_MODE_64
 
-from furikuripy.common import rng, log
+from furikuripy.common import rng, log, trace
 from furikuripy.fuku_inst import FukuInst
 from furikuripy.fuku_code_holder import FukuCodeHolder
 from furikuripy.fuku_misc import (
@@ -151,13 +151,13 @@ class FukuMutationX64(BaseModel):
     def fukutuation(
         self, ctx: FukuMutationCtx, inst: FukuInst, next_inst: Optional[FukuInst]
     ):
-        if inst.flags & (
-            FukuInstFlags.FUKU_INST_JUNK_CODE | FukuInstFlags.FUKU_INST_NO_MUTATE
-        ):
+        if inst.flags & FukuInstFlags.FUKU_INST_JUNK_CODE:
             return
 
         is_chanced_junk = self.settings.roll_junk_chance()
-        is_chanced_mutate = self.settings.roll_mutate_chance()
+        is_chanced_mutate = self.settings.roll_mutate_chance() and not (
+            inst.flags & FukuInstFlags.FUKU_INST_NO_MUTATE
+        )
 
         if not (is_chanced_junk or is_chanced_mutate):
             return
@@ -170,8 +170,6 @@ class FukuMutationX64(BaseModel):
                 "Capstone failed to disassemble opcode: %s" % hexlify(inst.opcode)
             )
             raise e
-
-        # print(ctx.instruction)
 
         self.f_asm.context.short_cfg = 0xFF & ~(
             self.settings.asm_cfg & rng.randint(0, 0xFF)

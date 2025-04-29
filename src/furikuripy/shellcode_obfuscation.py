@@ -10,13 +10,19 @@ from binascii import unhexlify
 from dataclasses import dataclass
 from typing import Annotated, Optional
 
-from .common import log, trace, rng, parse_ranges_from_args, parse_definitions
-from .fuku_obfuscator import FukuObfuscator
-from .fuku_code_holder import FukuCodeHolder, FukuImageRelocationX64
-from .fuku_code_analyzer import FukuCodeAnalyzer
-from .fuku_code_profiler import FukuCodeProfiler
-from .fuku_misc import FUKU_ASSEMBLER_ARCH, FukuObfuscationSettings
-from .x86.misc import FukuAsmShortCfg
+from furikuripy.common import log, trace, rng
+from furikuripy.cli import (
+    RangeAsset,
+    RangeType,
+    parse_ranges_from_args,
+    parse_definitions,
+)
+from furikuripy.fuku_obfuscator import FukuObfuscator
+from furikuripy.fuku_code_holder import FukuCodeHolder, FukuImageRelocationX64
+from furikuripy.fuku_code_analyzer import FukuCodeAnalyzer
+from furikuripy.fuku_code_profiler import FukuCodeProfiler
+from furikuripy.fuku_misc import FUKU_ASSEMBLER_ARCH, FukuObfuscationSettings
+from furikuripy.x86.misc import FukuAsmShortCfg
 
 app = typer.Typer(
     pretty_exceptions_show_locals=False,
@@ -75,6 +81,7 @@ def perform_analysis(
     relocations: list[str],
     virtual_address: int,
 ) -> FukuCodeHolder:
+    ranges: list[RangeAsset]
     if definitions:
         ranges, patches = parse_definitions(len(data), definitions.read())
     else:
@@ -100,16 +107,21 @@ def perform_analysis(
                 )
             )
 
-    for t, start, end in ranges:
-        if t.lower() == "c":
+    for r in ranges:
+        if r.t == RangeType.code:
             code_analyzer.analyze_code(
-                code_holder, data[start:end], virtual_address + start, relocs
+                code_holder,
+                data[r.start : r.end],
+                virtual_address + r.start,
+                relocs,
+                r.inst_flags,
             )
         else:
             inst = code_holder.add_inst()
-            inst.source_address = virtual_address + start
-            inst.opcode = bytearray(data[start:end])
+            inst.source_address = virtual_address + r.start
+            inst.opcode = bytearray(data[r.start : r.end])
             inst.id = -1
+            inst.flags = r.inst_flags
             code_holder.update_source_insts()
             code_holder.resolve_labels()
 

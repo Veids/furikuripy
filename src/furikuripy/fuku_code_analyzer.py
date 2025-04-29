@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from capstone import x86_const, Cs, CS_ARCH_X86, CS_MODE_32, CS_MODE_64
 
 from furikuripy.fuku_inst import FukuCodeLabel, FukuRipRelocation, FukuRelocation
-from furikuripy.fuku_misc import FUKU_ASSEMBLER_ARCH, X86_REL_ADDR
+from furikuripy.fuku_misc import FUKU_ASSEMBLER_ARCH, X86_REL_ADDR, FukuInstFlags
 from furikuripy.fuku_code_holder import FukuCodeHolder, FukuImageRelocation
 
 
@@ -15,6 +15,7 @@ class FukuCodeAnalyzer(BaseModel):
         src: bytes,
         virtual_address: int,
         relocations: list[FukuImageRelocation],
+        inst_flags: FukuInstFlags = FukuInstFlags(0),
     ):
         md = Cs(
             CS_ARCH_X86,
@@ -37,6 +38,7 @@ class FukuCodeAnalyzer(BaseModel):
                 current_inst.encoding.disp_offset << 8
                 | current_inst.encoding.imm_offset
             )
+            line.flags = inst_flags
 
             for operand in current_inst.operands:
                 if (
