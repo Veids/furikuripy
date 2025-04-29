@@ -16,6 +16,7 @@ class FukuInstFlags(Flag):
     FUKU_INST_JUNK_CODE = 1 << 0
     FUKU_INST_BAD_STACK = 1 << 1
     FUKU_INST_NO_MUTATE = 1 << 2
+    FUKU_INST_DATA_CODE = 1 << 3
 
 
 UnsignedInt = Annotated[int, Gt(0)]

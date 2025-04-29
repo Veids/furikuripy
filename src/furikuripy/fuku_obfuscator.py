@@ -1,21 +1,24 @@
 from copy import copy
 from typing import List, Optional
-
 from pydantic import BaseModel
-
 from capstone import x86_const
-from .common import log, rng
-from .fuku_asm import FukuAsm, FukuAsmHoldType
-from .fuku_inst import FukuCodeLabel, FukuInst, FukuRipRelocation
-from .fuku_misc import FUKU_ASSEMBLER_ARCH, FukuObfuscationSettings
-from .fuku_code_holder import FukuCodeHolder
-from .x86.fuku_asm_body import FukuAsmBody
-from .x86.fuku_asm_ctx import FukuAsmCtx
-from .x86.misc import FukuCondition
-from .x86.fuku_register import FukuRegister, FukuRegisterEnum
-from .x86.fuku_immediate import FukuImmediate
-from .x86.fuku_mutation_x86 import FukuMutationX86
-from .x86.fuku_mutation_x64 import FukuMutationX64
+
+from furikuripy.common import log, rng
+from furikuripy.fuku_asm import FukuAsm, FukuAsmHoldType
+from furikuripy.fuku_inst import FukuCodeLabel, FukuInst, FukuRipRelocation
+from furikuripy.fuku_misc import (
+    FUKU_ASSEMBLER_ARCH,
+    FukuInstFlags,
+    FukuObfuscationSettings,
+)
+from furikuripy.fuku_code_holder import FukuCodeHolder
+from furikuripy.x86.fuku_asm_body import FukuAsmBody
+from furikuripy.x86.fuku_asm_ctx import FukuAsmCtx
+from furikuripy.x86.misc import FukuCondition
+from furikuripy.x86.fuku_register import FukuRegister, FukuRegisterEnum
+from furikuripy.x86.fuku_immediate import FukuImmediate
+from furikuripy.x86.fuku_mutation_x86 import FukuMutationX86
+from furikuripy.x86.fuku_mutation_x64 import FukuMutationX64
 
 
 class FukuObfuscator(BaseModel):
@@ -56,7 +59,17 @@ class FukuObfuscator(BaseModel):
         current_block_size = 0
 
         while lines_in_blocks < lines_total:
-            if current_block_size and self.settings.roll_block_chance():
+            if (
+                current_block_size
+                and not (
+                    self.code.instructions[lines_in_blocks].flags
+                    & (
+                        FukuInstFlags.FUKU_INST_DATA_CODE
+                        | FukuInstFlags.FUKU_INST_NO_MUTATE
+                    )
+                )
+                and self.settings.roll_block_chance()
+            ):
                 block_lens.append(current_block_size)
                 current_block_size = 0
             else:
