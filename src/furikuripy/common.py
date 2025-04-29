@@ -33,7 +33,7 @@ def trace_inst(msg: str, opcodes: List[StrictBytes], ctx=None):
 
     trace.info(f"{escape(msg)} ([bold]{bt}[bold])", extra={"markup": True})
 
-    if ctx:
+    if ctx and not trace.disabled:
         syntax_a = Syntax(
             f"{ctx.instruction.mnemonic} {ctx.instruction.op_str}",
             "gas",
@@ -135,15 +135,15 @@ def parse_ranges_from_args(data_size: int, ranges: List[str]) -> List:
 
 
 def parse_definitions(data_size: int, definitions: str) -> Tuple[List, List]:
-    definitions = yaml.load(definitions, yaml.CLoader)
+    definitions_yaml = yaml.load(definitions, yaml.CLoader)
 
     ranges = [("c", 0, data_size)]
-    if d_ranges := definitions.get("ranges"):
+    if d_ranges := definitions_yaml.get("ranges"):
         rp = RangesProcessor(data_size)
         ranges = rp.parse_ranges_from_definitions(d_ranges)
 
     patches = []
-    if d_patches := definitions.get("patches"):
+    if d_patches := definitions_yaml.get("patches"):
         for patch in d_patches:
             patches.append(f"{patch['start']}:{patch['bytes']}")
 

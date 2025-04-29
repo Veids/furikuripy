@@ -38,7 +38,7 @@ def _jmp_64_multi_tmpl_1(ctx: FukuMutationCtx, src: FukuType) -> bool:
     ctx.f_asm.context.inst.cpu_registers = ctx.cpu_registers
     opcodes.append(ctx.f_asm.context.inst.opcode)
 
-    trace_inst("jmp dst -> push dst; ret", opcodes)
+    trace_inst("jmp dst -> push dst; ret", opcodes, ctx)
     return True
 
 
@@ -78,7 +78,7 @@ def _jmp_64_multi_tmpl_2(ctx: FukuMutationCtx, src: FukuType) -> bool:
     rip_reloc.label = None
     ctx.code_holder.rip_relocations.remove(rip_reloc)
 
-    trace_inst("jmp dst -> je dst; jne dst", opcodes)
+    trace_inst("jmp dst -> je dst; jne dst", opcodes, ctx)
     return True
 
 

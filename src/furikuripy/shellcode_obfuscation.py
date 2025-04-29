@@ -7,9 +7,10 @@ import importlib.metadata
 
 from datetime import datetime
 from binascii import unhexlify
+from dataclasses import dataclass
 from typing import Annotated, Optional
 
-from .common import log, rng, parse_ranges_from_args, parse_definitions
+from .common import log, trace, rng, parse_ranges_from_args, parse_definitions
 from .fuku_obfuscator import FukuObfuscator
 from .fuku_code_holder import FukuCodeHolder, FukuImageRelocationX64
 from .fuku_code_analyzer import FukuCodeAnalyzer
@@ -23,11 +24,49 @@ app = typer.Typer(
 )
 
 
+@dataclass(frozen=True)
+class Relocation:
+    virtual_address: int
+    type: int
+    symbol: str
+
+    @classmethod
+    def parse_relocation(cls, s: str):
+        try:
+            va, ty, sym = s.split(":")
+            return Relocation(int(va), int(ty), sym)
+        except ValueError:  # not exactly 3 parts or int conversion failed
+            raise typer.BadParameter(f"Invalid relocation '{s}'")
+
+
+@dataclass(frozen=True)
+class Patch:
+    start: int
+    payload: bytes
+
+    @staticmethod
+    def parse_patch(patch_str: str, data_len: int) -> "Patch":
+        start, bts = patch_str.split(":")
+        start = int(start)
+        payload = unhexlify(bts)
+
+        if start < 0:
+            start %= data_len
+
+        return Patch(start, payload)
+
+
+def apply_patches(data, patch_objs: list[Patch]):
+    for patch in patch_objs:
+        for i, b in enumerate(patch.payload):
+            data[patch.start + i] = b
+
+
 def get_rand_seed() -> int:
     return random.randrange(sys.maxsize)
 
 
-def perform_analyis(
+def perform_analysis(
     data: bytearray,
     arch: FUKU_ASSEMBLER_ARCH,
     definitions: Optional[typer.FileText],
@@ -41,30 +80,22 @@ def perform_analyis(
     else:
         ranges = parse_ranges_from_args(len(data), ranges)
 
-    for patch in patches:
-        start, bts = patch.split(":")
-        start = int(start)
-        bts = unhexlify(bts)
-
-        if start < 0:
-            start %= len(data)
-
-        for i, b in enumerate(bts):
-            data[start + i] = b
+    patch_objs = [Patch.parse_patch(p, len(data)) for p in patches]
+    apply_patches(data, patch_objs)
 
     code_holder = FukuCodeHolder(arch=arch)
     code_analyzer = FukuCodeAnalyzer(arch=arch)
 
-    relocs = []
     for i, reloc in enumerate(relocations):
-        va, ty, symbol = reloc.split(":")
-        va = int(va)
-        ty = int(ty)
+        reloc = Relocation.parse_relocation(reloc)
 
         if arch == FUKU_ASSEMBLER_ARCH.X64:
             relocs.append(
                 FukuImageRelocationX64(
-                    relocation_id=i, virtual_address=va, type=ty, symbol=symbol
+                    relocation_id=i,
+                    virtual_address=reloc.virtual_address,
+                    type=reloc.type,
+                    symbol=reloc.symbol,
                 )
             )
 
@@ -167,19 +198,23 @@ def obfuscate(
             rich_help_panel="Analysis options",
         ),
     ] = [],
+    trace_inst: Annotated[bool, typer.Option(help="Enable instruction trace")] = False,
 ):
     log.info("Version: %s", importlib.metadata.version("furikuripy"))
     log.info("Seed: %d", seed)
     rng.seed(seed)
 
+    if not trace_inst:
+        trace.disabled = True
+
     if input_is_analysis:
         code_holder = pickle.load(input)
     else:
         if arch != FUKU_ASSEMBLER_ARCH.X64:
-            raise Exception("Unimplemented")
+            raise NotImplementedError("Only x64 is supported today")
 
         data = bytearray(input.read())
-        code_holder = perform_analyis(
+        code_holder = perform_analysis(
             data, arch, definitions, ranges, patches, relocations, virtual_address
         )
 
@@ -269,7 +304,7 @@ def analyse(
         raise Exception("Unimplemented")
 
     data = bytearray(input.read())
-    code_holder = perform_analyis(
+    code_holder = perform_analysis(
         data, arch, definitions, ranges, patches, relocations, virtual_address
     )
     pickle.dump(code_holder, output)

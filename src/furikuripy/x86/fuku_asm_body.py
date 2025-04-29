@@ -1,14 +1,12 @@
-from enum import Enum
-from typing import Callable, Optional
+from typing import Optional
 from capstone import x86_const
 from iced_x86 import Code, Instruction
-from pydantic import BaseModel
 
 
 from furikuripy.common import rng
 from furikuripy.x86.inst_tables import INST_PROPS
 from furikuripy.x86.misc import FukuCondition, FukuToCapConvertType
-from furikuripy.x86.iced_builder import BaseBuilder, gen_iced_ins
+from furikuripy.x86.iced_builder import BaseBuilder, PostfixedWrapper, gen_iced_ins
 from furikuripy.x86.fuku_asm_ctx import FukuAsmCtx
 from furikuripy.x86.fuku_immediate import FukuImmediate
 from furikuripy.x86.fuku_register import FukuRegister, FukuRegisterEnum
@@ -16,26 +14,18 @@ from furikuripy.x86.fuku_operand import FukuOperand
 from furikuripy.x86.fuku_register_math_tables import ADI_FL_JCC
 
 
-class PostfixEnum(Enum):
-    b = 8
-    w = 16
-    dw = 32
-    qw = 64
-
-
-class PostfixedWrapper(BaseModel):
-    postfix: str
-    wrapper: Callable
-
-
 class FukuAsmBody:
     def __init__(self):
         # Binary Arithmetic Instructions
         self._gen_iced_fns(
-            BaseBuilder(name="adcx", inst=INST_PROPS["adcx"], exclude=["b", "w"])
+            BaseBuilder(
+                name="adcx", inst=INST_PROPS["adcx"], exclude_postfix=["b", "w"]
+            )
         )
         self._gen_iced_fns(
-            BaseBuilder(name="adox", inst=INST_PROPS["adox"], exclude=["b", "w"])
+            BaseBuilder(
+                name="adox", inst=INST_PROPS["adox"], exclude_postfix=["b", "w"]
+            )
         )
         self._gen_iced_fns(BaseBuilder(name="add", inst=INST_PROPS["add"]))
         self._gen_iced_fns(BaseBuilder(name="adc", inst=INST_PROPS["adc"]))
@@ -104,7 +94,7 @@ class FukuAsmBody:
                 BaseBuilder(
                     name=inst_name,
                     inst=INST_PROPS[inst_name],
-                    postfix_modifier="byte_",
+                    postfix_modifier="byte",
                     exclude_postfix=["b"],
                 )
             )
@@ -112,7 +102,7 @@ class FukuAsmBody:
                 BaseBuilder(
                     name=inst_name,
                     inst=INST_PROPS[inst_name],
-                    postfix_modifier="word_",
+                    postfix_modifier="word",
                     exclude_postfix=["b", "w"],
                 )
             )
@@ -121,7 +111,7 @@ class FukuAsmBody:
             BaseBuilder(
                 name="movsxd",
                 inst=INST_PROPS["movsxd"],
-                postfix_modifier="word_",
+                postfix_modifier="word",
                 exclude_postfix=["b", "d", "q"],
             )
         )
@@ -130,7 +120,7 @@ class FukuAsmBody:
             BaseBuilder(
                 name="movsxd",
                 inst=INST_PROPS["movsxd"],
-                postfix_modifier="dword_",
+                postfix_modifier="dword",
                 exclude_postfix=["b", "w"],
             )
         )
@@ -181,7 +171,9 @@ class FukuAsmBody:
                 max_imm_size=8,
             )
         )
-        self._gen_iced_fns(BaseBuilder(name="setcc", inst=INST_PROPS["setcc"]))
+        self._gen_iced_fns(
+            BaseBuilder(name="setcc", inst=INST_PROPS["setcc"], wrapper_only_for=8)
+        )
         self._gen_iced_fns(
             BaseBuilder(
                 name="btr",
@@ -221,7 +213,7 @@ class FukuAsmBody:
 
         # String Instructions
         self._gen_iced_fns(
-            BaseBuilder(name="outs", inst=INST_PROPS["outs"], exclude=["qw"])
+            BaseBuilder(name="outs", inst=INST_PROPS["outs"], exclude_postfix=["qw"])
         )
         self._gen_iced_fns(BaseBuilder(name="movs", inst=INST_PROPS["movs"]))
         self._gen_iced_fns(BaseBuilder(name="cmps", inst=INST_PROPS["cmps"]))
@@ -250,7 +242,9 @@ class FukuAsmBody:
         self._gen_iced_fns(
             BaseBuilder(name="popcnt", inst=INST_PROPS["popcnt"], exclude_postfix=["b"])
         )
-        self._gen_iced_fns(BaseBuilder(name="test", inst=INST_PROPS["test"]))
+        self._gen_iced_fns(
+            BaseBuilder(name="test", inst=INST_PROPS["test"], max_imm_size=32)
+        )
 
         # Miscellaneous Instructions
         self._gen_iced_fns(

@@ -277,6 +277,14 @@ class FukuRegisterEnum(Enum):
     def from_capstone(op: X86Op) -> FukuRegisterEnum:
         return CAP_TO_FUKU_TABLE[op.reg]
 
+    def is_eax_like(self) -> bool:
+        return self.value in [
+            FukuRegisterEnum.REG_AL,
+            FukuRegisterEnum.REG_AX,
+            FukuRegisterEnum.REG_EAX,
+            FukuRegisterEnum.REG_RAX,
+        ]
+
 
 class FukuRegisterIndex(Enum):
     INDEX_AX = 0

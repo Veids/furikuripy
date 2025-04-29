@@ -3,7 +3,7 @@ from typing import Dict, Callable, List, Optional
 from pydantic import BaseModel, ConfigDict
 from capstone import x86_const, Cs, CS_ARCH_X86, CS_MODE_64
 
-from furikuripy.common import rng, trace
+from furikuripy.common import rng, log
 from furikuripy.fuku_inst import FukuInst
 from furikuripy.fuku_code_holder import FukuCodeHolder
 from furikuripy.fuku_misc import (
@@ -115,7 +115,7 @@ class FukuMutationX64(BaseModel):
             f_asm=self.f_asm, code_holder=code, settings=self.settings
         )
 
-        trace.info("Iterating...")
+        log.info("Iterating...")
         self.obfuscate_lines(ctx, code.instructions[:], -1)
 
     def obfuscate_lines(
@@ -151,7 +151,9 @@ class FukuMutationX64(BaseModel):
     def fukutuation(
         self, ctx: FukuMutationCtx, inst: FukuInst, next_inst: Optional[FukuInst]
     ):
-        if inst.flags & FukuInstFlags.FUKU_INST_JUNK_CODE:
+        if inst.flags & (
+            FukuInstFlags.FUKU_INST_JUNK_CODE | FukuInstFlags.FUKU_INST_NO_MUTATE
+        ):
             return
 
         is_chanced_junk = self.settings.roll_junk_chance()

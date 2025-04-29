@@ -13,7 +13,6 @@ from furikuripy.x86.fuku_immediate import FukuImmediate
 from furikuripy.x86.fuku_operand import FukuMemOperandType, FukuOperand
 from furikuripy.x86.fuku_register import (
     FukuRegister,
-    FukuRegisterIndex,
 )
 from furikuripy.x86.inst_tables import InstProp
 from furikuripy.x86.misc import FukuCondition, FukuToCapConvertType
@@ -71,6 +70,7 @@ class BaseBuilder(BaseModel):
     postfix_modifier: str = ""
     name_postfix: str = ""
     max_imm_size: int = 64
+    wrapper_only_for: int = 0
 
     # registry of name → builder subclass
     _registry: ClassVar[dict[str, type["BaseBuilder"]]] = {}
@@ -194,11 +194,18 @@ class BaseBuilder(BaseModel):
             if self.cl:
                 p_str = f"cl_{p_str}"
 
+            if self.postfix_modifier:
+                p_str = f"{self.postfix_modifier}_{p_str}"
+
             res.append(PostfixedWrapper(postfix=p_str, wrapper=wrapper(p.value)))
         return res
 
     def _deduce_postfix(self, wrapper) -> list[PostfixedWrapper]:
-        if len(self.inst.ops):
+        if self.wrapper_only_for:
+            return [
+                PostfixedWrapper(postfix="", wrapper=wrapper(self.wrapper_only_for))
+            ]
+        elif len(self.inst.ops):
             return self.gen_default_postfix(wrapper)
         else:
             return [PostfixedWrapper(postfix="", wrapper=wrapper(0))]
@@ -277,8 +284,7 @@ class MovBuilder(BaseBuilder):
 
                 # B) Is one side EAX, the other a displacement‐only memory operand?
                 is_eax_reg = (
-                    lambda o: isinstance(o, FukuRegister)
-                    and o.reg.index == FukuRegisterIndex.INDEX_AX
+                    lambda o: isinstance(o, FukuRegister) and o.reg.is_eax_like()
                 )
                 uses_eax_disp = (is_eax_reg(dst) and opnd_src and disp_only(src)) or (
                     is_eax_reg(src) and opnd_dst and disp_only(dst)
@@ -334,9 +340,10 @@ class TestBuilder(BaseBuilder):
                     isinstance(ops[0], FukuRegister)
                     and isinstance(ops[1], FukuImmediate)
                     and ctx.is_used_short_eax
-                    and ops[0].reg.index == FukuRegisterIndex.INDEX_AX
+                    and ops[0].reg.is_eax_like()
                 ):
-                    code_str = f"TEST_{ops[0].to_iced_str()}_IMM{size}"
+                    imm_size = min(size, self.max_imm_size)
+                    code_str = f"TEST_{ops[0].to_iced_str()}_IMM{imm_size}"
                     code = getattr(Code, code_str)
                 else:
                     code = self.resolve_code(ctx, size, ops)
@@ -448,7 +455,7 @@ class CmovConditionBuilder(BaseBuilder):
             fn.__signature__ = fn_signature
             return fn
 
-        return self.name, self.gen_default_postfix(wrapper)
+        return self.name, self._deduce_postfix(wrapper)
 
 
 @BaseBuilder.register(["setcc"])
@@ -456,3 +463,37 @@ class SetConditionBuilder(CmovConditionBuilder):
     handler_str: ClassVar[str] = "setcc"
     type_str: ClassVar[str] = "SET"
     type: ClassVar[FukuToCapConvertType] = FukuToCapConvertType.SETCC
+
+
+@BaseBuilder.register(["movsx", "movzx"])
+class MovxxBuilder(BaseBuilder):
+    def resolve_code(self, ctx, size, ops):
+        name = self.name.upper()
+        code_str = f"{name}_R{size}"
+
+        if self.postfix_modifier == "byte":
+            code_str = f"{code_str}_RM8"
+        else:
+            code_str = f"{code_str}_RM16"
+
+        return getattr(Code, code_str)
+
+    def _build(self) -> Tuple[str, list[PostfixedWrapper]]:
+        def wrapper(size: int):
+            fn_signature = inspect.Signature(self.parameters)
+
+            def fn(*args):
+                ctx = args[1]
+                ops = args[2:]
+
+                ctx.clear()
+
+                code = self.resolve_code(ctx, size, ops)
+                ins = self.call_iced_create_inst(code, *ops)
+                gen_iced_ins(ctx, ins)
+                ctx.gen_func_return(self.inst.capstone_code, self.inst.cap_eflags)
+
+            fn.__signature__ = fn_signature
+            return fn
+
+        return self.name, self._deduce_postfix(wrapper)
