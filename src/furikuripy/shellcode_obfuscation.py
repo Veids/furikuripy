@@ -1,5 +1,4 @@
 import typer
-import pickle
 import random
 import sys
 import time
@@ -156,9 +155,6 @@ def obfuscate(
         Optional[FUKU_ASSEMBLER_ARCH],
         typer.Option(help="Architecture", rich_help_panel="Analysis options"),
     ] = None,
-    input_is_analysis: Annotated[
-        bool, typer.Option(help="Input file represents analysis file (pickle)")
-    ] = False,
     ranges: Annotated[
         list[str],
         typer.Option(
@@ -220,16 +216,13 @@ def obfuscate(
     if not trace_inst:
         trace.disabled = True
 
-    if input_is_analysis:
-        code_holder = pickle.load(input)
-    else:
-        if arch != FUKU_ASSEMBLER_ARCH.X64:
-            raise NotImplementedError("Only x64 is supported today")
+    if arch != FUKU_ASSEMBLER_ARCH.X64:
+        raise NotImplementedError("Only x64 is supported today")
 
-        data = bytearray(input.read())
-        code_holder = perform_analysis(
-            data, arch, definitions, ranges, patches, relocations, virtual_address
-        )
+    data = bytearray(input.read())
+    code_holder = perform_analysis(
+        data, arch, definitions, ranges, patches, relocations, virtual_address
+    )
 
     settings = FukuObfuscationSettings(
         complexity=complexity,
@@ -260,67 +253,6 @@ def obfuscate(
         f"Finished in {datetime.fromtimestamp(end_time) - datetime.fromtimestamp(start_time)}"
     )
     output.write(code)
-
-
-@app.command()
-def analyse(
-    arch: Annotated[
-        FUKU_ASSEMBLER_ARCH,
-        typer.Option(help="Architecture", rich_help_panel="Analysis options"),
-    ],
-    input: Annotated[
-        typer.FileBinaryRead,
-        typer.Option("-i", "--input", help="Input file", mode="rb"),
-    ],
-    output: Annotated[
-        typer.FileBinaryWrite,
-        typer.Option("-o", "--output", help="Where to store analysis file", mode="wb+"),
-    ],
-    patches: Annotated[
-        list[str],
-        typer.Option(
-            help="specify patches to apply (ex. start:PATCHINHEX - 0:665f)",
-            default_factory=list,
-            rich_help_panel="Analysis options",
-        ),
-    ],
-    ranges: Annotated[
-        list[str],
-        typer.Option(
-            help="specify ranges for code/data blocks (ex. c:0:10 or d:10:e)",
-            rich_help_panel="Analysis options",
-        ),
-    ] = ["c:0:e"],
-    definitions: Annotated[
-        Optional[typer.FileText],
-        typer.Option(
-            "--definitions",
-            "--defs",
-            help="yaml file that contains ranges and patches",
-            rich_help_panel="Analysis options",
-        ),
-    ] = None,
-    relocations: Annotated[
-        list[str],
-        typer.Option(
-            help="specify relocations in format <vaddress>:<type>:<symbol> (e.g. 2:4:.data)",
-            rich_help_panel="Analysis options",
-        ),
-    ] = [],
-    virtual_address: Annotated[
-        int, typer.Option(rich_help_panel="Analysis options")
-    ] = 0,
-):
-    log.info("Version: %s", importlib.metadata.version("furikuripy"))
-
-    if arch != FUKU_ASSEMBLER_ARCH.X64:
-        raise Exception("Unimplemented")
-
-    data = bytearray(input.read())
-    code_holder = perform_analysis(
-        data, arch, definitions, ranges, patches, relocations, virtual_address
-    )
-    pickle.dump(code_holder, output)
 
 
 if __name__ == "__main__":
