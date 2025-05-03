@@ -20,6 +20,25 @@ from furikuripy.x86.fuku_register_math import (
     get_flag_complex_register_by_size,
 )
 
+EFLAGS_EXCEPT_TEST = (
+    EflagsGroup.MODIFY.value
+    | EflagsGroup.SET.value
+    | EflagsGroup.RESET.value
+    | EflagsGroup.UNDEFINED.value
+)
+
+JMP_INSTRUCTIONS: set[int] = {
+    x86_const.X86_INS_JMP,
+    x86_const.X86_INS_RET,
+    x86_const.X86_INS_CALL,
+}
+
+# pre‑compute the (tested→excluded) pairs once
+TEST_TO_EXCLUDE: list[tuple[int, int]] = [
+    (eflag, ex_eflag)
+    for eflag, ex_eflag in zip(TESTED_FLAGS_TABLE, EXCLUDED_FLAGS_TABLE)
+]
+
 
 def get_bits_included(src, include_mask, exclude_mask):
     return ((src) & (include_mask)) & (~(exclude_mask))
@@ -143,38 +162,23 @@ class FukuCodeProfiler(BaseModel):
             current_eflags = current_inst.cpu_flags
 
             if current_eflags & EflagsGroup.TEST.value:
-                for eflag, ex_eflag in zip(TESTED_FLAGS_TABLE, EXCLUDED_FLAGS_TABLE):
+                for eflag, ex_eflag in TEST_TO_EXCLUDE:
                     if current_eflags & eflag:
                         excluded_flags |= ex_eflag
 
-            if excluded_flags == (
-                EflagsGroup.MODIFY.value
-                | EflagsGroup.SET.value
-                | EflagsGroup.RESET.value
-                | EflagsGroup.UNDEFINED.value
-            ):
+            if excluded_flags == EFLAGS_EXCEPT_TEST:
                 return included_flags
 
-            if current_id == (
-                x86_const.X86_INS_JMP | x86_const.X86_INS_RET | x86_const.X86_INS_CALL
-            ):
+            if current_id in JMP_INSTRUCTIONS:
                 return included_flags
 
             included_flags |= get_bits_included(
                 current_eflags,
-                EflagsGroup.MODIFY.value
-                | EflagsGroup.SET.value
-                | EflagsGroup.RESET.value
-                | EflagsGroup.UNDEFINED.value,
+                EFLAGS_EXCEPT_TEST,
                 excluded_flags,
             )
 
-            if included_flags == (
-                EflagsGroup.MODIFY.value
-                | EflagsGroup.SET.value
-                | EflagsGroup.RESET.value
-                | EflagsGroup.UNDEFINED.value
-            ):
+            if included_flags == EFLAGS_EXCEPT_TEST:
                 return included_flags
 
         return included_flags

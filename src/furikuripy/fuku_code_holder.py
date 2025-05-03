@@ -10,8 +10,9 @@ from furikuripy.fuku_inst import (
     FukuRelocation,
     FukuRelocationBase,
 )
-from furikuripy.fuku_misc import FUKU_ASSEMBLER_ARCH
+from furikuripy.fuku_misc import FUKU_ASSEMBLER_ARCH, FukuInstFlags
 from furikuripy.fuku_relocation import FukuImageRelocationX64Type
+from furikuripy.common import log
 
 
 class FukuImageRelocation(FukuRelocationBase):
@@ -227,6 +228,11 @@ class FukuCodeHolder(BaseModel):
                     else:
                         label.inst = inst_dst
                         inst_dst.label = label
+
+                    if inst_dst.flags & FukuInstFlags.FUKU_INST_DATA_CODE:
+                        log.critical(
+                            "Some instruction referenced data code, ensure it's handled properly on your own"
+                        )
 
         if not len(remap_labels):
             return
