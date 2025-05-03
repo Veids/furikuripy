@@ -61,8 +61,8 @@ class FukuAsmHoldType(Enum):
 class FukuAsm(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    inst: FukuInst = FukuInst()
-    context: Optional[FukuAsmCtx] = None
+    inst: FukuInst
+    context: FukuAsmCtx
 
     hold_type: FukuAsmHoldType = FukuAsmHoldType.ASSEMBLER_HOLD_TYPE_NOOVERWRITE
     code_holder: Optional[FukuCodeHolder] = None
@@ -77,9 +77,12 @@ class FukuAsm(BaseModel):
     asm: FukuAsmBody = FukuAsmBody()
 
     def __init__(self, arch=FUKU_ASSEMBLER_ARCH.X86, **kwargs):
-        super().__init__(**kwargs)
-
-        self.context = FukuAsmCtx(arch=arch, short_cfg=0xFF, inst=self.inst)
+        inst = FukuInst()
+        super().__init__(
+            inst=inst,
+            context=FukuAsmCtx(arch=arch, short_cfg=0xFF, inst=inst),
+            **kwargs,
+        )
 
     def set_holder(self, code_holder: FukuCodeHolder, hold_type: FukuAsmHoldType):
         self.code_holder = code_holder
