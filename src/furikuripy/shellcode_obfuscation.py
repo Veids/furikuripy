@@ -1,5 +1,3 @@
-import pstats
-import cProfile
 import typer
 import pickle
 import random
@@ -215,59 +213,53 @@ def obfuscate(
     ] = [],
     trace_inst: Annotated[bool, typer.Option(help="Enable instruction trace")] = False,
 ):
-    with cProfile.Profile() as profile:
-        log.info("Version: %s", importlib.metadata.version("furikuripy"))
-        log.info("Seed: %d", seed)
-        rng.seed(seed)
+    log.info("Version: %s", importlib.metadata.version("furikuripy"))
+    log.info("Seed: %d", seed)
+    rng.seed(seed)
 
-        if not trace_inst:
-            trace.disabled = True
+    if not trace_inst:
+        trace.disabled = True
 
-        if input_is_analysis:
-            code_holder = pickle.load(input)
-        else:
-            if arch != FUKU_ASSEMBLER_ARCH.X64:
-                raise NotImplementedError("Only x64 is supported today")
+    if input_is_analysis:
+        code_holder = pickle.load(input)
+    else:
+        if arch != FUKU_ASSEMBLER_ARCH.X64:
+            raise NotImplementedError("Only x64 is supported today")
 
-            data = bytearray(input.read())
-            code_holder = perform_analysis(
-                data, arch, definitions, ranges, patches, relocations, virtual_address
-            )
-
-        settings = FukuObfuscationSettings(
-            complexity=complexity,
-            number_of_passes=number_of_passes,
-            junk_chance=junk_chance,
-            block_chance=block_chance,
-            mutate_chance=mutate_chance,
-            asm_cfg=(
-                FukuAsmShortCfg.USE_EAX_SHORT.value
-                | FukuAsmShortCfg.USE_DISP_SHORT.value
-                | FukuAsmShortCfg.USE_IMM_SHORT.value
-            ),
-            is_not_allowed_unstable_stack=forbid_stack_operations,
-            is_not_allowed_relocations=not relocations_allowed,
+        data = bytearray(input.read())
+        code_holder = perform_analysis(
+            data, arch, definitions, ranges, patches, relocations, virtual_address
         )
 
-        obfuscator = FukuObfuscator(code=code_holder, settings=settings)
+    settings = FukuObfuscationSettings(
+        complexity=complexity,
+        number_of_passes=number_of_passes,
+        junk_chance=junk_chance,
+        block_chance=block_chance,
+        mutate_chance=mutate_chance,
+        asm_cfg=(
+            FukuAsmShortCfg.USE_EAX_SHORT.value
+            | FukuAsmShortCfg.USE_DISP_SHORT.value
+            | FukuAsmShortCfg.USE_IMM_SHORT.value
+        ),
+        is_not_allowed_unstable_stack=forbid_stack_operations,
+        is_not_allowed_relocations=not relocations_allowed,
+    )
 
-        start_time = time.time()
+    obfuscator = FukuObfuscator(code=code_holder, settings=settings)
 
-        obfuscator.obfuscate_code()
+    start_time = time.time()
 
-        res, associations, relocationsObfuscated = code_holder.finalize_code()
-        code = code_holder.dump_code()
-        end_time = time.time()
+    obfuscator.obfuscate_code()
 
-        log.info(
-            f"Finished in {datetime.fromtimestamp(end_time) - datetime.fromtimestamp(start_time)}"
-        )
-        output.write(code)
+    res, associations, relocationsObfuscated = code_holder.finalize_code()
+    code = code_holder.dump_code()
+    end_time = time.time()
 
-    results = pstats.Stats(profile)
-    results.sort_stats(pstats.SortKey.TIME)
-    results.print_stats()
-    results.dump_stats("profile.pprof")
+    log.info(
+        f"Finished in {datetime.fromtimestamp(end_time) - datetime.fromtimestamp(start_time)}"
+    )
+    output.write(code)
 
 
 @app.command()

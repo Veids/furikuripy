@@ -48,6 +48,7 @@ class FukuRipRelocation(FukuRelocationBase):
 
 
 class FukuInst(BaseModel):
+    __eq__ = object.__eq__
     __hash__ = object.__hash__
 
     id: int = -1
@@ -129,6 +130,3 @@ class FukuInst(BaseModel):
         self.cpu_registers = src.cpu_registers
         self.flags = src.flags
         self.offset = src.offset
-
-    def __eq__(self, other: Self) -> bool:
-        return hash(self) == hash(other)
