@@ -14,13 +14,13 @@ A command-line tool for obfuscating shellcode by introducing relocations, junk i
 You can install shellcode_obfuscation via pipx:
 
 ```bash
-pipx install git+https://github.com/veids/shellcode_obfuscation.git
+pipx install git+https://github.com/veids/furikuripy.git
 ```
 
 ## Usage
 
 ```bash
-shellcode_obfuscation obfuscate [OPTIONS]
+shellcode_obfuscation [OPTIONS]
 ```
 
 ### Basic Options
@@ -32,7 +32,6 @@ shellcode_obfuscation obfuscate [OPTIONS]
 | **Required**    | Short | Type       | Description                            | Default |
 | ------------------------------------------------ | ---- | ---------- | -------------------------------------------------------- | ---------------------- |
 | `--output`                                       | `-o` | `FILENAME` | Output file                                              | **Required**           |
-| `--input-is-analysis` / `--no-input-is-analysis` |      | Flag       | Treat input as analysis pickle rather than raw shellcode | `no-input-is-analysis` |
 | `--help`                                         | `-h` | Flag       | Show this help message and exit                          |                        |
 
 ### Obfuscation Options
@@ -70,17 +69,6 @@ shellcode_obfuscation obfuscate [OPTIONS]
     --number-of-passes 3 \
     --junk-chance 40 \
     --block-chance 20
-  ```
-
-- Obfuscate using an existing analysis pickle:
-
-  ```bash
-  shellcode_obfuscation obfuscate \
-    -i analysis.pkl \
-    -o out.bin \
-    --input-is-analysis \
-    --relocations-allowed \
-    --patches "0:90;10:CC"
   ```
 
 - Specify custom ranges and relocations:

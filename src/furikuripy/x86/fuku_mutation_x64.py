@@ -151,7 +151,9 @@ class FukuMutationX64(BaseModel):
     def fukutuation(
         self, ctx: FukuMutationCtx, inst: FukuInst, next_inst: Optional[FukuInst]
     ):
-        if inst.flags & (FukuInstFlags.FUKU_INST_JUNK_CODE | FukuInstFlags.FUKU_INST_DATA_CODE):
+        if inst.flags & (
+            FukuInstFlags.FUKU_INST_JUNK_CODE | FukuInstFlags.FUKU_INST_DATA_CODE
+        ):
             return
 
         is_chanced_junk = self.settings.roll_junk_chance()
